@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
@@ -11,7 +11,6 @@ const sourceConfigs = {
     placeholder: 'https://purdue.brightspace.com/d2l/le/calendar/feed/user/feed.ics?token=...',
     helpText: 'Brightspace → Calendar → Subscribe → Copy the iCal feed URL',
     icon: 'document',
-    color: 'blue',
   },
   purdue: {
     label: 'Class Schedule',
@@ -19,71 +18,108 @@ const sourceConfigs = {
     placeholder: 'https://timetable.mypurdue.purdue.edu/Timetabling/export?x=...',
     helpText: 'Purdue Timetabling → Export → Personal Schedule → iCalendar',
     icon: 'schedule',
-    color: 'gold',
   },
 }
 
 export default function ConnectSchedule() {
   const navigate = useNavigate()
-  const { onboarding, refreshSession, startPurdueLink, user } = useAuth()
+  const { onboarding, refreshSession, user } = useAuth()
+
+  const [purdueEmail, setPurdueEmail] = useState('')
+  const [linking, setLinking] = useState(false)
+
   const [icsUrl, setIcsUrl] = useState('')
   const [sourceType, setSourceType] = useState('brightspace')
   const [sources, setSources] = useState([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [linking, setLinking] = useState(false)
+  const [autoDetecting, setAutoDetecting] = useState(false)
+  const [automationJob, setAutomationJob] = useState(null)
+  const handledAutomationId = useRef(null)
+
   const [banner, setBanner] = useState('')
   const [bannerType, setBannerType] = useState('info')
 
+  const needsPurdueConnection = onboarding?.needsPurdueConnection
   const config = sourceConfigs[sourceType]
 
-  async function loadData() {
-    setLoading(true)
+  const loadData = useCallback(async () => {
     try {
       const sourceRes = await authRequest('/api/me/sources')
       setSources(sourceRes.sources || [])
     } catch (error) {
+      setBannerType('error')
       setBanner(error.message || 'Could not load linked sources.')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!needsPurdueConnection) loadData()
+  }, [loadData, needsPurdueConnection])
+
+  // ── Step 1: Link Purdue ──
+
+  async function handleLinkPurdue(e) {
+    e.preventDefault()
+    if (!purdueEmail.trim() || !purdueEmail.includes('@')) {
+      setBannerType('error')
+      setBanner('Please enter a valid Purdue email address.')
+      return
+    }
+    setLinking(true)
+    setBanner('')
+    try {
+      await authRequest('/api/purdue/mock-link', {
+        method: 'POST',
+        body: JSON.stringify({ email: purdueEmail.trim() }),
+      })
+      await refreshSession()
+      setPurdueEmail('')
+      setBannerType('success')
+      setBanner('Purdue account linked! You can now connect your calendars.')
+    } catch (error) {
+      setBannerType('error')
+      setBanner(error.message || 'Could not link Purdue account.')
     } finally {
-      setLoading(false)
+      setLinking(false)
     }
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  // ── Step 2: Connect source ──
 
-  async function handleConnect(e) {
-    e.preventDefault()
+  const connectSource = useCallback(async (nextUrl = icsUrl) => {
     setBanner('')
     setBannerType('info')
     setSaving(true)
     try {
-      const endpoint = sourceType === 'brightspace' 
-        ? '/api/sources/brightspace/schedule' 
+      const endpoint = sourceType === 'brightspace'
+        ? '/api/sources/brightspace/schedule'
         : '/api/sources/purdue/schedule'
       await authRequest(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ icsUrl, label: config.label }),
+        body: JSON.stringify({ icsUrl: nextUrl, label: config.label }),
       })
       setIcsUrl('')
       await refreshSession()
       await loadData()
       setBannerType('success')
-      setBanner(sourceType === 'brightspace' 
-        ? 'Brightspace calendar connected! View your tasks in the Tasks page.'
-        : 'Class schedule connected! View your classes in the Schedule page.')
+      setBanner(sourceType === 'brightspace'
+        ? 'Brightspace calendar connected!'
+        : 'Class schedule connected!')
     } catch (error) {
       setBannerType('error')
       setBanner(error.message || 'Could not connect this source.')
     } finally {
       setSaving(false)
     }
+  }, [config.label, icsUrl, loadData, refreshSession, sourceType])
+
+  async function handleConnect(e) {
+    e.preventDefault()
+    await connectSource()
   }
 
   async function handleSync(sourceId) {
     setBanner('')
-    setBannerType('info')
     try {
       await authRequest(`/api/sync/${sourceId}`, { method: 'POST' })
       await refreshSession()
@@ -97,12 +133,10 @@ export default function ConnectSchedule() {
   }
 
   async function handleDelete(sourceId) {
-    if (!confirm('Delete this source and all its imported items?')) {
-      return
-    }
+    if (!confirm('Delete this source and all its imported items?')) return
     setBanner('')
     try {
-      await authRequest(`/api/sources/${sourceId}`, { method: 'DELETE' })
+      await authRequest(`/api/me/sources/${encodeURIComponent(sourceId)}/remove`, { method: 'POST' })
       await refreshSession()
       await loadData()
       setBannerType('success')
@@ -113,28 +147,151 @@ export default function ConnectSchedule() {
     }
   }
 
-  function handleLinkPurdue() {
-    setLinking(true)
-    startPurdueLink('/setup')
+  async function handleAutoDetect() {
+    setBanner('')
+    setBannerType('info')
+    handledAutomationId.current = null
+    try {
+      const response = await authRequest('/api/purdue/calendar-link/start', { method: 'POST' })
+      setAutomationJob(response.job || null)
+      setAutoDetecting(true)
+    } catch (error) {
+      setBannerType('error')
+      setBanner(error.message || 'Could not start Purdue timetable automation.')
+    }
   }
 
-  function getSourceTypeLabel(sourceType) {
-    if (sourceType === 'brightspace_ical') return 'Brightspace'
-    if (sourceType === 'purdue_schedule_ical') return 'Class Schedule'
-    return sourceType
+  async function handleCancelAutoDetect() {
+    try {
+      await authRequest('/api/purdue/calendar-link/cancel', { method: 'POST' })
+      setAutomationJob(null)
+      setAutoDetecting(false)
+      setBannerType('info')
+      setBanner('Automatic Purdue timetable detection cancelled.')
+    } catch (error) {
+      setBannerType('error')
+      setBanner(error.message || 'Could not cancel Purdue timetable automation.')
+    }
   }
 
-  function getSourceIcon(sourceType) {
-    if (sourceType === 'brightspace_ical') return 'document'
+  useEffect(() => {
+    if (!autoDetecting) return undefined
+    let cancelled = false
+    const poll = window.setInterval(async () => {
+      try {
+        const response = await authRequest('/api/purdue/calendar-link/status')
+        if (cancelled) return
+        const job = response.job || null
+        setAutomationJob(job)
+        if (!job) { setAutoDetecting(false); window.clearInterval(poll); return }
+        if (job.status === 'ready' && job.icsUrl && handledAutomationId.current !== job.id) {
+          handledAutomationId.current = job.id
+          setIcsUrl(job.icsUrl)
+          setBannerType('info')
+          setBanner('Purdue iCalendar URL captured. Connecting…')
+          await connectSource(job.icsUrl)
+          setAutomationJob(job)
+          setAutoDetecting(false)
+          window.clearInterval(poll)
+          return
+        }
+        if (['error', 'cancelled'].includes(job.status)) {
+          setAutoDetecting(false)
+          setBannerType(job.status === 'error' ? 'error' : 'info')
+          setBanner(job.error || job.message || 'Automatic Purdue timetable detection stopped.')
+          window.clearInterval(poll)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setAutoDetecting(false)
+          setBannerType('error')
+          setBanner(error.message || 'Could not poll Purdue timetable automation.')
+          window.clearInterval(poll)
+        }
+      }
+    }, 2000)
+    return () => { cancelled = true; window.clearInterval(poll) }
+  }, [autoDetecting, connectSource])
+
+  // ── Helpers ──
+
+  function getSourceTypeLabel(st) {
+    if (st === 'brightspace_ical') return 'Brightspace'
+    if (st === 'purdue_schedule_ical') return 'Class Schedule'
+    return st
+  }
+
+  function getSourceIcon(st) {
+    if (st === 'brightspace_ical') return 'document'
     return 'schedule'
   }
 
-  const needsPurdueConnection = onboarding?.needsPurdueConnection
-  const hasLinkedPurdue = onboarding?.hasPurdueLinked
+  // ── Render ──
 
-  const brightspaceSources = sources.filter(s => s.sourceType === 'brightspace_ical')
-  const scheduleSources = sources.filter(s => s.sourceType === 'purdue_schedule_ical')
+  const bannerEl = banner && (
+    <div className={`mb-6 card p-4 text-[13px] flex items-start gap-3 ${
+      bannerType === 'success' ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/20' :
+      bannerType === 'error' ? 'bg-[var(--color-error)]/10 text-[var(--color-error)] border-[var(--color-error)]/20' :
+      'text-[var(--color-txt-1)]'
+    }`}>
+      <Icon name={bannerType === 'success' ? 'check' : bannerType === 'error' ? 'close' : 'info'} size={16} className="shrink-0 mt-0.5" />
+      {banner}
+    </div>
+  )
 
+  // ────────────────────────────────────────
+  // STEP 1 — Link Purdue email
+  // ────────────────────────────────────────
+  if (needsPurdueConnection) {
+    return (
+      <div className="max-w-[520px] mx-auto px-6 py-12 pb-24">
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--color-gold)]/15 text-[var(--color-gold)] flex items-center justify-center mx-auto mb-4">
+            <Icon name="graduation" size={28} />
+          </div>
+          <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Connect your Purdue email</h1>
+          <p className="text-[14px] text-[var(--color-txt-2)] mt-2 max-w-[400px] mx-auto">
+            Link your Purdue identity so you can import your class schedule and assignments.
+          </p>
+        </div>
+
+        {bannerEl}
+
+        <div className="card p-6">
+          <form onSubmit={handleLinkPurdue}>
+            <label htmlFor="purdue-email" className="block text-[13px] font-medium text-[var(--color-txt-1)] mb-2">
+              Purdue email address
+            </label>
+            <input
+              id="purdue-email"
+              type="email"
+              value={purdueEmail}
+              onChange={(e) => setPurdueEmail(e.target.value)}
+              placeholder="you@purdue.edu"
+              className="input w-full px-4 py-3 text-[14px] mb-4"
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={linking || !purdueEmail.trim()}
+              className="btn btn-primary w-full text-[14px] px-5 py-3 justify-center disabled:opacity-50"
+            >
+              <Icon name="graduation" size={16} />
+              {linking ? 'Linking…' : 'Link Purdue Account'}
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-[12px] text-[var(--color-txt-3)] mt-4">
+          Signed in as <span className="font-medium text-[var(--color-txt-2)]">{user?.email}</span>
+        </p>
+      </div>
+    )
+  }
+
+  // ────────────────────────────────────────
+  // STEP 2 — Connect calendar sources
+  // ────────────────────────────────────────
   return (
     <div className="max-w-[800px] mx-auto px-6 py-8 pb-24">
       <div className="mb-8">
@@ -144,16 +301,7 @@ export default function ConnectSchedule() {
         </p>
       </div>
 
-      {banner && (
-        <div className={`mb-6 card p-4 text-[13px] flex items-start gap-3 ${
-          bannerType === 'success' ? 'bg-[var(--color-success)]/10 text-[var(--color-success)] border-[var(--color-success)]/20' :
-          bannerType === 'error' ? 'bg-[var(--color-error)]/10 text-[var(--color-error)] border-[var(--color-error)]/20' :
-          'text-[var(--color-txt-1)]'
-        }`}>
-          <Icon name={bannerType === 'success' ? 'check' : bannerType === 'error' ? 'close' : 'info'} size={16} className="shrink-0 mt-0.5" />
-          {banner}
-        </div>
-      )}
+      {bannerEl}
 
       {/* Connected Sources */}
       {sources.length > 0 && (
@@ -166,7 +314,7 @@ export default function ConnectSchedule() {
               <div key={source.id} className="card p-4">
                 <div className="flex items-start gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    source.sourceType === 'brightspace_ical' 
+                    source.sourceType === 'brightspace_ical'
                       ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                       : 'bg-[var(--color-gold)]/15 text-[var(--color-gold)]'
                   }`}>
@@ -176,7 +324,7 @@ export default function ConnectSchedule() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-[var(--color-txt-0)]">{source.label}</span>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                        source.status === 'ready' 
+                        source.status === 'ready'
                           ? 'bg-[var(--color-success)]/15 text-[var(--color-success)]'
                           : source.status === 'error'
                           ? 'bg-[var(--color-error)]/15 text-[var(--color-error)]'
@@ -196,18 +344,10 @@ export default function ConnectSchedule() {
                     )}
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <button 
-                      type="button" 
-                      onClick={() => handleSync(source.id)} 
-                      className="btn btn-secondary text-[12px] px-3 py-1.5"
-                    >
+                    <button type="button" onClick={() => handleSync(source.id)} className="btn btn-secondary text-[12px] px-3 py-1.5">
                       Sync
                     </button>
-                    <button 
-                      type="button" 
-                      onClick={() => handleDelete(source.id)} 
-                      className="btn text-[12px] px-3 py-1.5 text-[var(--color-error)] hover:bg-[var(--color-error)]/10"
-                    >
+                    <button type="button" onClick={() => handleDelete(source.id)} className="btn text-[12px] px-3 py-1.5 text-[var(--color-error)] hover:bg-[var(--color-error)]/10">
                       <Icon name="trash" size={14} />
                     </button>
                   </div>
@@ -253,11 +393,8 @@ export default function ConnectSchedule() {
 
             <button
               type="button"
-              onClick={() => !needsPurdueConnection && setSourceType('purdue')}
-              disabled={needsPurdueConnection}
+              onClick={() => setSourceType('purdue')}
               className={`p-4 rounded-xl border-2 text-left transition-all ${
-                needsPurdueConnection ? 'opacity-50 cursor-not-allowed' : ''
-              } ${
                 sourceType === 'purdue'
                   ? 'border-[var(--color-gold)] bg-[var(--color-gold)]/10'
                   : 'border-[var(--color-border)] hover:border-[var(--color-border-2)]'
@@ -274,30 +411,44 @@ export default function ConnectSchedule() {
                 <span className="font-medium text-[var(--color-txt-0)]">Class Schedule</span>
               </div>
               <p className="text-[12px] text-[var(--color-txt-2)]">
-                {needsPurdueConnection ? 'Link Purdue account first' : 'Class meeting times'}
+                Class meeting times from Purdue Timetabling
               </p>
             </button>
           </div>
         </div>
 
-        {/* Link Purdue prompt if needed */}
-        {sourceType === 'purdue' && needsPurdueConnection && (
-          <div className="mb-5 p-4 rounded-xl bg-[var(--color-gold)]/10 border border-[var(--color-gold)]/20">
-            <div className="text-[14px] font-medium text-[var(--color-txt-0)] mb-2">
-              Link your Purdue account first
+        {/* Auto-detect (purdue only) */}
+        {sourceType === 'purdue' && (
+          <div className="mb-5 p-4 rounded-xl bg-[var(--color-bg-2)] border border-[var(--color-border)]">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <div className="text-[14px] font-medium text-[var(--color-txt-0)]">
+                  Detect schedule automatically
+                </div>
+                <p className="text-[12px] text-[var(--color-txt-2)] mt-1">
+                  Opens a browser, waits for Purdue login and Duo, then captures the iCalendar URL.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleAutoDetect}
+                  disabled={autoDetecting || saving}
+                  className="btn btn-secondary text-[12px] px-4 py-2 disabled:opacity-50"
+                >
+                  <Icon name="sparkles" size={14} />
+                  {autoDetecting ? 'Watching Purdue…' : 'Auto-detect URL'}
+                </button>
+                {autoDetecting && (
+                  <button type="button" onClick={handleCancelAutoDetect} className="btn btn-ghost text-[12px] px-4 py-2">
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>
-            <p className="text-[13px] text-[var(--color-txt-2)] mb-3">
-              To import your class schedule, you need to link your Purdue identity.
-            </p>
-            <button
-              type="button"
-              onClick={handleLinkPurdue}
-              disabled={linking}
-              className="btn btn-primary text-[13px] px-4 py-2"
-            >
-              <Icon name="graduation" size={15} />
-              {linking ? 'Redirecting…' : 'Link Purdue Account'}
-            </button>
+            {automationJob?.message && (
+              <div className="text-[12px] text-[var(--color-txt-2)] mt-3">{automationJob.message}</div>
+            )}
           </div>
         )}
 
@@ -318,10 +469,9 @@ export default function ConnectSchedule() {
               {config.helpText}
             </p>
           </div>
-
           <button
             type="submit"
-            disabled={!icsUrl.trim() || saving || (sourceType === 'purdue' && needsPurdueConnection)}
+            disabled={!icsUrl.trim() || saving}
             className="btn btn-primary text-[13px] px-5 py-2.5 disabled:opacity-50"
           >
             <Icon name={config.icon} size={15} />
@@ -330,7 +480,7 @@ export default function ConnectSchedule() {
         </form>
       </div>
 
-      {/* Quick Links */}
+      {/* Footer links */}
       <div className="mt-6 flex items-center justify-between text-[13px]">
         <div className="flex gap-4">
           <Link to="/assignments" className="text-[var(--color-accent)] hover:underline flex items-center gap-1">
@@ -342,11 +492,7 @@ export default function ConnectSchedule() {
             View Schedule
           </Link>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate('/dashboard')}
-          className="btn btn-secondary text-[13px] px-4 py-2"
-        >
+        <button type="button" onClick={() => navigate('/dashboard')} className="btn btn-secondary text-[13px] px-4 py-2">
           Go to Dashboard
         </button>
       </div>

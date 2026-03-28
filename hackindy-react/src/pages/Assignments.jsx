@@ -230,7 +230,6 @@ export default function Assignments() {
             All ({items.filter(i => i.category !== 'class' && !eventCategories.includes(i.category)).length})
           </button>
           {categories.filter(c => c.id !== 'class' && !eventCategories.includes(c.id)).map(cat => {
-            const config = categoryConfig[cat.id] || categoryConfig.event
             const isActive = selectedCategories.includes(cat.id)
             return (
               <button
