@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sign in · Purdue Indy Hub</title>
 <script src="icons.js"></script>
+<script src="browser-auth.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -316,7 +317,28 @@ function toggleTheme() {
   localStorage.setItem('pih-dark', dark ? '1' : '0');
   updateThemeIcon();
 }
-document.addEventListener('DOMContentLoaded', () => { updateThemeIcon(); });
+document.addEventListener('DOMContentLoaded', async () => {
+  updateThemeIcon();
+
+  try {
+    await window.PIHAuth.redirectIfAuthenticated('index.html');
+    const config = await window.PIHAuth.getAuthConfig();
+    const socialButtons = {
+      google: document.querySelector('.social-btn:nth-child(1)'),
+      microsoft: document.querySelector('.social-btn:nth-child(2)'),
+      github: document.querySelector('.social-btn:nth-child(3)'),
+    };
+
+    Object.entries(socialButtons).forEach(([provider, button]) => {
+      if (!button || config.socialProviders.includes(provider)) return;
+      button.disabled = true;
+      button.style.opacity = '0.55';
+      button.title = `${provider} sign-in is not configured`;
+    });
+  } catch (error) {
+    console.error(error);
+  }
+});
 
 // ── Tab switching ──
 let currentTab = 'signin';
@@ -385,7 +407,7 @@ function showBanner(msg) {
 }
 
 // ── Form submission ──
-function handleSubmit(e) {
+async function handleSubmit(e) {
   e.preventDefault();
   clearErrors();
   let valid = true;
@@ -407,47 +429,40 @@ function handleSubmit(e) {
 
   if (!valid) return;
 
-  // Show loading state
   const btn = document.getElementById('submit-btn');
   btn.classList.add('loading');
 
-  // ── BetterAuth integration point ──
-  // Replace this block with actual BetterAuth API calls:
-  //
-  // Sign in:
-  //   fetch('/api/auth/sign-in/email', {
-  //     method: 'POST',
-  //     headers: { 'Content-Type': 'application/json' },
-  //     body: JSON.stringify({ email, password, rememberMe: remember })
-  //   })
-  //
-  // Sign up:
-  //   fetch('/api/auth/sign-up/email', {
-  //     method: 'POST',
-  //     headers: { 'Content-Type': 'application/json' },
-  //     body: JSON.stringify({ name, email, password })
-  //   })
-  //
-  // On success: window.location.href = '/';
-  // On error:   showBanner(error.message);
-
-  // Demo: simulate async auth then redirect
-  setTimeout(() => {
-    btn.classList.remove('loading');
-    if (email === 'fail@test.com') {
-      showBanner('Invalid email or password. Please try again.');
+  try {
+    if (currentTab === 'signup') {
+      const name = document.getElementById('name').value.trim();
+      await window.PIHAuth.request('/api/auth/sign-up/email', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password }),
+      });
     } else {
-      window.location.href = 'index.html';
+      await window.PIHAuth.request('/api/auth/sign-in/email', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, rememberMe: remember }),
+      });
     }
-  }, 1200);
+
+    window.location.href = window.PIHAuth.getNextDestination();
+  } catch (error) {
+    showBanner(error.message || 'Authentication failed. Please try again.');
+  } finally {
+    btn.classList.remove('loading');
+  }
 }
 
 // ── Social auth ──
 function socialAuth(provider) {
-  // BetterAuth social: window.location.href = `/api/auth/${provider}`;
   const btn = document.querySelector(`.social-btn:nth-child(${provider === 'google' ? 1 : provider === 'microsoft' ? 2 : 3})`);
+  if (btn && btn.disabled) {
+    showBanner(`${provider} sign-in is not configured yet.`);
+    return;
+  }
   if (btn) { btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none'; }
-  setTimeout(() => { window.location.href = 'index.html'; }, 900);
+  window.location.href = `/auth/social/${provider}`;
 }
 
 // ── Forgot password ──
@@ -458,8 +473,7 @@ function forgotPassword(e) {
     showFieldErr('email', 'Enter your email first, then click forgot password.');
     return;
   }
-  // BetterAuth: fetch('/api/auth/reset-password', { method:'POST', body: JSON.stringify({ email }) })
-  alert(`Password reset link sent to ${email}. Check your inbox.`);
+  showBanner(`Password reset email wiring is not configured yet for ${email}.`);
 }
 </script>
 </body>

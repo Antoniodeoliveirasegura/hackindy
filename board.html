@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="browser-auth.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Campus Board · Purdue Indy Hub</title>
@@ -159,6 +160,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 
 <script>
 let dark=localStorage.getItem('pih-dark')==='1', sort='recent', aiOpen=false;
+let currentUserName='Antonio';
 const voted=new Set(), expanded=new Set(), repOpen=new Set();
 let posts=[
   {id:1,title:'Anyone know if ET 215 has outlets near the windows?',body:'Trying to find a good spot to charge my laptop during class. The ones by the door are always taken.',anon:true,user:'Anonymous',upvotes:14,pinned:false,time:'2h ago',replies:[
@@ -183,7 +185,7 @@ function setSort(s,el){sort=s;document.querySelectorAll('.schip').forEach(c=>c.c
 function submitPost(){
   const t=document.getElementById('af-title-inp').value.trim();if(!t)return;
   const anon=document.getElementById('af-anon').checked;
-  posts.unshift({id:Date.now(),title:t,body:document.getElementById('af-body-inp').value.trim(),anon,user:anon?'Anonymous':'Jordan S.',upvotes:0,pinned:false,time:'Just now',replies:[]});
+  posts.unshift({id:Date.now(),title:t,body:document.getElementById('af-body-inp').value.trim(),anon,user:anon?'Anonymous':currentUserName,upvotes:0,pinned:false,time:'Just now',replies:[]});
   document.getElementById('af-title-inp').value='';
   document.getElementById('af-body-inp').value='';
   document.getElementById('ask-form').classList.remove('open');
@@ -201,7 +203,7 @@ function submitReply(id){
   const inp=document.getElementById('ri-'+id);if(!inp)return;
   const t=inp.value.trim();if(!t)return;
   const p=posts.find(x=>x.id===id);if(!p)return;
-  p.replies.push({user:'Jordan S.',body:t,time:'Just now'});
+  p.replies.push({user:currentUserName,body:t,time:'Just now'});
   render();
   setTimeout(()=>{const ni=document.getElementById('ri-'+id);if(ni)ni.focus();},50);
 }
@@ -282,6 +284,9 @@ function doAI(){
 if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').innerHTML='<i data-lucide="moon"></i>';}
 lucide.createIcons();
 render();
+window.PIHAuth.requireAuth()
+  .then((session)=>{ currentUserName = window.PIHAuth.getDisplayName(session?.user); })
+  .catch(console.error);
 </script>
 </body>
 </html>

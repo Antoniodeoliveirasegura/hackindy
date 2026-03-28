@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="browser-auth.js"></script>
 
     <style>
         *{box-sizing:border-box;margin:0;padding:0;}
@@ -331,7 +332,10 @@ function doAI() {
     }, 600);
 }
 
-window.onload = init;
+window.onload = () => {
+    window.PIHAuth.requireAuth().catch(console.error);
+    init();
+};
 </script>
 </body>
 </html>
