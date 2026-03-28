@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Services · Purdue Indy Hub</title>
@@ -23,10 +24,12 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .nav-logo{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--txt0);}
 .logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;}
 .nav-links{display:flex;gap:2px;}
-.nb{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;}
+.nb{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;display:flex;align-items:center;gap:5px;}
 .nb:hover,.nb.active{background:var(--bg2);color:var(--txt0);}.nb.active{font-weight:500;}
+.nb svg{width:13px;height:13px;stroke-width:2.5;flex-shrink:0;}
 .nav-r{display:flex;align-items:center;gap:8px;}
-.tbtn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--txt0);}
+.tbtn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt0);}
+.tbtn svg{width:15px;height:15px;stroke-width:2;}
 .av{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--gold-dk);}
 .main{max-width:1000px;margin:0 auto;padding:1.5rem 2rem 5rem;}
 .page-hdr{margin-bottom:1.5rem;}
@@ -41,7 +44,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
 .svc-card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:11px;padding:1rem 1.1rem;display:flex;align-items:flex-start;gap:10px;cursor:pointer;transition:border-color .15s;}
 .svc-card:hover{border-color:var(--bdr2);}
-.svc-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
+.svc-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.svc-icon svg{width:17px;height:17px;stroke-width:2;}
 .svc-body{flex:1;min-width:0;}
 .svc-name{font-size:13px;font-weight:500;color:var(--txt0);margin-bottom:2px;}
 .svc-desc{font-size:11px;color:var(--txt2);line-height:1.4;}
@@ -56,24 +60,29 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .quick-links{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.75rem;}
 .ql-card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:10px;padding:.9rem 1rem;text-align:center;cursor:pointer;transition:border-color .15s;}
 .ql-card:hover{border-color:var(--bdr2);}
-.ql-icon{font-size:22px;margin-bottom:6px;}
+.ql-icon{height:32px;display:flex;align-items:center;justify-content:center;margin-bottom:6px;}
+.ql-icon svg{width:22px;height:22px;stroke-width:1.75;color:var(--txt1);}
 .ql-label{font-size:12px;font-weight:500;color:var(--txt0);}
 /* Campus Assistant — fixed */
 .fab-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
-.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
+.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
+.fab svg{width:20px;height:20px;stroke-width:2;}
 .fab:hover{background:#5c3a00;}.dark .fab:hover{background:#6a4400;}
 .ai-panel{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:12px;padding:1rem 1.1rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;}
 .ai-panel.open{display:block;}
 .ai-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);}
-.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:15px;line-height:1;}
+.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);display:flex;align-items:center;gap:5px;}
+.ai-hdr-txt svg{width:13px;height:13px;stroke-width:2;}
+.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);line-height:1;display:flex;align-items:center;}
+.ai-close svg{width:15px;height:15px;stroke-width:2;}
 .ai-msgs{min-height:80px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
 .ai-msg{font-size:12px;padding:8px 10px;border-radius:8px;max-width:90%;line-height:1.45;}
 .ai-msg.a{background:var(--stat);color:var(--txt0);align-self:flex-start;}
 .ai-msg.u{background:var(--gold-dk);color:var(--gold);align-self:flex-end;}
 .ai-row{display:flex;gap:6px;}
 .ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
-.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;}
+.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;cursor:pointer;display:flex;align-items:center;}
+.ai-send svg{width:14px;height:14px;stroke-width:2.5;}
 </style>
 </head>
 <body>
@@ -81,14 +90,14 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <div class="navbar">
   <div class="nav-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
   <div class="nav-links">
-    <button class="nb" onclick="location.href='index.html'">Home</button>
-    <button class="nb" onclick="location.href='map.html'">Map</button>
-    <button class="nb" onclick="location.href='schedule.html'">Schedule</button>
-    <button class="nb" onclick="location.href='events.html'">Events</button>
-    <button class="nb active">More</button>
+    <button class="nb" onclick="location.href='index.html'"><i data-lucide="home"></i>Home</button>
+    <button class="nb" onclick="location.href='map.html'"><i data-lucide="map"></i>Map</button>
+    <button class="nb" onclick="location.href='schedule.html'"><i data-lucide="calendar"></i>Schedule</button>
+    <button class="nb" onclick="location.href='events.html'"><i data-lucide="calendar-days"></i>Events</button>
+    <button class="nb active"><i data-lucide="grid-2x2"></i>More</button>
   </div>
   <div class="nav-r">
-    <button class="tbtn" id="tbtn" onclick="toggleTheme()">☀</button>
+    <button class="tbtn" id="tbtn" onclick="toggleTheme()"><i data-lucide="sun"></i></button>
     <div class="av">JS</div>
   </div>
 </div>
@@ -97,21 +106,21 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 
   <div class="quick-links">
     <div class="ql-card" onclick="location.href='schedule.html'">
-      <div class="ql-icon">📅</div><div class="ql-label">My Schedule</div>
+      <div class="ql-icon"><i data-lucide="calendar"></i></div><div class="ql-label">My Schedule</div>
     </div>
     <div class="ql-card" onclick="location.href='dining.html'">
-      <div class="ql-icon">🍽</div><div class="ql-label">Dining Menu</div>
+      <div class="ql-icon"><i data-lucide="utensils"></i></div><div class="ql-label">Dining Menu</div>
     </div>
     <div class="ql-card" onclick="location.href='transit.html'">
-      <div class="ql-icon">🚌</div><div class="ql-label">Bus Schedule</div>
+      <div class="ql-icon"><i data-lucide="bus"></i></div><div class="ql-label">Bus Schedule</div>
     </div>
     <div class="ql-card" onclick="location.href='board.html'">
-      <div class="ql-icon">💬</div><div class="ql-label">Campus Board</div>
+      <div class="ql-icon"><i data-lucide="message-square"></i></div><div class="ql-label">Campus Board</div>
     </div>
   </div>
 
   <div class="search-box">
-    <span class="sicon">⌕</span>
+    <i data-lucide="search" class="sicon"></i>
     <input type="text" id="srch" placeholder="Search services..." oninput="render()">
   </div>
   <div id="sections"></div>
@@ -121,18 +130,18 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <div class="fab-wrap">
   <div class="ai-panel" id="ai-panel">
     <div class="ai-hdr">
-      <span class="ai-hdr-txt">✦ Campus Assistant</span>
-      <button class="ai-close" onclick="toggleAI()">✕</button>
+      <span class="ai-hdr-txt"><i data-lucide="sparkles"></i>Campus Assistant</span>
+      <button class="ai-close" onclick="toggleAI()"><i data-lucide="x"></i></button>
     </div>
     <div class="ai-msgs" id="ai-msgs">
       <div class="ai-msg a">Ask me to find a service — financial aid, health center, tutoring, and more!</div>
     </div>
     <div class="ai-row">
       <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
-      <button class="ai-send" onclick="doAI()">↑</button>
+      <button class="ai-send" onclick="doAI()"><i data-lucide="arrow-up"></i></button>
     </div>
   </div>
-  <button class="fab" onclick="toggleAI()" title="Campus Assistant">✦</button>
+  <button class="fab" onclick="toggleAI()" title="Campus Assistant"><i data-lucide="bot"></i></button>
 </div>
 </div>
 
@@ -140,32 +149,32 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 let dark=localStorage.getItem('pih-dark')==='1', aiOpen=false;
 const SVCS=[
   {cat:'Academics',items:[
-    {name:'Brightspace',desc:'Course content, assignments, and grades.',icon:'📚',color:'icon-blue',url:'https://purdue.brightspace.com'},
-    {name:'BoilerClasses',desc:'Search and register for classes.',icon:'🔍',color:'icon-blue',url:'https://boilerclasses.com'},
-    {name:'myPurdue',desc:'Student portal for records and advising.',icon:'🎓',color:'icon-blue',url:'https://mypurdue.purdue.edu'},
-    {name:'Academic Success Center',desc:'Free tutoring and writing help.',icon:'✏️',color:'icon-green',url:'#asc'},
-    {name:'University Library',desc:'Research tools, databases, and study rooms.',icon:'🏛️',color:'icon-blue',url:'#lib'},
-    {name:'Degree Works',desc:'Track your degree progress and requirements.',icon:'📋',color:'icon-purple',url:'#'},
+    {name:'Brightspace',desc:'Course content, assignments, and grades.',icon:'book-open',color:'icon-blue',url:'https://purdue.brightspace.com'},
+    {name:'BoilerClasses',desc:'Search and register for classes.',icon:'search',color:'icon-blue',url:'https://boilerclasses.com'},
+    {name:'myPurdue',desc:'Student portal for records and advising.',icon:'graduation-cap',color:'icon-blue',url:'https://mypurdue.purdue.edu'},
+    {name:'Academic Success Center',desc:'Free tutoring and writing help.',icon:'pencil',color:'icon-green',url:'#asc'},
+    {name:'University Library',desc:'Research tools, databases, and study rooms.',icon:'book-marked',color:'icon-blue',url:'#lib'},
+    {name:'Degree Works',desc:'Track your degree progress and requirements.',icon:'clipboard-list',color:'icon-purple',url:'#'},
   ]},
   {cat:'Communication',items:[
-    {name:'Purdue Email',desc:'@purdue.edu student email via Outlook.',icon:'✉️',color:'icon-blue',url:'https://outlook.com'},
-    {name:'Microsoft Teams',desc:'Collaborate with classmates and faculty.',icon:'💬',color:'icon-purple',url:'https://teams.microsoft.com'},
-    {name:'Slack Workspace',desc:'CS department and club channels.',icon:'#️⃣',color:'icon-purple',url:'#'},
+    {name:'Purdue Email',desc:'@purdue.edu student email via Outlook.',icon:'mail',color:'icon-blue',url:'https://outlook.com'},
+    {name:'Microsoft Teams',desc:'Collaborate with classmates and faculty.',icon:'message-square',color:'icon-purple',url:'https://teams.microsoft.com'},
+    {name:'Slack Workspace',desc:'CS department and club channels.',icon:'hash',color:'icon-purple',url:'#'},
   ]},
   {cat:'Finance & Housing',items:[
-    {name:'Student Accounts',desc:'View and pay your tuition balance.',icon:'💳',color:'icon-amber',url:'#'},
-    {name:'Financial Aid',desc:'Manage loans, grants, and scholarships.',icon:'💰',color:'icon-green',url:'#'},
-    {name:'JagLine',desc:'IUPUI housing and residence life portal.',icon:'🏠',color:'icon-amber',url:'#'},
+    {name:'Student Accounts',desc:'View and pay your tuition balance.',icon:'credit-card',color:'icon-amber',url:'#'},
+    {name:'Financial Aid',desc:'Manage loans, grants, and scholarships.',icon:'wallet',color:'icon-green',url:'#'},
+    {name:'JagLine',desc:'IUPUI housing and residence life portal.',icon:'home',color:'icon-amber',url:'#'},
   ]},
   {cat:'Health & Wellness',items:[
-    {name:'Student Health Center',desc:'On-campus health services and appointments.',icon:'🏥',color:'icon-pink',url:'#'},
-    {name:'Counseling Center',desc:'Mental health resources and counseling.',icon:'🧠',color:'icon-pink',url:'#'},
-    {name:'Campus Recreation',desc:'Gym access, classes, and intramural sports.',icon:'🏋️',color:'icon-green',url:'#'},
+    {name:'Student Health Center',desc:'On-campus health services and appointments.',icon:'heart-pulse',color:'icon-pink',url:'#'},
+    {name:'Counseling Center',desc:'Mental health resources and counseling.',icon:'brain',color:'icon-pink',url:'#'},
+    {name:'Campus Recreation',desc:'Gym access, classes, and intramural sports.',icon:'dumbbell',color:'icon-green',url:'#'},
   ]},
   {cat:'Career & Professional',items:[
-    {name:'Career Center',desc:'Resume help, job postings, and career fairs.',icon:'💼',color:'icon-blue',url:'#'},
-    {name:'Handshake',desc:'Internship and job listings for students.',icon:'🤝',color:'icon-amber',url:'https://joinhandshake.com'},
-    {name:'LinkedIn Learning',desc:'Free online courses with student account.',icon:'📈',color:'icon-blue',url:'https://linkedin.com/learning'},
+    {name:'Career Center',desc:'Resume help, job postings, and career fairs.',icon:'briefcase',color:'icon-blue',url:'#'},
+    {name:'Handshake',desc:'Internship and job listings for students.',icon:'users',color:'icon-amber',url:'https://joinhandshake.com'},
+    {name:'LinkedIn Learning',desc:'Free online courses with student account.',icon:'trending-up',color:'icon-blue',url:'https://linkedin.com/learning'},
   ]},
 ];
 function render(){
@@ -176,7 +185,7 @@ function render(){
       <div class="section-title">${s.cat}</div>
       <div class="cards-grid">${s.items.map(i=>`
         <div class="svc-card" onclick="openLink('${i.url}')">
-          <div class="svc-icon ${i.color}">${i.icon}</div>
+          <div class="svc-icon ${i.color}"><i data-lucide="${i.icon}"></i></div>
           <div class="svc-body">
             <div class="svc-name">${i.name}</div>
             <div class="svc-desc">${i.desc}</div>
@@ -185,6 +194,7 @@ function render(){
         </div>`).join('')}
       </div>
     </div>`).join('');
+  lucide.createIcons();
 }
 function openLink(url){
   if(url==='#asc')location.href='map.html';
@@ -194,7 +204,7 @@ function openLink(url){
 function toggleTheme(){
   dark=!dark;
   document.getElementById('app').className=dark?'dark':'';
-  document.getElementById('tbtn').textContent=dark?'☽':'☀';
+  document.getElementById('tbtn').innerHTML=dark?'<i data-lucide="moon"></i>':'<i data-lucide="sun"></i>';lucide.createIcons();
   localStorage.setItem('pih-dark',dark?'1':'0');
 }
 
@@ -235,8 +245,9 @@ function doAI(){
   msgs.scrollTop=msgs.scrollHeight;
 }
 
-if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').textContent='☽';}
+if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').innerHTML='<i data-lucide="moon"></i>';}
 render();
+lucide.createIcons();
 </script>
 </body>
 </html>

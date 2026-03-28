@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Campus Board · Purdue Indy Hub</title>
@@ -23,10 +24,12 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .nav-logo{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--txt0);}
 .logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;}
 .nav-links{display:flex;gap:2px;}
-.nb{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;}
+.nb{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;display:flex;align-items:center;gap:5px;}
 .nb:hover,.nb.active{background:var(--bg2);color:var(--txt0);}.nb.active{font-weight:500;}
+.nb svg{width:13px;height:13px;stroke-width:2.5;flex-shrink:0;}
 .nav-r{display:flex;align-items:center;gap:8px;}
-.tbtn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--txt0);}
+.tbtn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt0);}
+.tbtn svg{width:15px;height:15px;stroke-width:2;}
 .av{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--gold-dk);}
 .main{max-width:760px;margin:0 auto;padding:1.5rem 2rem 5rem;}
 .page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;}
@@ -75,20 +78,24 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .dark .show-replies{color:#93c2f0;}
 /* Campus Assistant — fixed */
 .fab-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
-.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
+.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
+.fab svg{width:20px;height:20px;stroke-width:2;}
 .fab:hover{background:#5c3a00;}.dark .fab:hover{background:#6a4400;}
 .ai-panel{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:12px;padding:1rem 1.1rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;}
 .ai-panel.open{display:block;}
 .ai-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);}
-.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:15px;line-height:1;}
+.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);display:flex;align-items:center;gap:5px;}
+.ai-hdr-txt svg{width:13px;height:13px;stroke-width:2;}
+.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);line-height:1;display:flex;align-items:center;}
+.ai-close svg{width:15px;height:15px;stroke-width:2;}
 .ai-msgs{min-height:80px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
 .ai-msg{font-size:12px;padding:8px 10px;border-radius:8px;max-width:90%;line-height:1.45;}
 .ai-msg.a{background:var(--stat);color:var(--txt0);align-self:flex-start;}
 .ai-msg.u{background:var(--gold-dk);color:var(--gold);align-self:flex-end;}
 .ai-row{display:flex;gap:6px;}
 .ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
-.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;}
+.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;cursor:pointer;display:flex;align-items:center;}
+.ai-send svg{width:14px;height:14px;stroke-width:2.5;}
 </style>
 </head>
 <body>
@@ -96,21 +103,21 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <div class="navbar">
   <div class="nav-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
   <div class="nav-links">
-    <button class="nb" onclick="location.href='index.html'">Home</button>
-    <button class="nb" onclick="location.href='map.html'">Map</button>
-    <button class="nb" onclick="location.href='schedule.html'">Schedule</button>
-    <button class="nb" onclick="location.href='events.html'">Events</button>
-    <button class="nb" onclick="location.href='services.html'">More</button>
+    <button class="nb" onclick="location.href='index.html'"><i data-lucide="home"></i>Home</button>
+    <button class="nb" onclick="location.href='map.html'"><i data-lucide="map"></i>Map</button>
+    <button class="nb" onclick="location.href='schedule.html'"><i data-lucide="calendar"></i>Schedule</button>
+    <button class="nb" onclick="location.href='events.html'"><i data-lucide="calendar-days"></i>Events</button>
+    <button class="nb" onclick="location.href='services.html'"><i data-lucide="grid-2x2"></i>More</button>
   </div>
   <div class="nav-r">
-    <button class="tbtn" id="tbtn" onclick="toggleTheme()">☀</button>
+    <button class="tbtn" id="tbtn" onclick="toggleTheme()"><i data-lucide="sun"></i></button>
     <div class="av">JS</div>
   </div>
 </div>
 <div class="main">
   <div class="page-hdr">
     <div><h1>Campus Board</h1><p>Ask questions, share tips, and connect with other students.</p></div>
-    <button class="ask-btn" onclick="toggleForm()">+ Ask a question</button>
+    <button class="ask-btn" onclick="toggleForm()"><i data-lucide="plus" style="width:14px;height:14px;stroke-width:2.5;vertical-align:-2px;"></i>Ask a question</button>
   </div>
   <div class="ask-form" id="ask-form">
     <div class="af-title">New question <button class="af-close" onclick="toggleForm()">✕</button></div>
@@ -135,18 +142,18 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <div class="fab-wrap">
   <div class="ai-panel" id="ai-panel">
     <div class="ai-hdr">
-      <span class="ai-hdr-txt">✦ Campus Assistant</span>
-      <button class="ai-close" onclick="toggleAI()">✕</button>
+      <span class="ai-hdr-txt"><i data-lucide="sparkles"></i>Campus Assistant</span>
+      <button class="ai-close" onclick="toggleAI()"><i data-lucide="x"></i></button>
     </div>
     <div class="ai-msgs" id="ai-msgs">
       <div class="ai-msg a">Have a question about campus? Ask me or post it on the board!</div>
     </div>
     <div class="ai-row">
       <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
-      <button class="ai-send" onclick="doAI()">↑</button>
+      <button class="ai-send" onclick="doAI()"><i data-lucide="arrow-up"></i></button>
     </div>
   </div>
-  <button class="fab" onclick="toggleAI()" title="Campus Assistant">✦</button>
+  <button class="fab" onclick="toggleAI()" title="Campus Assistant"><i data-lucide="bot"></i></button>
 </div>
 </div>
 
@@ -215,7 +222,7 @@ function render(){
         </div>
         <div class="pc-right">
           <button class="upvote-btn${voted.has(p.id)?' voted':''}" onclick="upvote(${p.id},this)">
-            <span>▲</span><span class="uv-count">${p.upvotes}</span>
+            <i data-lucide="chevron-up"></i><span class="uv-count">${p.upvotes}</span>
           </button>
         </div>
       </div>
@@ -228,11 +235,12 @@ function render(){
         </div>
       </div>
     </div>`).join('');
+  lucide.createIcons();
 }
 function toggleTheme(){
   dark=!dark;
   document.getElementById('app').className=dark?'dark':'';
-  document.getElementById('tbtn').textContent=dark?'☽':'☀';
+  document.getElementById('tbtn').innerHTML=dark?'<i data-lucide="moon"></i>':'<i data-lucide="sun"></i>';lucide.createIcons();
   localStorage.setItem('pih-dark',dark?'1':'0');
 }
 
@@ -271,7 +279,8 @@ function doAI(){
   msgs.scrollTop=msgs.scrollHeight;
 }
 
-if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').textContent='☽';}
+if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').innerHTML='<i data-lucide="moon"></i>';}
+lucide.createIcons();
 render();
 </script>
 </body>

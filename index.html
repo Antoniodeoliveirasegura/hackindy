@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Home · Purdue Indy Hub</title>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -15,7 +16,6 @@
 --bus-bg:#faebd4;--bus-title:#5c3200;--bus-sub:#a86200;
 --tag-bg:#e8e7e3;--tag-txt:#52514d;
 --stat:#eceae6;
---evt-bg:#e8e7e3;
 }
 .dark{
 --bg0:#111113;--bg1:#18181a;--bg2:#222224;
@@ -26,18 +26,19 @@
 --bus-bg:#2e1800;--bus-title:#f0b86a;--bus-sub:#c47a1a;
 --tag-bg:#222224;--tag-txt:#9a9890;
 --stat:#1e1e20;
---evt-bg:#1e1e20;
 }
 body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:var(--txt0);transition:background .25s,color .25s;}
 .navbar{background:var(--bg0);border-bottom:0.5px solid var(--bdr);padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
 .nav-logo{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--txt0);}
 .logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;}
 .nav-links{display:flex;gap:2px;}
-.nav-btn{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;transition:background .15s,color .15s;}
+.nav-btn{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;transition:background .15s,color .15s;display:flex;align-items:center;gap:5px;}
 .nav-btn:hover{background:var(--bg2);color:var(--txt0);}
 .nav-btn.active{background:var(--bg2);color:var(--txt0);font-weight:500;}
+.nav-btn svg{width:13px;height:13px;stroke-width:2.5;flex-shrink:0;}
 .nav-right{display:flex;align-items:center;gap:8px;}
-.theme-btn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--txt0);transition:background .15s;}
+.theme-btn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt0);transition:background .15s;}
+.theme-btn svg{width:15px;height:15px;stroke-width:2;}
 .avatar{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--gold-dk);}
 .main{max-width:1160px;margin:0 auto;padding:1.5rem 2rem 5rem;}
 .greeting-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;}
@@ -47,31 +48,35 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .qa-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem;}
 .qa-btn{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:10px;padding:13px 14px;cursor:pointer;display:flex;align-items:center;gap:11px;transition:border-color .15s,background .15s;text-align:left;}
 .qa-btn:hover{background:var(--bg2);border-color:var(--bdr2);}
-.qa-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
-.qi-map{background:#ddeaf8;}.dark .qi-map{background:#0a2d52;}
-.qi-dining{background:#dff0e0;}.dark .qi-dining{background:#0f3018;}
-.qi-bus{background:#faebd4;}.dark .qi-bus{background:#2e1800;}
-.qi-events{background:#f8e0ec;}.dark .qi-events{background:#320c20;}
+.qa-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.qa-icon svg{width:17px;height:17px;stroke-width:2;}
+.qi-map{background:#ddeaf8;color:#1a4e8c;}.dark .qi-map{background:#0a2d52;color:#93c2f0;}
+.qi-dining{background:#dff0e0;color:#2a5e10;}.dark .qi-dining{background:#0f3018;color:#8fd470;}
+.qi-bus{background:#faebd4;color:#7a4800;}.dark .qi-bus{background:#2e1800;color:#f0a050;}
+.qi-events{background:#f8e0ec;color:#7a2048;}.dark .qi-events{background:#320c20;color:#e88ab8;}
 .qa-label{font-size:13px;font-weight:500;color:var(--txt0);}
 .qa-sub{font-size:11px;color:var(--txt2);margin-top:1px;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
-.card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:12px;padding:1.1rem 1.25rem;transition:background .25s,border-color .25s;}
+.card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:12px;padding:1.1rem 1.25rem;}
 .card-lbl{font-size:10px;font-weight:500;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
 .cls-block{background:var(--cls-bg);border-radius:8px;padding:11px 13px;margin-top:6px;}
 .cls-code{font-size:10px;font-weight:500;color:var(--cls-sub);}
 .cls-name{font-size:14px;font-weight:500;color:var(--cls-title);margin:3px 0 2px;}
 .cls-meta{font-size:11px;color:var(--cls-sub);}
 .link-btns{margin-top:10px;display:flex;gap:6px;}
-.link-btn{font-size:11px;padding:5px 11px;border-radius:6px;border:0.5px solid var(--bdr2);background:transparent;color:var(--txt1);cursor:pointer;font-family:inherit;transition:background .15s;}
+.link-btn{font-size:11px;padding:5px 11px;border-radius:6px;border:0.5px solid var(--bdr2);background:transparent;color:var(--txt1);cursor:pointer;font-family:inherit;transition:background .15s;display:flex;align-items:center;gap:4px;}
+.link-btn svg{width:11px;height:11px;stroke-width:2.5;}
 .link-btn:hover{background:var(--bg2);}
 .time-num{font-size:32px;font-weight:500;line-height:1;margin:6px 0 3px;color:var(--txt0);}
 .time-desc{font-size:13px;color:var(--txt1);}
 .sugg-box{margin-top:11px;background:var(--stat);border-radius:8px;padding:10px 12px;}
 .sugg-lbl{font-size:10px;color:var(--txt2);margin-bottom:5px;}
-.sugg-item{font-size:12px;margin-bottom:3px;color:var(--txt0);}
+.sugg-item{font-size:12px;margin-bottom:3px;color:var(--txt0);display:flex;align-items:center;gap:6px;}
+.sugg-item svg{width:12px;height:12px;stroke-width:2;color:var(--txt2);flex-shrink:0;}
 .sugg-item:last-child{margin-bottom:0;}
 .sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
-.see-all{font-size:11px;color:#2a7cc7;cursor:pointer;background:none;border:none;font-family:inherit;}
+.see-all{font-size:11px;color:#2a7cc7;cursor:pointer;background:none;border:none;font-family:inherit;display:flex;align-items:center;gap:3px;}
+.see-all svg{width:11px;height:11px;stroke-width:2.5;}
 .dark .see-all{color:#6aaee8;}
 .dot-open{width:7px;height:7px;border-radius:50%;background:#4d9e3a;flex-shrink:0;}
 .dining-status{font-size:12px;color:var(--txt1);margin-bottom:9px;display:flex;align-items:center;gap:5px;}
@@ -81,7 +86,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .pill-row{display:flex;gap:5px;margin-bottom:9px;}
 .pill{font-size:11px;padding:4px 11px;border-radius:20px;border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt1);cursor:pointer;font-family:inherit;}
 .pill.on{background:var(--gold-dk);color:var(--gold);border-color:var(--gold-dk);}
-.evt-list{display:flex;flex-direction:column;gap:0;}
+.evt-list{display:flex;flex-direction:column;}
 .evt-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--bdr);}
 .evt-item:last-child{border-bottom:none;}
 .evt-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0;}
@@ -98,7 +103,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .bus-stops{font-size:10px;color:var(--bus-sub);margin-top:2px;}
 .bus-cd{font-size:22px;font-weight:500;color:var(--bus-title);}
 .bus-cd span{font-size:11px;font-weight:400;color:var(--bus-sub);}
-.bus-rows{margin-top:9px;display:flex;flex-direction:column;gap:0;}
+.bus-rows{margin-top:9px;display:flex;flex-direction:column;}
 .bus-row{display:flex;justify-content:space-between;font-size:11px;padding:5px 0;border-bottom:0.5px solid var(--bdr);}
 .bus-row:last-child{border-bottom:none;}
 .bus-rt{font-weight:500;color:var(--txt0);}
@@ -108,24 +113,28 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .board-ttl{font-size:12px;font-weight:500;cursor:pointer;color:var(--txt0);}
 .board-ttl:hover{color:#2a7cc7;}
 .board-meta{font-size:10px;color:var(--txt2);margin-top:2px;display:flex;gap:9px;}
-.ask-btn{font-size:11px;padding:5px 11px;border-radius:6px;border:0.5px solid var(--bdr2);background:transparent;color:var(--txt1);cursor:pointer;margin-top:9px;font-family:inherit;}
-.ask-btn:hover{background:var(--bg2);}
+.ask-btn{font-size:11px;padding:5px 11px;border-radius:6px;border:0.5px solid var(--bdr2);background:transparent;color:var(--txt1);cursor:pointer;margin-top:9px;font-family:inherit;display:flex;align-items:center;gap:4px;}
+.ask-btn svg{width:11px;height:11px;stroke-width:2.5;}
 /* Campus Assistant — fixed */
 .fab-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
-.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
+.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
 .fab:hover{background:#5c3a00;}.dark .fab:hover{background:#6a4400;}
+.fab svg{width:20px;height:20px;stroke-width:2;}
 .ai-panel{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:12px;padding:1rem 1.1rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;}
 .ai-panel.open{display:block;}
 .ai-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);}
-.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:15px;line-height:1;}
+.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);display:flex;align-items:center;gap:5px;}
+.ai-hdr-txt svg{width:13px;height:13px;stroke-width:2;}
+.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);display:flex;align-items:center;}
+.ai-close svg{width:15px;height:15px;stroke-width:2;}
 .ai-msgs{min-height:80px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
 .ai-msg{font-size:12px;padding:8px 10px;border-radius:8px;max-width:90%;line-height:1.45;}
 .ai-msg.a{background:var(--stat);color:var(--txt0);align-self:flex-start;}
 .ai-msg.u{background:var(--gold-dk);color:var(--gold);align-self:flex-end;}
 .ai-row{display:flex;gap:6px;}
 .ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
-.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;}
+.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;cursor:pointer;display:flex;align-items:center;}
+.ai-send svg{width:14px;height:14px;stroke-width:2.5;}
 </style>
 </head>
 <body>
@@ -133,14 +142,14 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <div class="navbar">
   <div class="nav-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
   <div class="nav-links">
-    <button class="nav-btn active">Home</button>
-    <button class="nav-btn" onclick="location.href='map.html'">Map</button>
-    <button class="nav-btn" onclick="location.href='schedule.html'">Schedule</button>
-    <button class="nav-btn" onclick="location.href='events.html'">Events</button>
-    <button class="nav-btn" onclick="location.href='services.html'">More</button>
+    <button class="nav-btn active"><i data-lucide="home"></i>Home</button>
+    <button class="nav-btn" onclick="location.href='map.html'"><i data-lucide="map"></i>Map</button>
+    <button class="nav-btn" onclick="location.href='schedule.html'"><i data-lucide="calendar"></i>Schedule</button>
+    <button class="nav-btn" onclick="location.href='events.html'"><i data-lucide="calendar-days"></i>Events</button>
+    <button class="nav-btn" onclick="location.href='services.html'"><i data-lucide="grid-2x2"></i>More</button>
   </div>
   <div class="nav-right">
-    <button class="theme-btn" id="tbtn" onclick="toggleTheme()">☀</button>
+    <button class="theme-btn" id="tbtn" onclick="toggleTheme()"><i data-lucide="sun"></i></button>
     <div class="avatar">JS</div>
   </div>
 </div>
@@ -153,16 +162,20 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 
   <div class="qa-row">
     <button class="qa-btn" onclick="location.href='map.html'">
-      <div class="qa-icon qi-map">🗺</div><div><div class="qa-label">Map</div><div class="qa-sub">Find buildings</div></div>
+      <div class="qa-icon qi-map"><i data-lucide="map-pin"></i></div>
+      <div><div class="qa-label">Map</div><div class="qa-sub">Find buildings</div></div>
     </button>
     <button class="qa-btn" onclick="location.href='dining.html'">
-      <div class="qa-icon qi-dining">🍽</div><div><div class="qa-label">Dining</div><div class="qa-sub">Open now</div></div>
+      <div class="qa-icon qi-dining"><i data-lucide="utensils"></i></div>
+      <div><div class="qa-label">Dining</div><div class="qa-sub">Open now</div></div>
     </button>
     <button class="qa-btn" onclick="location.href='transit.html'">
-      <div class="qa-icon qi-bus">🚌</div><div><div class="qa-label">Bus</div><div class="qa-sub">Next in 8 min</div></div>
+      <div class="qa-icon qi-bus"><i data-lucide="bus"></i></div>
+      <div><div class="qa-label">Bus</div><div class="qa-sub">Next in 8 min</div></div>
     </button>
     <button class="qa-btn" onclick="location.href='events.html'">
-      <div class="qa-icon qi-events">📅</div><div><div class="qa-label">Events</div><div class="qa-sub">3 today</div></div>
+      <div class="qa-icon qi-events"><i data-lucide="calendar-days"></i></div>
+      <div><div class="qa-label">Events</div><div class="qa-sub">3 today</div></div>
     </button>
   </div>
 
@@ -175,8 +188,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
         <div class="cls-meta">ET 215 · 1:30 – 2:45 PM · Prof. Nguyen</div>
       </div>
       <div class="link-btns">
-        <button class="link-btn" onclick="location.href='schedule.html'">View schedule ↗</button>
-        <button class="link-btn" onclick="location.href='map.html'">Find building ↗</button>
+        <button class="link-btn" onclick="location.href='schedule.html'"><i data-lucide="calendar"></i>View schedule</button>
+        <button class="link-btn" onclick="location.href='map.html'"><i data-lucide="map-pin"></i>Find building</button>
       </div>
     </div>
     <div class="card">
@@ -185,15 +198,18 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
       <div class="time-desc">Free before Software Engineering</div>
       <div class="sugg-box">
         <div class="sugg-lbl">Suggestions</div>
-        <div class="sugg-item">☕ Grab coffee at the Union</div>
-        <div class="sugg-item">📚 Study at Cavanaugh Hall</div>
-        <div class="sugg-item">🍽 Lunch at Tower Dining</div>
+        <div class="sugg-item"><i data-lucide="coffee"></i>Grab coffee at the Union</div>
+        <div class="sugg-item"><i data-lucide="book-open"></i>Study at Cavanaugh Hall</div>
+        <div class="sugg-item"><i data-lucide="utensils"></i>Lunch at Tower Dining</div>
       </div>
     </div>
   </div>
 
   <div class="card" style="margin-bottom:12px;">
-    <div class="sec-hdr"><div class="card-lbl" style="margin-bottom:0">Tower Dining</div><button class="see-all" onclick="location.href='dining.html'">Full menu ↗</button></div>
+    <div class="sec-hdr">
+      <div class="card-lbl" style="margin-bottom:0">Tower Dining</div>
+      <button class="see-all" onclick="location.href='dining.html'">Full menu<i data-lucide="arrow-up-right"></i></button>
+    </div>
     <div class="dining-status"><div class="dot-open"></div>Open now · Lunch · Closes 2:00 PM</div>
     <div class="menu-lbl">Entrées</div>
     <div class="tags"><span class="tag">Grilled Chicken</span><span class="tag">Pasta Marinara</span><span class="tag">Black Bean Burger</span><span class="tag">Mac & Cheese</span><span class="tag">Beef Stir-Fry</span></div>
@@ -202,7 +218,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
   </div>
 
   <div class="card" style="margin-bottom:12px;">
-    <div class="sec-hdr"><div class="card-lbl" style="margin-bottom:0">Events today</div><button class="see-all" onclick="location.href='events.html'">See all ↗</button></div>
+    <div class="sec-hdr">
+      <div class="card-lbl" style="margin-bottom:0">Events today</div>
+      <button class="see-all" onclick="location.href='events.html'">See all<i data-lucide="arrow-up-right"></i></button>
+    </div>
     <div class="pill-row">
       <button class="pill on">All</button>
       <button class="pill">Engineering</button>
@@ -218,7 +237,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 
   <div class="grid2">
     <div class="card">
-      <div class="sec-hdr"><div class="card-lbl" style="margin-bottom:0">Campus Connect Bus</div><button class="see-all" onclick="location.href='transit.html'">Schedule ↗</button></div>
+      <div class="sec-hdr">
+        <div class="card-lbl" style="margin-bottom:0">Campus Connect Bus</div>
+        <button class="see-all" onclick="location.href='transit.html'">Schedule<i data-lucide="arrow-up-right"></i></button>
+      </div>
       <div class="bus-block">
         <div><div class="bus-rname">Route 1 · West Lafayette Shuttle</div><div class="bus-stops">Union → ET Building → Campus Ctr</div></div>
         <div style="text-align:right"><div class="bus-cd">8<span> min</span></div><div class="bus-stops">12:38 PM</div></div>
@@ -230,53 +252,54 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
       </div>
     </div>
     <div class="card">
-      <div class="sec-hdr"><div class="card-lbl" style="margin-bottom:0">Campus board</div><button class="see-all" onclick="location.href='board.html'">View board ↗</button></div>
+      <div class="sec-hdr">
+        <div class="card-lbl" style="margin-bottom:0">Campus board</div>
+        <button class="see-all" onclick="location.href='board.html'">View board<i data-lucide="arrow-up-right"></i></button>
+      </div>
       <div class="board-post"><div class="board-ttl" onclick="location.href='board.html'">Anyone know if ET 215 has outlets near the windows?</div><div class="board-meta"><span>Anonymous</span><span>▲ 14</span><span>5 replies</span></div></div>
       <div class="board-post"><div class="board-ttl" onclick="location.href='board.html'">Best place to study during finals week?</div><div class="board-meta"><span>sarah_k</span><span>▲ 31</span><span>12 replies</span></div></div>
       <div class="board-post"><div class="board-ttl" onclick="location.href='board.html'">Is the Career Fair open to freshmen?</div><div class="board-meta"><span>Anonymous</span><span>▲ 8</span><span>3 replies</span></div></div>
-      <button class="ask-btn" onclick="location.href='board.html'">+ Ask a question</button>
+      <button class="ask-btn" onclick="location.href='board.html'"><i data-lucide="plus"></i>Ask a question</button>
     </div>
   </div>
 </div>
 
-<!-- Campus Assistant (fixed) -->
 <div class="fab-wrap">
   <div class="ai-panel" id="ai-panel">
     <div class="ai-hdr">
-      <span class="ai-hdr-txt">✦ Campus Assistant</span>
-      <button class="ai-close" onclick="toggleAI()">✕</button>
+      <span class="ai-hdr-txt"><i data-lucide="sparkles"></i>Campus Assistant</span>
+      <button class="ai-close" onclick="toggleAI()"><i data-lucide="x"></i></button>
     </div>
     <div class="ai-msgs" id="ai-msgs">
       <div class="ai-msg a">Hey Jordan! Ask me anything — schedule, dining, buses, or buildings.</div>
     </div>
     <div class="ai-row">
       <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
-      <button class="ai-send" onclick="doAI()">↑</button>
+      <button class="ai-send" onclick="doAI()"><i data-lucide="arrow-up"></i></button>
     </div>
   </div>
-  <button class="fab" onclick="toggleAI()" title="Campus Assistant">✦</button>
+  <button class="fab" onclick="toggleAI()" title="Campus Assistant"><i data-lucide="bot"></i></button>
 </div>
 </div>
 
 <script>
-let dark=localStorage.getItem('pih-dark')==='1';
-let aiOpen=false;
+let dark=localStorage.getItem('pih-dark')==='1', aiOpen=false;
 
 function toggleTheme(){
   dark=!dark;
   document.getElementById('app').className=dark?'dark':'';
-  document.getElementById('tbtn').textContent=dark?'☽':'☀';
+  document.getElementById('tbtn').innerHTML=dark?'<i data-lucide="moon"></i>':'<i data-lucide="sun"></i>';
   localStorage.setItem('pih-dark',dark?'1':'0');
+  lucide.createIcons();
 }
 function toggleAI(){
   aiOpen=!aiOpen;
   document.getElementById('ai-panel').className='ai-panel'+(aiOpen?' open':'');
 }
-
 const aiR={
-  'next class':'Your next class is CS 30200 – Software Engineering at 1:30 PM in ET 215 with Prof. Nguyen. You have about 1h 22m free.',
+  'next class':'Your next class is CS 30200 – Software Engineering at 1:30 PM in ET 215 with Prof. Nguyen.',
   'schedule':'<a href="schedule.html" style="color:inherit;text-decoration:underline">View your full schedule →</a>',
-  'bus':'Next bus (Route 1 – West Lafayette Shuttle) departs in 8 min at 12:38 PM. Stops: Union → ET Building → Campus Center.',
+  'bus':'Next bus (Route 1) departs in 8 min at 12:38 PM. Union → ET Building → Campus Center.',
   'transit':'<a href="transit.html" style="color:inherit;text-decoration:underline">See live bus countdowns →</a>',
   'dining':'Tower Dining is open for lunch until 2:00 PM. Today: Grilled Chicken, Pasta Marinara, Black Bean Burger, and more.',
   'menu':'<a href="dining.html" style="color:inherit;text-decoration:underline">See the full dining menu →</a>',
@@ -291,7 +314,6 @@ const aiR={
   'library':'University Library — 400,000+ volumes, private study rooms, 24/7 during finals.',
   'print':'The Library gives you 25 free pages/day with your student ID.',
   'tutor':'The Academic Success Center offers free tutoring at 620 Union Dr.',
-  'wifi':'Connect to Purdue-WiFi using your career account credentials.',
 };
 function doAI(){
   const inp=document.getElementById('ai-inp');
@@ -308,9 +330,8 @@ function doAI(){
   },500);
   msgs.scrollTop=msgs.scrollHeight;
 }
-
-// Init theme
-if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').textContent='☽';}
+if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').innerHTML='<i data-lucide="moon"></i>';}
+lucide.createIcons();
 </script>
 </body>
 </html>

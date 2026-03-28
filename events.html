@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <title>Events · Purdue Indy Hub</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -78,6 +79,20 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .ai-row{display:flex;gap:6px;}
 .ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
 .ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;}
+
+/* Lucide icon sizing */
+.nb svg,.nav-btn svg{width:13px;height:13px;stroke-width:2.5;flex-shrink:0;}
+.nb,.nav-btn{display:flex;align-items:center;gap:5px;}
+.tbtn svg,.theme-btn svg{width:15px;height:15px;stroke-width:2;}
+.tbtn,.theme-btn{display:flex!important;align-items:center;justify-content:center;}
+.fab svg{width:20px;height:20px;stroke-width:2;}
+.ai-hdr-txt{display:flex;align-items:center;gap:5px;}
+.ai-hdr-txt svg{width:13px;height:13px;stroke-width:2;}
+.ai-close{display:flex;align-items:center;}
+.ai-close svg{width:15px;height:15px;stroke-width:2;}
+.ai-send{display:flex;align-items:center;}
+.ai-send svg{width:14px;height:14px;stroke-width:2.5;}
+.sbox svg,.search-box svg{width:13px;height:13px;stroke-width:2;color:var(--txt2);}
 </style>
 </head>
 <body>
@@ -85,14 +100,14 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <div class="navbar">
   <div class="nav-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
   <div class="nav-links">
-    <button class="nb" onclick="location.href='index.html'">Home</button>
-    <button class="nb" onclick="location.href='map.html'">Map</button>
-    <button class="nb" onclick="location.href='schedule.html'">Schedule</button>
-    <button class="nb active">Events</button>
-    <button class="nb" onclick="location.href='services.html'">More</button>
+    <button class="nb" onclick="location.href='index.html'"><i data-lucide="home"></i>Home</button>
+    <button class="nb" onclick="location.href='map.html'"><i data-lucide="map"></i>Map</button>
+    <button class="nb" onclick="location.href='schedule.html'"><i data-lucide="calendar"></i>Schedule</button>
+    <button class="nb active"><i data-lucide="calendar-days"></i>Events</button>
+    <button class="nb" onclick="location.href='services.html'"><i data-lucide="grid-2x2"></i>More</button>
   </div>
   <div class="nav-r">
-    <button class="tbtn" id="tbtn" onclick="toggleTheme()">☀</button>
+    <button class="tbtn" id="tbtn" onclick="toggleTheme()"><i data-lucide="sun"></i></button>
     <div class="av">JS</div>
   </div>
 </div>
@@ -114,18 +129,18 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <div class="fab-wrap">
   <div class="ai-panel" id="ai-panel">
     <div class="ai-hdr">
-      <span class="ai-hdr-txt">✦ Campus Assistant</span>
-      <button class="ai-close" onclick="toggleAI()">✕</button>
+      <span class="ai-hdr-txt"><i data-lucide="sparkles"></i>Campus Assistant</span>
+      <button class="ai-close" onclick="toggleAI()"><i data-lucide="x"></i></button>
     </div>
     <div class="ai-msgs" id="ai-msgs">
       <div class="ai-msg a">Ask me about events today, this week, or by category!</div>
     </div>
     <div class="ai-row">
       <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
-      <button class="ai-send" onclick="doAI()">↑</button>
+      <button class="ai-send" onclick="doAI()"><i data-lucide="arrow-up"></i></button>
     </div>
   </div>
-  <button class="fab" onclick="toggleAI()" title="Campus Assistant">✦</button>
+  <button class="fab" onclick="toggleAI()" title="Campus Assistant"><i data-lucide="bot"></i></button>
 </div>
 </div>
 
@@ -184,7 +199,7 @@ function render(){
 function toggleTheme(){
   dark=!dark;
   document.getElementById('app').className=dark?'dark':'';
-  document.getElementById('tbtn').textContent=dark?'☽':'☀';
+  document.getElementById('tbtn').innerHTML=dark?'<i data-lucide="moon"></i>':'<i data-lucide="sun"></i>';lucide.createIcons();
   localStorage.setItem('pih-dark',dark?'1':'0');
 }
 
@@ -226,7 +241,7 @@ function doAI(){
   msgs.scrollTop=msgs.scrollHeight;
 }
 
-if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').textContent='☽';}
+if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').innerHTML='<i data-lucide="moon"></i>';}
 render();
 </script>
 </body>
