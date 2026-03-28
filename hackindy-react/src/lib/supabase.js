@@ -77,19 +77,6 @@ export const signInWithEmail = async (email, password) => {
   return data
 }
 
-export const signUpWithEmail = async (email, password, metadata = {}) => {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: metadata,
-      emailRedirectTo: `${window.location.origin}/auth/callback`,
-    },
-  })
-  if (error) throw error
-  return data
-}
-
 export const signOut = async () => {
   const { error } = await supabase.auth.signOut()
   if (error) throw error

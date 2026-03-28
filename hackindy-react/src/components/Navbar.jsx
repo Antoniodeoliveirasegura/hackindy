@@ -27,11 +27,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  useEffect(() => {
-    setMobileOpen(false)
-    setMenuOpen(false)
-  }, [location])
-
   return (
     <>
       <nav
@@ -64,6 +59,7 @@ export default function Navbar() {
                 <Link
                   key={path}
                   to={path}
+                  onClick={() => setMenuOpen(false)}
                   className={`relative text-[13px] px-4 py-2 rounded-full flex items-center gap-2 transition-all duration-300
                     ${isActive
                       ? 'text-[var(--color-gold-dark)] font-medium'
@@ -202,6 +198,7 @@ export default function Navbar() {
                 <Link
                   key={path}
                   to={path}
+                  onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300
                     ${isActive
                       ? 'bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] text-[var(--color-gold-dark)] font-medium shadow-sm'
@@ -221,6 +218,7 @@ export default function Navbar() {
             })}
             <Link
               to="/settings"
+              onClick={() => setMobileOpen(false)}
               className="flex items-center gap-3 px-4 py-3 rounded-xl text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] hover:text-[var(--color-txt-0)] transition-all duration-300"
             >
               <Icon name="settings" size={20} />

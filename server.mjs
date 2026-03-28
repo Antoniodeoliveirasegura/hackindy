@@ -675,6 +675,81 @@ app.get('/api/session', async (req, res) => {
   res.json({ authenticated: Boolean(sessionPayload), session: sessionPayload })
 })
 
+app.post('/api/auth/register-supabase', async (req, res) => {
+  try {
+    const emailRaw = req.body.email
+    const password = req.body.password
+    const displayName = req.body.name ?? req.body.displayName ?? ''
+    const normalizedEmail = normalizeEmail(emailRaw)
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      return res.status(400).json({ error: { message: 'Please enter a valid email address.', status: 400 } })
+    }
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: { message: 'Password must be at least 8 characters.', status: 400 } })
+    }
+
+    const existingRow = await getUserByEmail(normalizedEmail)
+    if (existingRow) {
+      return res.status(400).json({ error: { message: 'An account with that email already exists.', status: 400 } })
+    }
+
+    const { data: created, error: authError } = await supabase.auth.admin.createUser({
+      email: normalizedEmail,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: String(displayName).trim() || deriveDisplayName(normalizedEmail, ''),
+      },
+    })
+
+    if (authError) {
+      const raw = authError.message || 'Could not create account.'
+      if (
+        /already\s+registered|already\s+exists|duplicate/i.test(raw) ||
+        authError.code === 'email_exists'
+      ) {
+        return res.status(400).json({ error: { message: 'An account with that email already exists.', status: 400 } })
+      }
+      return res.status(400).json({ error: { message: raw, status: 400 } })
+    }
+
+    const authUser = created.user
+    const timestamp = nowIso()
+    const { data: row, error: insertError } = await supabase
+      .from('users')
+      .insert({
+        id: authUser.id,
+        email: normalizedEmail,
+        password_hash: '',
+        display_name: deriveDisplayName(normalizedEmail, displayName),
+        auth_provider: 'email',
+        created_at: timestamp,
+        updated_at: timestamp,
+      })
+      .select()
+      .single()
+
+    if (insertError) {
+      console.error('register-supabase: public.users insert failed:', insertError)
+      return res.status(500).json({
+        error: { message: insertError.message || 'Could not create your profile.', status: 500 },
+      })
+    }
+
+    req.session.regenerate((err) => {
+      if (err) {
+        return res.status(500).json({ error: { message: 'Could not create a session.', status: 500 } })
+      }
+      req.session.userId = row.id
+      req.session.save(async () => {
+        res.status(201).json({ session: await buildSessionPayload(row) })
+      })
+    })
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message || 'Could not create account.', status: 500 } })
+  }
+})
+
 app.post('/api/auth/sign-up', async (req, res) => {
   try {
     const user = await createLocalUser({
@@ -778,9 +853,13 @@ app.post('/api/auth/supabase-sync', async (req, res) => {
       }
     }
 
+    if (!user) {
+      return res.status(500).json({ error: { message: 'Could not sync user profile.', status: 500 } })
+    }
+
     req.session.userId = user.id
-    
-    const session = await buildSession(user.id)
+
+    const session = await buildSessionPayload(user)
     res.json({ session })
   } catch (error) {
     console.error('Supabase sync error:', error)

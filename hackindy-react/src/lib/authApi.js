@@ -1,3 +1,10 @@
+export async function registerSupabaseUser(email, password, name) {
+  return authRequest('/api/auth/register-supabase', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, name }),
+  })
+}
+
 export async function authRequest(url, options = {}) {
   const headers = new Headers(options.headers || {})
   const init = {
