@@ -1,78 +1,211 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { authRequest } from '../lib/authApi'
 import Icon from '../components/Icons'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
-const schedule = {
-  Monday: [
-    { code: 'CS 30200', name: 'Software Engineering', time: '1:30 – 2:45 PM', room: 'ET 215', prof: 'Prof. Nguyen', color: 'blue' },
-    { code: 'MATH 261', name: 'Linear Algebra', time: '3:00 – 4:15 PM', room: 'SL 108', prof: 'Prof. Chen', color: 'purple' },
-  ],
-  Tuesday: [
-    { code: 'CS 38100', name: 'Algorithms', time: '10:30 – 11:45 AM', room: 'ET 206', prof: 'Prof. Patel', color: 'green' },
-    { code: 'ENG 302', name: 'Technical Writing', time: '2:00 – 3:15 PM', room: 'CAV 129', prof: 'Prof. Smith', color: 'orange' },
-  ],
-  Wednesday: [
-    { code: 'CS 30200', name: 'Software Engineering', time: '1:30 – 2:45 PM', room: 'ET 215', prof: 'Prof. Nguyen', color: 'blue' },
-    { code: 'MATH 261', name: 'Linear Algebra', time: '3:00 – 4:15 PM', room: 'SL 108', prof: 'Prof. Chen', color: 'purple' },
-  ],
-  Thursday: [
-    { code: 'CS 38100', name: 'Algorithms', time: '10:30 – 11:45 AM', room: 'ET 206', prof: 'Prof. Patel', color: 'green' },
-    { code: 'ENG 302', name: 'Technical Writing', time: '2:00 – 3:15 PM', room: 'CAV 129', prof: 'Prof. Smith', color: 'orange' },
-  ],
-  Friday: [
-    { code: 'CS 30200', name: 'Software Engineering Lab', time: '10:00 – 11:50 AM', room: 'ET 202', prof: 'TA Sarah', color: 'blue' },
-  ],
+const colorOrder = ['blue', 'green', 'purple', 'orange']
+const colorConfig = {
+  blue: {
+    bg: 'bg-[#e4eef8] dark:bg-[#18283a]',
+    border: 'border-[#6c8fb3]/18 dark:border-[#4f78a4]/30',
+    text: 'text-[#37628d] dark:text-[#8fc4ff]',
+    accent: 'bg-[#4f78a4] dark:bg-[#4f78a4]',
+  },
+  green: {
+    bg: 'bg-[#e3f1e7] dark:bg-[#112b19]',
+    border: 'border-[#5a9470]/18 dark:border-[#3f9a59]/30',
+    text: 'text-[#2f6d47] dark:text-[#72d493]',
+    accent: 'bg-[#3f9a59] dark:bg-[#3f9a59]',
+  },
+  purple: {
+    bg: 'bg-[#efe8f5] dark:bg-[#26183a]',
+    border: 'border-[#8d6aa7]/18 dark:border-[#9b72bd]/30',
+    text: 'text-[#76548f] dark:text-[#d8b6ff]',
+    accent: 'bg-[#8d6aa7] dark:bg-[#9b72bd]',
+  },
+  orange: {
+    bg: 'bg-[#f5ead8] dark:bg-[#332208]',
+    border: 'border-[#a98542]/18 dark:border-[#b98a2a]/30',
+    text: 'text-[#7a5720] dark:text-[#f0c56a]',
+    accent: 'bg-[#a98542] dark:bg-[#b98a2a]',
+  },
 }
 
-const colorConfig = {
-  blue: { bg: 'bg-[var(--color-map-bg)]', border: 'border-[var(--color-map-color)]/20', text: 'text-[var(--color-map-color)]', accent: 'bg-[var(--color-map-color)]' },
-  green: { bg: 'bg-[var(--color-dining-bg)]', border: 'border-[var(--color-dining-color)]/20', text: 'text-[var(--color-dining-color)]', accent: 'bg-[var(--color-dining-color)]' },
-  purple: { bg: 'bg-[#F0E8F8]', border: 'border-[#7A5099]/20', text: 'text-[#7A5099]', accent: 'bg-[#7A5099]' },
-  orange: { bg: 'bg-[var(--color-bus-bg)]', border: 'border-[var(--color-bus-title)]/20', text: 'text-[var(--color-bus-title)]', accent: 'bg-[var(--color-bus-title)]' },
+function getDayName(dateValue) {
+  return new Date(dateValue).toLocaleDateString(undefined, { weekday: 'long' })
+}
+
+function getTimeRange(startTime, endTime) {
+  const start = new Date(startTime)
+  const end = endTime ? new Date(endTime) : null
+  const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const endLabel = end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
+  return endLabel ? `${startLabel} – ${endLabel}` : startLabel
+}
+
+function getWeeklyPattern(items) {
+  const seen = new Map()
+
+  for (const item of items) {
+    const day = getDayName(item.startTime)
+    if (!DAYS.includes(day)) continue
+
+    const start = new Date(item.startTime)
+    const end = item.endTime ? new Date(item.endTime) : null
+    const key = [
+      day,
+      item.title,
+      item.description || '',
+      item.location || '',
+      start.getHours(),
+      start.getMinutes(),
+      end?.getHours() || '',
+      end?.getMinutes() || '',
+    ].join('|')
+
+    if (!seen.has(key)) {
+      seen.set(key, {
+        id: key,
+        day,
+        code: item.title,
+        name: item.description || 'Class meeting',
+        time: getTimeRange(item.startTime, item.endTime),
+        room: item.location || 'Location unavailable',
+        startTime: item.startTime,
+        endTime: item.endTime,
+        color: colorOrder[seen.size % colorOrder.length],
+        count: 1,
+      })
+    } else {
+      seen.get(key).count += 1
+    }
+  }
+
+  const grouped = Object.fromEntries(DAYS.map((day) => [day, []]))
+  for (const item of seen.values()) {
+    grouped[item.day].push(item)
+  }
+
+  for (const day of DAYS) {
+    grouped[day].sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+  }
+
+  return grouped
 }
 
 export default function Schedule() {
-  const [selectedDay, setSelectedDay] = useState('Monday')
+  const { onboarding } = useAuth()
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const today = getDayName(new Date())
+    return DAYS.includes(today) ? today : 'Monday'
+  })
   const [selectedClass, setSelectedClass] = useState(null)
-  const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [banner, setBanner] = useState('')
+  const [termLabel, setTermLabel] = useState('')
+  const [classesMeta, setClassesMeta] = useState({ totalInTerm: 0 })
+  const [classItems, setClassItems] = useState([])
 
   useEffect(() => {
-    setMounted(true)
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      setBanner('')
+      try {
+        const response = await authRequest('/api/me/classes?limit=500&mode=chronological')
+        if (cancelled) return
+        setClassItems(response.items || [])
+        setClassesMeta(response.meta || { totalInTerm: 0 })
+        setTermLabel(response.meta?.selectedTermLabel || '')
+      } catch (error) {
+        if (!cancelled) {
+          setBanner(error.message || 'Could not load your class schedule.')
+          setClassItems([])
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  const classes = schedule[selectedDay] || []
+  const schedule = useMemo(() => getWeeklyPattern(classItems), [classItems])
+  const classes = useMemo(() => schedule[selectedDay] || [], [schedule, selectedDay])
+
+  useEffect(() => {
+    if (!classes.length) {
+      setSelectedClass(null)
+      return
+    }
+    setSelectedClass((current) => {
+      if (current && classes.some((item) => item.id === current.id)) {
+        return current
+      }
+      return classes[0]
+    })
+  }, [selectedDay, classes])
+
+  const needsSetup = onboarding?.needsPurdueConnection || onboarding?.needsScheduleSource
 
   return (
-    <div className={`max-w-[1000px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
-      {/* Header */}
+    <div className="max-w-[1000px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 opacity-100">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Class Schedule</h1>
           <p className="text-[14px] text-[var(--color-txt-2)] mt-1">
-            Spring 2026 · 15 credit hours
+            {termLabel || 'Current term'}{classesMeta.totalInTerm ? ` · ${classesMeta.totalInTerm} imported meetings` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2.5 shadow-sm">
           <Icon name="calendar" size={14} className="text-[var(--color-txt-3)]" />
-          Week of March 23
+          Weekly view from your Purdue timetable feed
         </div>
       </div>
 
-      {/* Day Tabs */}
+      {banner && (
+        <div className="card p-4 mb-6 text-[13px] text-[var(--color-error)]">
+          {banner}
+        </div>
+      )}
+
+      {needsSetup && (
+        <div className="card p-5 mb-6 border-[var(--color-gold)]/30 bg-[var(--color-gold)]/8 animate-fade-in-up">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="text-[16px] font-semibold text-[var(--color-txt-0)]">
+                {onboarding?.needsPurdueConnection ? 'Link Purdue to import your schedule' : 'Connect your Purdue timetable feed'}
+              </div>
+              <p className="text-[13px] text-[var(--color-txt-2)] mt-1 max-w-[640px]">
+                {onboarding?.needsPurdueConnection
+                  ? 'Your HackIndy account is ready. Link Purdue first, then attach your timetable iCal export.'
+                  : 'Your Purdue account is linked. Finish setup to sync your recurring class meetings into this page.'}
+              </p>
+            </div>
+            <Link to="/setup" className="btn btn-primary text-[13px] px-5 py-2.5 w-fit">
+              <Icon name={onboarding?.needsPurdueConnection ? 'graduation' : 'calendar'} size={15} />
+              Open setup
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="card p-1.5 mb-6 animate-fade-in-up stagger-1">
-        <div className="flex gap-1">
-          {DAYS.map(day => {
+        <div className="flex gap-1 overflow-x-auto">
+          {DAYS.map((day) => {
             const isSelected = selectedDay === day
-            const hasClasses = schedule[day]?.length > 0
+            const hasClasses = (schedule[day] || []).length > 0
             return (
               <button
                 key={day}
-                onClick={() => { setSelectedDay(day); setSelectedClass(null) }}
-                className={`flex-1 text-[13px] py-2.5 rounded-xl transition-all duration-300 relative
-                  ${isSelected 
-                    ? 'bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] text-[var(--color-gold-dark)] font-semibold shadow-sm' 
+                onClick={() => setSelectedDay(day)}
+                className={`flex-1 min-w-[88px] text-[13px] py-2.5 rounded-xl transition-all duration-300 relative
+                  ${isSelected
+                    ? 'bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] text-[var(--color-gold-dark)] font-semibold shadow-sm'
                     : 'text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] hover:text-[var(--color-txt-0)]'
                   }`}
               >
@@ -88,28 +221,33 @@ export default function Schedule() {
       </div>
 
       <div className="grid lg:grid-cols-[1fr_340px] gap-6">
-        {/* Class List */}
         <div className="space-y-3 animate-fade-in-up stagger-2">
-          {classes.length === 0 ? (
+          {loading ? (
+            <div className="card p-12 text-center">
+              <p className="text-[15px] font-medium text-[var(--color-txt-1)]">Loading imported classes…</p>
+            </div>
+          ) : classes.length === 0 ? (
             <div className="card p-12 text-center">
               <div className="w-16 h-16 rounded-2xl bg-[var(--color-stat)] flex items-center justify-center mx-auto mb-4">
                 <Icon name="calendar" size={28} className="text-[var(--color-txt-3)]" />
               </div>
-              <p className="text-[15px] font-medium text-[var(--color-txt-1)]">No classes scheduled</p>
-              <p className="text-[13px] text-[var(--color-txt-3)] mt-1">Enjoy your day off!</p>
+              <p className="text-[15px] font-medium text-[var(--color-txt-1)]">No weekly classes scheduled</p>
+              <p className="text-[13px] text-[var(--color-txt-3)] mt-1">
+                {needsSetup ? 'Finish setup to populate this schedule.' : 'No recurring class meetings were found for this day.'}
+              </p>
             </div>
           ) : (
             classes.map((cls, idx) => {
               const config = colorConfig[cls.color]
-              const isSelected = selectedClass?.code === cls.code
-              
+              const isSelected = selectedClass?.id === cls.id
+
               return (
                 <div
-                  key={idx}
+                  key={cls.id}
                   onClick={() => setSelectedClass(cls)}
                   className={`card card-interactive p-0 overflow-hidden transition-all duration-300
                     ${isSelected ? 'ring-2 ring-[var(--color-gold)] ring-offset-2 ring-offset-[var(--color-bg-1)]' : ''}`}
-                  style={{ animationDelay: `${idx * 0.1}s` }}
+                  style={{ animationDelay: `${idx * 0.08}s` }}
                 >
                   <div className="flex">
                     <div className={`w-1.5 ${config.accent}`} />
@@ -132,8 +270,8 @@ export default function Schedule() {
                               {cls.room}
                             </span>
                             <span className="flex items-center gap-1.5">
-                              <Icon name="user" size={12} />
-                              {cls.prof}
+                              <Icon name="calendar" size={12} />
+                              Meets {cls.count} time{cls.count === 1 ? '' : 's'} this term
                             </span>
                           </div>
                         </div>
@@ -147,7 +285,6 @@ export default function Schedule() {
           )}
         </div>
 
-        {/* Detail Panel */}
         <div className="hidden lg:block">
           <div className="card p-5 sticky top-24">
             {selectedClass ? (
@@ -158,8 +295,12 @@ export default function Schedule() {
                 <h2 className="text-[17px] font-semibold text-[var(--color-txt-0)] mt-1">
                   {selectedClass.name}
                 </h2>
-                
+
                 <div className="grid grid-cols-2 gap-3 mt-5">
+                  <div className="bg-[var(--color-stat)] rounded-xl p-3">
+                    <div className="text-[10px] text-[var(--color-txt-3)] uppercase tracking-wider mb-1">Day</div>
+                    <div className="text-[13px] font-medium text-[var(--color-txt-0)]">{selectedClass.day}</div>
+                  </div>
                   <div className="bg-[var(--color-stat)] rounded-xl p-3">
                     <div className="text-[10px] text-[var(--color-txt-3)] uppercase tracking-wider mb-1">Time</div>
                     <div className="text-[13px] font-medium text-[var(--color-txt-0)]">{selectedClass.time}</div>
@@ -168,24 +309,24 @@ export default function Schedule() {
                     <div className="text-[10px] text-[var(--color-txt-3)] uppercase tracking-wider mb-1">Room</div>
                     <div className="text-[13px] font-medium text-[var(--color-txt-0)]">{selectedClass.room}</div>
                   </div>
-                  <div className="bg-[var(--color-stat)] rounded-xl p-3 col-span-2">
-                    <div className="text-[10px] text-[var(--color-txt-3)] uppercase tracking-wider mb-1">Instructor</div>
-                    <div className="text-[13px] font-medium text-[var(--color-txt-0)]">{selectedClass.prof}</div>
+                  <div className="bg-[var(--color-stat)] rounded-xl p-3">
+                    <div className="text-[10px] text-[var(--color-txt-3)] uppercase tracking-wider mb-1">Meetings</div>
+                    <div className="text-[13px] font-medium text-[var(--color-txt-0)]">{selectedClass.count} in this term</div>
                   </div>
                 </div>
 
                 <div className="flex gap-2 mt-5">
-                  <Link 
-                    to="/map" 
+                  <Link
+                    to="/map"
                     className="btn btn-primary text-[12px] px-4 py-2.5 flex-1"
                   >
                     <Icon name="mapPin" size={14} />
                     Find Room
                   </Link>
-                  <button className="btn btn-secondary text-[12px] px-4 py-2.5 flex-1">
-                    <Icon name="clock" size={14} />
-                    Set Reminder
-                  </button>
+                  <Link to="/setup" className="btn btn-secondary text-[12px] px-4 py-2.5 flex-1">
+                    <Icon name="calendar" size={14} />
+                    Resync Feed
+                  </Link>
                 </div>
               </div>
             ) : (
@@ -194,7 +335,7 @@ export default function Schedule() {
                   <Icon name="calendar" size={24} className="text-[var(--color-txt-3)]" />
                 </div>
                 <p className="text-[14px] font-medium text-[var(--color-txt-1)]">No class selected</p>
-                <p className="text-[12px] text-[var(--color-txt-3)] mt-1">Click a class to view details</p>
+                <p className="text-[12px] text-[var(--color-txt-3)] mt-1">Choose a day with imported meetings to view details</p>
               </div>
             )}
           </div>

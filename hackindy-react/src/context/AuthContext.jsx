@@ -140,13 +140,15 @@ export function AuthProvider({ children }) {
   }, [])
 
   const user = session?.user ?? null
-  const onboarding = session?.onboarding ?? {
-    linkedSourceCount: 0,
-    classCount: 0,
-    hasPurdueLinked: false,
-    needsPurdueConnection: true,
-    needsScheduleSource: false,
-  }
+  const onboarding = useMemo(() => (
+    session?.onboarding ?? {
+      linkedSourceCount: 0,
+      classCount: 0,
+      hasPurdueLinked: false,
+      needsPurdueConnection: true,
+      needsScheduleSource: false,
+    }
+  ), [session])
 
   const value = useMemo(
     () => ({
@@ -169,6 +171,7 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) {
@@ -177,6 +180,7 @@ export function useAuth() {
   return ctx
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSignOutAndRedirect() {
   const navigate = useNavigate()
   const { signOut } = useAuth()

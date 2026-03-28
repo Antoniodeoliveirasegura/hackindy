@@ -1,59 +1,63 @@
-import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import Icon from '../components/Icons'
+import { Link } from 'react-router-dom'
 
-const services = [
+const resourceGroups = [
   {
-    category: 'Academic',
+    category: 'Academic Support',
     icon: 'graduation',
     color: 'map',
     items: [
-      { name: 'University Library', desc: '400,000+ volumes, study rooms, 24/7 during finals', icon: 'library', link: '/map' },
-      { name: 'Academic Success Center', desc: 'Free tutoring, writing help, academic coaching', icon: 'graduation', link: '/map' },
-      { name: 'Career Services', desc: 'Resume reviews, job fairs, career counseling', icon: 'briefcase', link: null },
-      { name: 'IT Help Desk', desc: 'Tech support, WiFi help, software access', icon: 'help', link: null },
-    ]
+      { name: 'Online Writing Lab', desc: 'Writing help, citation support, and academic writing guides from Purdue OWL.', icon: 'library', href: 'https://owl.purdue.edu/index.html' },
+      { name: 'Disability Resource Center', desc: 'Accessibility accommodations, campus access support, and student disability services.', icon: 'help', href: 'https://www.purdue.edu/drc/' },
+      { name: 'Boiler Exams', desc: 'Exam scheduling and testing support for accommodated exams.', icon: 'schedule', href: 'https://www.boilerexams.com/' },
+      { name: 'Academic Advising', desc: 'Book advising appointments and connect with your Purdue academic advisor.', icon: 'user', href: 'https://www.purdue.edu/advisors/students/appt.php' },
+      { name: 'Academic Success Center', desc: 'Purdue Indianapolis tutoring, coaching, and academic support resources.', icon: 'sparkles', href: 'https://www.purdue.edu/asc/indianapolis/index.html' },
+      { name: 'Math Assistance Center', desc: 'Indianapolis math support, tutoring options, and course help.', icon: 'graduation', href: 'https://www.purdue.edu/asc/indianapolis/mac.html' },
+      { name: 'Transfer Credit Lookup', desc: 'Check transfer credit equivalencies and course matching information.', icon: 'book', href: 'https://selfservice.mypurdue.purdue.edu/prod/bzwtxcrd.p_select_info' },
+    ],
   },
   {
-    category: 'Campus Life',
-    icon: 'heart',
-    color: 'events',
-    items: [
-      { name: 'Campus Board', desc: 'Ask questions and connect with students', icon: 'message', link: '/board' },
-      { name: 'Events Calendar', desc: 'Discover what\'s happening on campus', icon: 'calendar', link: '/events' },
-      { name: 'Student Organizations', desc: '200+ clubs and organizations', icon: 'users', link: null },
-      { name: 'Recreation Center', desc: 'Gym, pool, fitness classes', icon: 'heart', link: null },
-    ]
-  },
-  {
-    category: 'Resources',
-    icon: 'grid',
+    category: 'Transit And Dining',
+    icon: 'bus',
     color: 'bus',
     items: [
-      { name: 'Campus Map', desc: 'Find buildings, rooms, and directions', icon: 'mapPin', link: '/map' },
-      { name: 'Dining Services', desc: 'Menus, hours, and locations', icon: 'dining', link: '/dining' },
-      { name: 'Transit & Parking', desc: 'Bus schedules and parking info', icon: 'bus', link: '/transit' },
-      { name: 'Printing Services', desc: '25 free pages/day at the library', icon: 'printer', link: null },
-    ]
+      { name: 'Campus Connect Shuttle', desc: 'Official Purdue shuttle information for campus mobility connections.', icon: 'bus', href: 'https://www.purdue.edu/operations/campus-mobility/home/campus-connect-shuttle/' },
+      { name: 'Indianapolis Bus Routes', desc: 'IU Indianapolis bus transportation details and route information.', icon: 'mapPin', href: 'https://parking.indianapolis.iu.edu/transportation/bus/index.html' },
+      { name: 'Meal Plans', desc: 'Purdue University in Indianapolis meal plan options and pricing.', icon: 'dining', href: 'https://mealplans.indianapolis.iu.edu/plans/purdue-university-in-indianapolis/index.html' },
+      { name: 'CrimsonCard For Purdue', desc: 'Card setup, account access, and Purdue Indianapolis card information.', icon: 'building', href: 'https://crimsoncard.iu.edu/purdue.html' },
+      { name: 'Campus Map', desc: 'Find buildings, rooms, and directions inside the app.', icon: 'mapPin', link: '/map' },
+      { name: 'Transit Tab', desc: 'Open the app transit page for local routing and campus movement.', icon: 'bus', link: '/transit' },
+    ],
   },
   {
-    category: 'Support',
-    icon: 'info',
+    category: 'Campus Life And Careers',
+    icon: 'users',
+    color: 'events',
+    items: [
+      { name: 'BoilerLink', desc: 'Student organizations, campus involvement, and Purdue community engagement.', icon: 'users', href: 'https://boilerlink.purdue.edu/' },
+      { name: 'Student Employment', desc: 'On-campus jobs, work-study support, and student employment resources.', icon: 'briefcase', href: 'https://www.purdue.edu/studentemployment/site/' },
+      { name: 'Student Employment Office', desc: 'Official Purdue Office of Professional Practice student employment support.', icon: 'briefcase', href: 'https://www.opp.purdue.edu/' },
+      { name: 'Center For Career Opportunities', desc: 'Purdue Indianapolis career fairs, advising, internships, and employer resources.', icon: 'rocket', href: 'https://www.cco.purdue.edu/PurdueIndianapolis' },
+      { name: 'Campus Board', desc: 'Ask questions and connect with other students inside the app.', icon: 'message', link: '/board' },
+      { name: 'Events Tab', desc: 'See app-curated events, workshops, and campus happenings.', icon: 'calendar', link: '/events' },
+    ],
+  },
+  {
+    category: 'Health And Wellness',
+    icon: 'heart',
     color: 'dining',
     items: [
-      { name: 'Health Services', desc: 'Campus clinic and counseling', icon: 'health', link: null },
-      { name: 'Financial Aid', desc: 'Scholarships, grants, and loans', icon: 'briefcase', link: null },
-      { name: 'Housing', desc: 'Residence halls and off-campus resources', icon: 'building', link: null },
-      { name: 'Campus Safety', desc: '24/7 security and safety resources', icon: 'info', link: null },
-    ]
+      { name: 'Campus Recreation', desc: 'Fitness, recreation, and wellness resources for Indianapolis students.', icon: 'heart', href: 'https://studentaffairs.indianapolis.iu.edu/health/campus-rec/index.html' },
+      { name: 'PUSH Indianapolis', desc: 'Schedule appointments and access Purdue student health services in Indianapolis.', icon: 'health', href: 'https://www.purdue.edu/push/appointments/indianapolis.php' },
+    ],
   },
 ]
 
 const quickLinks = [
-  { name: 'WiFi Setup', desc: 'Connect to Purdue-WiFi', icon: 'wifi', color: 'map' },
-  { name: 'Class Schedule', desc: 'View your classes', icon: 'schedule', link: '/schedule', color: 'events' },
-  { name: 'Campus Map', desc: 'Find any building', icon: 'mapPin', link: '/map', color: 'bus' },
-  { name: 'Bus Tracker', desc: 'Live shuttle times', icon: 'bus', link: '/transit', color: 'dining' },
+  { name: 'Writing Help', desc: 'Open Purdue OWL', icon: 'library', href: 'https://owl.purdue.edu/index.html', color: 'map' },
+  { name: 'Meal Plans', desc: 'View Indianapolis plans', icon: 'dining', href: 'https://mealplans.indianapolis.iu.edu/plans/purdue-university-in-indianapolis/index.html', color: 'events' },
+  { name: 'BoilerLink', desc: 'Student orgs and clubs', icon: 'users', href: 'https://boilerlink.purdue.edu/', color: 'bus' },
+  { name: 'Career Support', desc: 'Purdue Indianapolis CCO', icon: 'rocket', href: 'https://www.cco.purdue.edu/PurdueIndianapolis', color: 'dining' },
 ]
 
 const colorConfig = {
@@ -63,55 +67,82 @@ const colorConfig = {
   dining: { bg: 'bg-[var(--color-dining-bg)]', text: 'text-[var(--color-dining-color)]' },
 }
 
+function ResourceCard({ item }) {
+  const content = (
+    <div className="flex items-start gap-3 p-3 -mx-2 rounded-xl hover:bg-[var(--color-stat)] transition-all duration-200 group">
+      <div className="w-9 h-9 rounded-xl bg-[var(--color-stat)] group-hover:bg-[var(--color-bg-3)] flex items-center justify-center shrink-0 transition-colors">
+        <Icon name={item.icon} size={17} className="text-[var(--color-txt-2)]" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium text-[var(--color-txt-0)] group-hover:text-[var(--color-accent)] flex items-center gap-1.5 transition-colors">
+          {item.name}
+          <Icon
+            name={item.href ? 'external' : 'arrowUpRight'}
+            size={12}
+            className="text-[var(--color-txt-3)] group-hover:text-[var(--color-accent)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all"
+          />
+        </div>
+        <div className="text-[11px] text-[var(--color-txt-2)] mt-0.5">{item.desc}</div>
+      </div>
+    </div>
+  )
+
+  if (item.href) {
+    return <a key={item.name} href={item.href} target="_blank" rel="noreferrer" className="no-underline">{content}</a>
+  }
+
+  if (item.link) {
+    return <Link key={item.name} to={item.link}>{content}</Link>
+  }
+
+  return <div key={item.name}>{content}</div>
+}
+
 export default function Services() {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
   return (
-    <div className={`max-w-[1000px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
-      {/* Header */}
+    <div className="max-w-[1080px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 opacity-100">
       <div className="mb-6 animate-fade-in-up">
-        <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Student Services</h1>
-        <p className="text-[14px] text-[var(--color-txt-2)] mt-1">
-          Everything you need in one place
+        <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-2">
+          Purdue Indianapolis
+        </div>
+        <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Student Services And Resources</h1>
+        <p className="text-[14px] text-[var(--color-txt-2)] mt-1 max-w-[760px]">
+          Official academic, campus life, transit, dining, career, and wellness links gathered into one screen so you do not have to keep hunting through Purdue and Indianapolis sites.
         </p>
       </div>
 
-      {/* Quick Links */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8 animate-fade-in-up stagger-1">
-        {quickLinks.map((link, idx) => {
+        {quickLinks.map((link) => {
           const config = colorConfig[link.color]
           return (
-            <Link
+            <a
               key={link.name}
-              to={link.link || '#'}
-              className="card card-interactive p-5 text-center group"
-              style={{ animationDelay: `${idx * 0.05}s` }}
+              href={link.href}
+              target="_blank"
+              rel="noreferrer"
+              className="card card-interactive p-5 text-center group no-underline"
             >
               <div className={`w-12 h-12 rounded-xl ${config.bg} flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform duration-300`}>
                 <Icon name={link.icon} size={22} className={config.text} />
               </div>
-              <div className="text-[14px] font-medium text-[var(--color-txt-0)] group-hover:text-[var(--color-accent)] transition-colors">
+              <div className="text-[14px] font-medium text-[var(--color-txt-0)] group-hover:text-[var(--color-accent)] transition-colors flex items-center justify-center gap-1.5">
                 {link.name}
+                <Icon name="external" size={12} />
               </div>
               <div className="text-[12px] text-[var(--color-txt-2)] mt-0.5">{link.desc}</div>
-            </Link>
+            </a>
           )
         })}
       </div>
 
-      {/* Service Categories */}
       <div className="grid md:grid-cols-2 gap-4 mb-8">
-        {services.map((category, catIdx) => {
+        {resourceGroups.map((category, catIdx) => {
           const config = colorConfig[category.color]
           return (
-            <div 
+            <div
               key={category.category}
               className="card p-5 animate-fade-in-up"
-              style={{ animationDelay: `${catIdx * 0.1 + 0.2}s` }}
+              style={{ animationDelay: `${catIdx * 0.08 + 0.15}s` }}
             >
               <div className="flex items-center gap-3 mb-4">
                 <div className={`w-8 h-8 rounded-lg ${config.bg} flex items-center justify-center`}>
@@ -121,51 +152,69 @@ export default function Services() {
                   {category.category}
                 </span>
               </div>
-              
-              <div className="space-y-1">
-                {category.items.map((item, idx) => {
-                  const content = (
-                    <div className="flex items-start gap-3 p-3 -mx-2 rounded-xl hover:bg-[var(--color-stat)] transition-all duration-200 cursor-pointer group">
-                      <div className="w-9 h-9 rounded-xl bg-[var(--color-stat)] group-hover:bg-[var(--color-bg-3)] flex items-center justify-center shrink-0 transition-colors">
-                        <Icon name={item.icon} size={17} className="text-[var(--color-txt-2)]" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[13px] font-medium text-[var(--color-txt-0)] group-hover:text-[var(--color-accent)] flex items-center gap-1.5 transition-colors">
-                          {item.name}
-                          {item.link && (
-                            <Icon name="arrowUpRight" size={12} className="text-[var(--color-txt-3)] group-hover:text-[var(--color-accent)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-                          )}
-                        </div>
-                        <div className="text-[11px] text-[var(--color-txt-2)] mt-0.5 line-clamp-1">{item.desc}</div>
-                      </div>
-                    </div>
-                  )
 
-                  return item.link ? (
-                    <Link key={item.name} to={item.link}>{content}</Link>
-                  ) : (
-                    <div key={item.name}>{content}</div>
-                  )
-                })}
+              <div className="space-y-1">
+                {category.items.map((item) => (
+                  <ResourceCard key={item.name} item={item} />
+                ))}
               </div>
             </div>
           )
         })}
       </div>
 
-      {/* Help Section */}
-      <div className="card p-6 bg-gradient-to-br from-[var(--color-gold-dark)] to-[#2A1E0A] border-[var(--color-gold)]/20 animate-fade-in-up stagger-6">
-        <div className="flex flex-col sm:flex-row items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-[var(--color-gold)]/20 flex items-center justify-center shrink-0">
-            <Icon name="sparkles" size={28} className="text-[var(--color-gold)]" />
+      <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-4">
+        <div className="card p-6 bg-gradient-to-br from-[var(--color-gold-dark)] to-[#2A1E0A] border-[var(--color-gold)]/20 animate-fade-in-up stagger-6">
+          <div className="flex flex-col sm:flex-row items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--color-gold)]/20 flex items-center justify-center shrink-0">
+              <Icon name="sparkles" size={28} className="text-[var(--color-gold)]" />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <div className="text-[15px] font-semibold text-[var(--color-gold)]">Need help finding something?</div>
+              <div className="text-[13px] text-[var(--color-gold)]/70 mt-0.5">
+                Use the Campus Assistant to point students to the right official Purdue or Indianapolis resource.
+              </div>
+            </div>
+            <button className="btn bg-[var(--color-gold)] text-[var(--color-gold-dark)] border-none text-[13px] px-5 py-2.5 font-medium hover:bg-[var(--color-gold-light)]">
+              Open Assistant
+            </button>
           </div>
-          <div className="flex-1 text-center sm:text-left">
-            <div className="text-[15px] font-semibold text-[var(--color-gold)]">Need help finding something?</div>
-            <div className="text-[13px] text-[var(--color-gold)]/70 mt-0.5">Ask the Campus Assistant for quick answers</div>
+        </div>
+
+        <div className="card p-6 animate-fade-in-up">
+          <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-4">
+            In-App Shortcuts
           </div>
-          <button className="btn bg-[var(--color-gold)] text-[var(--color-gold-dark)] border-none text-[13px] px-5 py-2.5 font-medium hover:bg-[var(--color-gold-light)]">
-            Open Assistant
-          </button>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Link to="/schedule" className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] hover:bg-[var(--color-stat)] transition-colors no-underline">
+              <div className="flex items-center gap-2 text-[14px] font-medium text-[var(--color-txt-0)]">
+                <Icon name="schedule" size={16} />
+                Schedule
+              </div>
+              <div className="text-[12px] text-[var(--color-txt-2)] mt-1">View imported classes and weekly meetings.</div>
+            </Link>
+            <Link to="/transit" className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] hover:bg-[var(--color-stat)] transition-colors no-underline">
+              <div className="flex items-center gap-2 text-[14px] font-medium text-[var(--color-txt-0)]">
+                <Icon name="bus" size={16} />
+                Transit
+              </div>
+              <div className="text-[12px] text-[var(--color-txt-2)] mt-1">Open campus movement tools and shuttle info.</div>
+            </Link>
+            <Link to="/dining" className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] hover:bg-[var(--color-stat)] transition-colors no-underline">
+              <div className="flex items-center gap-2 text-[14px] font-medium text-[var(--color-txt-0)]">
+                <Icon name="dining" size={16} />
+                Dining
+              </div>
+              <div className="text-[12px] text-[var(--color-txt-2)] mt-1">Check menus, hours, and dining context.</div>
+            </Link>
+            <Link to="/settings" className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] hover:bg-[var(--color-stat)] transition-colors no-underline">
+              <div className="flex items-center gap-2 text-[14px] font-medium text-[var(--color-txt-0)]">
+                <Icon name="settings" size={16} />
+                Settings
+              </div>
+              <div className="text-[12px] text-[var(--color-txt-2)] mt-1">Manage account, Purdue link, and source setup.</div>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

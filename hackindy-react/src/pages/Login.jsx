@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
-import { parseNextPath } from '../lib/authApi'
-import { signInWithEmail, signUpWithEmail } from '../lib/supabase'
+import { parseNextPath, registerSupabaseUser } from '../lib/authApi'
+import { signInWithEmail } from '../lib/supabase'
 import Icon from '../components/Icons'
 
 const asideFeatures = [
@@ -103,9 +103,12 @@ export default function Login() {
     setSubmitting(true)
     try {
       if (tab === 'signup') {
-        await signUpWithEmail(email.trim(), password, {
-          full_name: name.trim(),
-        })
+        await registerSupabaseUser(email.trim(), password, name.trim())
+        try {
+          await signInWithEmail(email.trim(), password)
+        } catch {
+          /* Backend session from register is enough if client Supabase env is misconfigured */
+        }
         await refreshSession()
         navigate(parseNextPath(window.location.search), { replace: true })
       } else {

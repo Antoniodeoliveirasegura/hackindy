@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import Icon from '../components/Icons'
 
@@ -32,11 +32,7 @@ export default function Board() {
   const [newTitle, setNewTitle] = useState('')
   const [newBody, setNewBody] = useState('')
   const [isAnon, setIsAnon] = useState(true)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = true
 
   const currentUserName = getDisplayName()
 

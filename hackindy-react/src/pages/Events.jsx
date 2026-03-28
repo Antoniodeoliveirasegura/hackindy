@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Icon from '../components/Icons'
 
 const allEvents = [
@@ -38,11 +38,7 @@ const categoryConfig = {
 export default function Events() {
   const [filter, setFilter] = useState('all')
   const [selectedEvent, setSelectedEvent] = useState(null)
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = true
 
   const filteredEvents = allEvents.filter(e => filter === 'all' || e.category === filter)
 

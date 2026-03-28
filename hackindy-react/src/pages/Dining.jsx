@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Icon from '../components/Icons'
 
 const diningLocations = [
@@ -56,11 +56,7 @@ const hours = [
 
 export default function Dining() {
   const [selectedLocation, setSelectedLocation] = useState(diningLocations[0])
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = true
 
   return (
     <div className={`max-w-[1000px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}>

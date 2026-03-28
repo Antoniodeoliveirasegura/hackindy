@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import Icon from '../components/Icons'
 
@@ -75,13 +74,9 @@ function getCurrentDate() {
 }
 
 export default function Home() {
-  const [mounted, setMounted] = useState(false)
   const { getFirstName, onboarding } = useAuth()
   const firstName = getFirstName()
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = true
 
   const needsPurdueConnection = onboarding?.needsPurdueConnection
   const needsScheduleSource = onboarding?.needsScheduleSource
