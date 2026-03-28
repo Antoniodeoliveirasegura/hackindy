@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth, useSignOutAndRedirect } from '../context/AuthContext'
 import Icon from './Icons'
 
 const navItems = [
-  { path: '/', label: 'Home', icon: 'home' },
+  { path: '/dashboard', label: 'Home', icon: 'home' },
   { path: '/map', label: 'Map', icon: 'mapPin' },
   { path: '/schedule', label: 'Schedule', icon: 'schedule' },
   { path: '/events', label: 'Events', icon: 'calendar' },
@@ -14,8 +15,11 @@ const navItems = [
 export default function Navbar() {
   const location = useLocation()
   const { dark, toggleTheme } = useTheme()
+  const { user, getInitials, getDisplayName } = useAuth()
+  const signOutAndRedirect = useSignOutAndRedirect()
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10)
@@ -25,6 +29,7 @@ export default function Navbar() {
 
   useEffect(() => {
     setMobileOpen(false)
+    setMenuOpen(false)
   }, [location])
 
   return (
@@ -39,7 +44,7 @@ export default function Navbar() {
         <div className="max-w-[1200px] mx-auto px-6 h-full flex items-center justify-between">
           {/* Logo */}
           <Link 
-            to="/" 
+            to="/dashboard" 
             className="flex items-center gap-2.5 group"
           >
             <div className="relative">
@@ -96,12 +101,60 @@ export default function Navbar() {
               </div>
             </button>
 
-            {/* User Avatar */}
-            <div className="relative group cursor-pointer">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center text-[12px] font-bold text-[var(--color-gold-dark)] shadow-sm group-hover:shadow-md transition-all duration-300 group-hover:scale-105">
-                JS
-              </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[var(--color-success)] rounded-full border-2 border-[var(--color-bg-0)]" />
+            {/* Account menu */}
+            <div className="relative hidden md:block">
+              <button
+                type="button"
+                onClick={() => setMenuOpen((o) => !o)}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center text-[12px] font-bold text-[var(--color-gold-dark)] shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105"
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+              >
+                {user ? getInitials() : 'PI'}
+              </button>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[var(--color-success)] rounded-full border-2 border-[var(--color-bg-0)] pointer-events-none" />
+              {menuOpen && (
+                <>
+                  <button
+                    type="button"
+                    className="fixed inset-0 z-[60] cursor-default"
+                    aria-label="Close menu"
+                    onClick={() => setMenuOpen(false)}
+                  />
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-12 z-[70] min-w-[200px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1 text-left"
+                  >
+                    <div className="px-3 py-2 border-b border-[var(--color-border)]">
+                      <div className="text-[13px] font-medium text-[var(--color-txt-0)] truncate">
+                        {user ? getDisplayName() : 'Guest'}
+                      </div>
+                      {user?.email && (
+                        <div className="text-[11px] text-[var(--color-txt-2)] truncate">{user.email}</div>
+                      )}
+                    </div>
+                    <Link
+                      to="/"
+                      role="menuitem"
+                      className="block px-3 py-2 text-[13px] text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] no-underline"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Marketing site
+                    </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="w-full text-left px-3 py-2 text-[13px] text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] border-0 bg-transparent cursor-pointer"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        signOutAndRedirect()
+                      }}
+                    >
+                      Sign out
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -160,13 +213,27 @@ export default function Navbar() {
           <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
             <div className="flex items-center gap-3 px-4 py-3">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center text-[14px] font-bold text-[var(--color-gold-dark)]">
-                JS
+                {user ? getInitials() : 'PI'}
               </div>
-              <div>
-                <div className="text-[14px] font-medium text-[var(--color-txt-0)]">Jordan Smith</div>
-                <div className="text-[12px] text-[var(--color-txt-2)]">Computer Science</div>
+              <div className="min-w-0">
+                <div className="text-[14px] font-medium text-[var(--color-txt-0)] truncate">
+                  {user ? getDisplayName() : 'Student'}
+                </div>
+                {user?.email && (
+                  <div className="text-[12px] text-[var(--color-txt-2)] truncate">{user.email}</div>
+                )}
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileOpen(false)
+                signOutAndRedirect()
+              }}
+              className="mx-4 mt-2 w-[calc(100%-2rem)] py-2.5 rounded-xl border border-[var(--color-border)] text-[13px] text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)]"
+            >
+              Sign out
+            </button>
           </div>
         </div>
       </div>

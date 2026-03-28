@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import Icon from './Icons'
 
 const responses = {
@@ -29,9 +30,14 @@ const quickQuestions = [
 ]
 
 export default function CampusAssistant() {
+  const { getFirstName } = useAuth()
+  const firstName = getFirstName()
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([
-    { type: 'assistant', content: 'Hey Jordan! 👋 Ask me anything — schedule, dining, buses, or buildings.' }
+    {
+      type: 'assistant',
+      content: `Hey ${firstName}! 👋 Ask me anything — schedule, dining, buses, or buildings.`,
+    },
   ])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)

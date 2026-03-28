@@ -40,13 +40,24 @@ if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
 
 export const enabledSocialProviders = Object.keys(socialProviders);
 
+const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const extraOrigins = (process.env.TRUSTED_ORIGINS || "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 export const auth = betterAuth({
   appName: "Purdue Indy Hub",
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  baseURL,
   secret:
     process.env.BETTER_AUTH_SECRET ||
     "better-auth-secret-12345678901234567890",
-  trustedOrigins: [process.env.BETTER_AUTH_URL || "http://localhost:3000"],
+  trustedOrigins: [
+    baseURL,
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    ...extraOrigins,
+  ],
   database: new Database(databasePath),
   emailAndPassword: {
     enabled: true,
