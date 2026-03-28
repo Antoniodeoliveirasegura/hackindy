@@ -5,6 +5,7 @@ import AppLayout from './components/AppLayout'
 import RequireAuth from './components/RequireAuth'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
+import AuthCallback from './pages/AuthCallback'
 import Home from './pages/Home'
 import Map from './pages/Map'
 import Schedule from './pages/Schedule'
@@ -24,6 +25,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route element={<AppLayout />}>
               <Route
                 path="/setup"
