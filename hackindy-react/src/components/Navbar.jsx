@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import Icon from './Icons'
@@ -13,47 +14,165 @@ const navItems = [
 export default function Navbar() {
   const location = useLocation()
   const { dark, toggleTheme } = useTheme()
+  const [scrolled, setScrolled] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10)
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location])
 
   return (
-    <nav className="bg-[var(--color-bg-0)] border-b border-[var(--color-border)] px-8 h-[52px] flex items-center justify-between sticky top-0 z-20">
-      <Link to="/" className="text-[15px] font-medium flex items-center gap-2 text-[var(--color-txt-0)]">
-        <span className="bg-gold text-gold-dark text-[10px] font-semibold px-2 py-0.5 rounded tracking-wide">
-          PIH
-        </span>
-        Purdue Indy Hub
-      </Link>
+    <>
+      <nav 
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out
+          ${scrolled 
+            ? 'h-14 glass shadow-md border-b border-[var(--color-border)]' 
+            : 'h-16 bg-transparent'
+          }`}
+      >
+        <div className="max-w-[1200px] mx-auto px-6 h-full flex items-center justify-between">
+          {/* Logo */}
+          <Link 
+            to="/" 
+            className="flex items-center gap-2.5 group"
+          >
+            <div className="relative">
+              <span className="bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] text-[var(--color-gold-dark)] text-[10px] font-bold px-2.5 py-1 rounded-lg tracking-wider shadow-sm group-hover:shadow-md transition-shadow duration-300">
+                PIH
+              </span>
+              <div className="absolute inset-0 bg-[var(--color-gold)] rounded-lg opacity-0 group-hover:opacity-20 blur-md transition-opacity duration-300" />
+            </div>
+            <span className="text-[15px] font-semibold text-[var(--color-txt-0)] tracking-tight hidden sm:block">
+              Purdue Indy Hub
+            </span>
+          </Link>
 
-      <div className="flex gap-0.5">
-        {navItems.map(({ path, label, icon }) => {
-          const isActive = location.pathname === path
-          return (
-            <Link
-              key={path}
-              to={path}
-              className={`text-[13px] px-3 py-1.5 rounded-md flex items-center gap-1.5 transition-all
-                ${isActive 
-                  ? 'bg-[var(--color-bg-2)] text-[var(--color-txt-0)] font-medium' 
-                  : 'text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] hover:text-[var(--color-txt-0)]'
-                }`}
+          {/* Desktop Navigation */}
+          <div className="hidden md:flex items-center gap-1 bg-[var(--color-bg-2)]/60 backdrop-blur-sm rounded-full p-1 border border-[var(--color-border)]">
+            {navItems.map(({ path, label, icon }) => {
+              const isActive = location.pathname === path
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className={`relative text-[13px] px-4 py-2 rounded-full flex items-center gap-2 transition-all duration-300
+                    ${isActive 
+                      ? 'text-[var(--color-gold-dark)] font-medium' 
+                      : 'text-[var(--color-txt-1)] hover:text-[var(--color-txt-0)]'
+                    }`}
+                >
+                  {isActive && (
+                    <span 
+                      className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] rounded-full animate-fade-in"
+                      style={{ zIndex: -1 }}
+                    />
+                  )}
+                  <Icon name={icon} size={15} strokeWidth={isActive ? 2.5 : 2} />
+                  <span>{label}</span>
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* Right Side */}
+          <div className="flex items-center gap-3">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="relative w-10 h-10 rounded-xl bg-[var(--color-bg-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-txt-1)] hover:text-[var(--color-txt-0)] hover:border-[var(--color-border-2)] hover:bg-[var(--color-bg-3)] transition-all duration-300 overflow-hidden group"
+              aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              <Icon name={icon} size={14} />
-              {label}
-            </Link>
-          )
-        })}
-      </div>
+              <div className={`absolute transition-all duration-500 ${dark ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0'}`}>
+                <Icon name="moon" size={18} />
+              </div>
+              <div className={`absolute transition-all duration-500 ${dark ? 'rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'}`}>
+                <Icon name="sun" size={18} />
+              </div>
+            </button>
 
-      <div className="flex items-center gap-2">
-        <button
-          onClick={toggleTheme}
-          className="w-8 h-8 rounded-lg border border-[var(--color-border-2)] bg-[var(--color-bg-2)] flex items-center justify-center text-[var(--color-txt-0)] hover:scale-105 transition-transform"
-        >
-          <Icon name={dark ? 'moon' : 'sun'} size={16} />
-        </button>
-        <div className="w-[30px] h-[30px] rounded-full bg-gold flex items-center justify-center text-[11px] font-semibold text-gold-dark">
-          JS
+            {/* User Avatar */}
+            <div className="relative group cursor-pointer">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center text-[12px] font-bold text-[var(--color-gold-dark)] shadow-sm group-hover:shadow-md transition-all duration-300 group-hover:scale-105">
+                JS
+              </div>
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[var(--color-success)] rounded-full border-2 border-[var(--color-bg-0)]" />
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="md:hidden w-10 h-10 rounded-xl bg-[var(--color-bg-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-txt-1)] hover:text-[var(--color-txt-0)] transition-all duration-300"
+              aria-label="Toggle menu"
+            >
+              <div className="relative w-5 h-5">
+                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${mobileOpen ? 'top-2.5 rotate-45' : 'top-1'}`} />
+                <span className={`absolute left-0 top-2.5 block w-5 h-0.5 bg-current transition-all duration-300 ${mobileOpen ? 'opacity-0 scale-0' : 'opacity-100'}`} />
+                <span className={`absolute left-0 block w-5 h-0.5 bg-current transition-all duration-300 ${mobileOpen ? 'top-2.5 -rotate-45' : 'top-4'}`} />
+              </div>
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile Menu Overlay */}
+      <div 
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
+      {/* Mobile Menu */}
+      <div 
+        className={`fixed top-0 right-0 h-full w-72 bg-[var(--color-surface)] z-50 md:hidden transition-transform duration-500 ease-out shadow-xl ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
+      >
+        <div className="p-6 pt-20">
+          <div className="space-y-2">
+            {navItems.map(({ path, label, icon }, idx) => {
+              const isActive = location.pathname === path
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300
+                    ${isActive 
+                      ? 'bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] text-[var(--color-gold-dark)] font-medium shadow-sm' 
+                      : 'text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] hover:text-[var(--color-txt-0)]'
+                    }`}
+                  style={{ 
+                    animationDelay: `${idx * 0.05}s`,
+                    opacity: mobileOpen ? 1 : 0,
+                    transform: mobileOpen ? 'translateX(0)' : 'translateX(20px)',
+                    transition: `all 0.3s ease ${idx * 0.05}s`
+                  }}
+                >
+                  <Icon name={icon} size={20} />
+                  <span className="text-[15px]">{label}</span>
+                </Link>
+              )
+            })}
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center text-[14px] font-bold text-[var(--color-gold-dark)]">
+                JS
+              </div>
+              <div>
+                <div className="text-[14px] font-medium text-[var(--color-txt-0)]">Jordan Smith</div>
+                <div className="text-[12px] text-[var(--color-txt-2)]">Computer Science</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </nav>
+
+      {/* Spacer for fixed navbar */}
+      <div className="h-16" />
+    </>
   )
 }

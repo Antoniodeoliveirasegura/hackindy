@@ -22,12 +22,19 @@ const responses = {
   'tutor': 'The Academic Success Center offers free tutoring at 620 Union Dr.',
 }
 
+const quickQuestions = [
+  'When is my next class?',
+  'What\'s for lunch?',
+  'When is the next bus?',
+]
+
 export default function CampusAssistant() {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([
-    { type: 'assistant', content: 'Hey Jordan! Ask me anything — schedule, dining, buses, or buildings.' }
+    { type: 'assistant', content: 'Hey Jordan! 👋 Ask me anything — schedule, dining, buses, or buildings.' }
   ])
   const [input, setInput] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
   const messagesRef = useRef(null)
 
   useEffect(() => {
@@ -36,12 +43,13 @@ export default function CampusAssistant() {
     }
   }, [messages])
 
-  const handleSend = () => {
-    if (!input.trim()) return
+  const handleSend = (text = input) => {
+    if (!text.trim()) return
 
-    const userMsg = input.trim()
+    const userMsg = text.trim()
     setMessages(prev => [...prev, { type: 'user', content: userMsg }])
     setInput('')
+    setIsTyping(true)
 
     setTimeout(() => {
       const low = userMsg.toLowerCase()
@@ -54,8 +62,9 @@ export default function CampusAssistant() {
         }
       }
 
+      setIsTyping(false)
       setMessages(prev => [...prev, { type: 'assistant', content: response }])
-    }, 500)
+    }, 800)
   }
 
   const renderMessage = (msg, idx) => {
@@ -65,72 +74,150 @@ export default function CampusAssistant() {
     return (
       <div
         key={idx}
-        className={`text-xs px-3 py-2 rounded-lg max-w-[90%] leading-relaxed
-          ${isUser 
-            ? 'bg-gold-dark text-gold self-end rounded-br-sm' 
-            : 'bg-[var(--color-stat)] text-[var(--color-txt-0)] self-start rounded-bl-sm'
-          }`}
+        className={`flex gap-2.5 animate-fade-in-up ${isUser ? 'flex-row-reverse' : ''}`}
+        style={{ animationDelay: `${idx * 0.05}s` }}
       >
-        {typeof content === 'object' && content.link ? (
-          <Link to={content.link} className="underline" onClick={() => setOpen(false)}>
-            {content.text}
-          </Link>
-        ) : (
-          content
+        {!isUser && (
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0">
+            <Icon name="sparkles" size={14} className="text-[var(--color-gold-dark)]" />
+          </div>
         )}
+        <div
+          className={`text-[13px] px-4 py-2.5 rounded-2xl max-w-[85%] leading-relaxed
+            ${isUser 
+              ? 'bg-gradient-to-br from-[var(--color-gold-dark)] to-[#2A1E0A] text-[var(--color-gold)] rounded-br-md' 
+              : 'bg-[var(--color-stat)] text-[var(--color-txt-0)] rounded-bl-md'
+            }`}
+        >
+          {typeof content === 'object' && content.link ? (
+            <Link 
+              to={content.link} 
+              className="text-[var(--color-accent)] hover:underline flex items-center gap-1" 
+              onClick={() => setOpen(false)}
+            >
+              {content.text}
+              <Icon name="arrowUpRight" size={12} />
+            </Link>
+          ) : (
+            content
+          )}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2.5">
-      {open && (
-        <div className="bg-[var(--color-bg-0)] border border-[var(--color-border-2)] rounded-xl p-4 w-80 shadow-xl animate-in slide-in-from-bottom-2">
-          <div className="flex justify-between items-center mb-2.5">
-            <span className="text-[13px] font-semibold text-[var(--color-txt-0)] flex items-center gap-1.5">
-              <Icon name="sparkles" size={14} className="text-gold" />
-              Campus Assistant
-            </span>
+    <>
+      {/* Backdrop */}
+      <div 
+        className={`fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={() => setOpen(false)}
+      />
+
+      {/* Chat Window */}
+      <div className={`fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-48px)] transition-all duration-500 ease-out ${open ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'}`}>
+        <div className="card p-0 overflow-hidden shadow-xl border-[var(--color-border-2)]">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-[var(--color-gold-dark)] to-[#2A1E0A] p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[var(--color-gold)]/20 flex items-center justify-center">
+                <Icon name="sparkles" size={20} className="text-[var(--color-gold)]" />
+              </div>
+              <div>
+                <div className="text-[14px] font-semibold text-[var(--color-gold)]">Campus Assistant</div>
+                <div className="text-[11px] text-[var(--color-gold)]/60 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
+                  Always here to help
+                </div>
+              </div>
+            </div>
             <button
               onClick={() => setOpen(false)}
-              className="p-1 rounded hover:bg-[var(--color-bg-2)] text-[var(--color-txt-2)]"
+              className="w-8 h-8 rounded-lg bg-[var(--color-gold)]/10 flex items-center justify-center text-[var(--color-gold)]/70 hover:text-[var(--color-gold)] hover:bg-[var(--color-gold)]/20 transition-colors"
             >
-              <Icon name="close" size={14} />
+              <Icon name="close" size={16} />
             </button>
           </div>
 
+          {/* Messages */}
           <div
             ref={messagesRef}
-            className="min-h-[80px] max-h-[220px] overflow-y-auto flex flex-col gap-2 mb-2.5"
+            className="min-h-[200px] max-h-[320px] overflow-y-auto p-4 space-y-3 bg-[var(--color-surface)]"
           >
             {messages.map(renderMessage)}
+            
+            {isTyping && (
+              <div className="flex gap-2.5 animate-fade-in">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0">
+                  <Icon name="sparkles" size={14} className="text-[var(--color-gold-dark)]" />
+                </div>
+                <div className="bg-[var(--color-stat)] text-[var(--color-txt-0)] rounded-2xl rounded-bl-md px-4 py-3">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 rounded-full bg-[var(--color-txt-3)] animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-[var(--color-txt-3)] animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-[var(--color-txt-3)] animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex gap-1.5">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask about campus..."
-              className="flex-1 text-xs border border-[var(--color-border-2)] rounded-lg px-3 py-2 bg-[var(--color-bg-2)] text-[var(--color-txt-0)] outline-none focus:border-gold transition-colors"
-            />
-            <button
-              onClick={handleSend}
-              className="bg-gold-dark text-gold rounded-lg px-3.5 py-2 hover:bg-[#5c3a00] transition-colors"
-            >
-              <Icon name="send" size={14} />
-            </button>
+          {/* Quick Questions */}
+          {messages.length <= 2 && (
+            <div className="px-4 pb-3 flex flex-wrap gap-2 bg-[var(--color-surface)]">
+              {quickQuestions.map((q, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSend(q)}
+                  className="text-[11px] px-3 py-1.5 rounded-full border border-[var(--color-border-2)] text-[var(--color-txt-1)] hover:bg-[var(--color-stat)] hover:text-[var(--color-txt-0)] transition-colors"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Input */}
+          <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-bg-1)]">
+            <div className="flex gap-2">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Ask about campus..."
+                className="input flex-1 text-[13px] px-4 py-2.5"
+              />
+              <button
+                onClick={() => handleSend()}
+                disabled={!input.trim()}
+                className="btn btn-primary px-4 py-2.5 disabled:opacity-50"
+              >
+                <Icon name="send" size={16} />
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
+      {/* Floating Button */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-12 h-12 rounded-full bg-gradient-to-br from-gold-dark to-[#5c3a00] text-gold flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-500 group
+          ${open 
+            ? 'bg-[var(--color-surface)] border border-[var(--color-border-2)] rotate-90' 
+            : 'bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] hover:shadow-xl hover:scale-110'
+          }`}
         title="Campus Assistant"
       >
-        <Icon name="sparkles" size={22} />
+        {open ? (
+          <Icon name="close" size={22} className="text-[var(--color-txt-1)]" />
+        ) : (
+          <>
+            <Icon name="sparkles" size={24} className="text-[var(--color-gold-dark)]" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-success)] border-2 border-[var(--color-bg-1)] animate-pulse" />
+          </>
+        )}
       </button>
-    </div>
+    </>
   )
 }
