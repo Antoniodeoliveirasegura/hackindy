@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Events · Purdue Indy Hub</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+--bg0:#ffffff;--bg1:#f2f1ee;--bg2:#e8e7e3;
+--txt0:#111110;--txt1:#52514d;--txt2:#8a897f;
+--bdr:rgba(0,0,0,0.09);--bdr2:rgba(0,0,0,0.16);
+--gold:#CFB991;--gold-dk:#3E2200;--stat:#eceae6;
+}
+.dark{
+--bg0:#111113;--bg1:#18181a;--bg2:#222224;
+--txt0:#f2f1ee;--txt1:#9a9890;--txt2:#5c5b55;
+--bdr:rgba(255,255,255,0.08);--bdr2:rgba(255,255,255,0.14);
+--gold:#CFB991;--gold-dk:#4a2c00;--stat:#1e1e20;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:var(--txt0);}
+.navbar{background:var(--bg0);border-bottom:0.5px solid var(--bdr);padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.nav-logo{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--txt0);}
+.logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;}
+.nav-links{display:flex;gap:2px;}
+.nb{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;}
+.nb:hover,.nb.active{background:var(--bg2);color:var(--txt0);}.nb.active{font-weight:500;}
+.nav-r{display:flex;align-items:center;gap:8px;}
+.tbtn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--txt0);}
+.av{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--gold-dk);}
+.main{max-width:960px;margin:0 auto;padding:1.5rem 2rem 5rem;}
+.page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;}
+.page-hdr h1{font-size:22px;font-weight:500;}
+.page-hdr p{font-size:13px;color:var(--txt1);margin-top:3px;}
+.filter-row{display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap;}
+.chip{font-size:12px;padding:6px 16px;border-radius:20px;border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt1);cursor:pointer;font-family:inherit;}
+.chip.on{background:var(--gold-dk);color:var(--gold);border-color:var(--gold-dk);}
+.events-list{display:flex;flex-direction:column;gap:10px;}
+.evt-card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:12px;padding:1.1rem 1.25rem;cursor:pointer;transition:border-color .15s;}
+.evt-card:hover{border-color:var(--bdr2);}
+.evt-card.expanded{border-color:var(--bdr2);}
+.ec-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.ec-left{display:flex;align-items:flex-start;gap:12px;flex:1;}
+.ec-date{min-width:44px;text-align:center;background:var(--stat);border-radius:8px;padding:6px 8px;}
+.ec-month{font-size:9px;font-weight:500;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;}
+.ec-day{font-size:20px;font-weight:500;color:var(--txt0);line-height:1;}
+.ec-body{flex:1;}
+.ec-title{font-size:14px;font-weight:500;color:var(--txt0);margin-bottom:3px;}
+.ec-meta{font-size:12px;color:var(--txt1);display:flex;gap:10px;flex-wrap:wrap;}
+.ec-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.cat-badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:500;white-space:nowrap;}
+.cat-eng{background:#ddeaf8;color:#1a4e8c;}.dark .cat-eng{background:#0a2d52;color:#93c2f0;}
+.cat-car{background:#dff0e0;color:#2a5e10;}.dark .cat-car{background:#0f3018;color:#8fd470;}
+.cat-soc{background:#f8e0ec;color:#7a2048;}.dark .cat-soc{background:#320c20;color:#e88ab8;}
+.cat-gen{background:#faebd4;color:#7a4800;}.dark .cat-gen{background:#2e1800;color:#f0a050;}
+.save-btn{font-size:11px;padding:4px 10px;border-radius:6px;border:0.5px solid var(--bdr2);background:transparent;color:var(--txt1);cursor:pointer;font-family:inherit;}
+.save-btn.saved{background:var(--gold-dk);color:var(--gold);border-color:var(--gold-dk);}
+.ec-expand{margin-top:12px;border-top:0.5px solid var(--bdr);padding-top:12px;display:none;}
+.ec-expand.open{display:block;}
+.ec-desc{font-size:13px;color:var(--txt1);line-height:1.6;margin-bottom:10px;}
+.ec-acts{display:flex;gap:7px;}
+.btn-p{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit;}
+.btn-s{background:var(--bg2);color:var(--txt0);border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 14px;font-size:12px;cursor:pointer;font-family:inherit;}
+.empty{text-align:center;padding:3rem;color:var(--txt2);font-size:14px;}
+/* Campus Assistant — fixed */
+.fab-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
+.fab:hover{background:#5c3a00;}.dark .fab:hover{background:#6a4400;}
+.ai-panel{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:12px;padding:1rem 1.1rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;}
+.ai-panel.open{display:block;}
+.ai-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);}
+.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:15px;line-height:1;}
+.ai-msgs{min-height:80px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
+.ai-msg{font-size:12px;padding:8px 10px;border-radius:8px;max-width:90%;line-height:1.45;}
+.ai-msg.a{background:var(--stat);color:var(--txt0);align-self:flex-start;}
+.ai-msg.u{background:var(--gold-dk);color:var(--gold);align-self:flex-end;}
+.ai-row{display:flex;gap:6px;}
+.ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
+.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="navbar">
+  <div class="nav-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
+  <div class="nav-links">
+    <button class="nb" onclick="location.href='index.html'">Home</button>
+    <button class="nb" onclick="location.href='map.html'">Map</button>
+    <button class="nb" onclick="location.href='schedule.html'">Schedule</button>
+    <button class="nb active">Events</button>
+    <button class="nb" onclick="location.href='services.html'">More</button>
+  </div>
+  <div class="nav-r">
+    <button class="tbtn" id="tbtn" onclick="toggleTheme()">☀</button>
+    <div class="av">JS</div>
+  </div>
+</div>
+<div class="main">
+  <div class="page-hdr">
+    <div><h1>Campus Events</h1><p>Upcoming events at Purdue Indianapolis</p></div>
+  </div>
+  <div class="filter-row">
+    <button class="chip on" onclick="setF('all',this)">All events</button>
+    <button class="chip" onclick="setF('engineering',this)">Engineering</button>
+    <button class="chip" onclick="setF('career',this)">Career</button>
+    <button class="chip" onclick="setF('social',this)">Social</button>
+    <button class="chip" onclick="setF('general',this)">General</button>
+  </div>
+  <div class="events-list" id="events-list"></div>
+</div>
+
+<!-- Campus Assistant — fixed -->
+<div class="fab-wrap">
+  <div class="ai-panel" id="ai-panel">
+    <div class="ai-hdr">
+      <span class="ai-hdr-txt">✦ Campus Assistant</span>
+      <button class="ai-close" onclick="toggleAI()">✕</button>
+    </div>
+    <div class="ai-msgs" id="ai-msgs">
+      <div class="ai-msg a">Ask me about events today, this week, or by category!</div>
+    </div>
+    <div class="ai-row">
+      <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
+      <button class="ai-send" onclick="doAI()">↑</button>
+    </div>
+  </div>
+  <button class="fab" onclick="toggleAI()" title="Campus Assistant">✦</button>
+</div>
+</div>
+
+<script>
+let dark=localStorage.getItem('pih-dark')==='1', filt='all', aiOpen=false;
+const saved=new Set();
+const EVENTS=[
+  {id:1,title:'Hackathon Kickoff Workshop',cat:'engineering',month:'MAR',day:27,time:'10:00 AM',loc:'ET 108',desc:'Join the Purdue Indy CS Club for an intro to the Spring Hackathon. Learn about the problem prompts, form teams, and get a head start on your project. Pizza and snacks provided.'},
+  {id:2,title:'Spring Career Fair',cat:'career',month:'MAR',day:27,time:'12:00 PM',loc:'Campus Center Ballroom',desc:'Meet 40+ employers from tech, engineering, finance, and healthcare. Bring copies of your resume and dress professionally. Open to all majors and class years.'},
+  {id:3,title:'Student Org Showcase',cat:'social',month:'MAR',day:27,time:'3:00 PM',loc:'IUPUI Commons',desc:'Discover 60+ student organizations and clubs. Whether you are into robotics, culture, sports, or service, there is a group for you. Free food and giveaways.'},
+  {id:4,title:'Research Symposium',cat:'engineering',month:'MAR',day:28,time:'9:00 AM',loc:'Science & Liberal Arts Bldg',desc:'Undergraduate and graduate students present their research projects across science, engineering, and the humanities. All are welcome to attend and ask questions.'},
+  {id:5,title:'Resume Review Drop-In',cat:'career',month:'MAR',day:28,time:'1:00 PM',loc:'Academic Success Center',desc:'Bring your resume for a 15-minute one-on-one review with a career advisor. No appointment needed. First come, first served.'},
+  {id:6,title:'International Food Festival',cat:'social',month:'MAR',day:29,time:'12:00 PM',loc:'Campus Center Atrium',desc:'Sample dishes from cultures around the world prepared by Purdue Indy student organizations. Free admission with your student ID.'},
+  {id:7,title:'Python Workshop: Data Science Basics',cat:'engineering',month:'MAR',day:30,time:'2:00 PM',loc:'ET 112',desc:'A hands-on beginner workshop covering NumPy, Pandas, and Matplotlib. Bring your laptop with Python installed. Limited to 30 seats — RSVP required.'},
+  {id:8,title:'Wellness & Mindfulness Seminar',cat:'general',month:'APR',day:1,time:'11:00 AM',loc:'Campus Center Room 302',desc:'Learn evidence-based stress management techniques from the campus counseling team. Topics include breathing exercises, time management, and sleep hygiene.'},
+];
+const catMap={engineering:'cat-eng',career:'cat-car',social:'cat-soc',general:'cat-gen'};
+function setF(f,el){filt=f;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');render();}
+function toggleSave(id,btn){
+  if(saved.has(id)){saved.delete(id);btn.textContent='Save';btn.classList.remove('saved');}
+  else{saved.add(id);btn.textContent='Saved ✓';btn.classList.add('saved');}
+}
+function toggleExpand(id){
+  const ex=document.getElementById('ex-'+id);
+  const card=document.getElementById('ec-'+id);
+  if(ex.classList.contains('open')){ex.classList.remove('open');card.classList.remove('expanded');}
+  else{ex.classList.add('open');card.classList.add('expanded');}
+}
+function render(){
+  const list=EVENTS.filter(e=>filt==='all'||e.cat===filt);
+  if(!list.length){document.getElementById('events-list').innerHTML='<div class="empty">No events in this category.</div>';return;}
+  document.getElementById('events-list').innerHTML=list.map(e=>`
+    <div class="evt-card" id="ec-${e.id}">
+      <div class="ec-top" onclick="toggleExpand(${e.id})">
+        <div class="ec-left">
+          <div class="ec-date"><div class="ec-month">${e.month}</div><div class="ec-day">${e.day}</div></div>
+          <div class="ec-body">
+            <div class="ec-title">${e.title}</div>
+            <div class="ec-meta"><span>${e.time}</span><span>${e.loc}</span></div>
+          </div>
+        </div>
+        <div class="ec-right">
+          <span class="cat-badge ${catMap[e.cat]}">${e.cat.charAt(0).toUpperCase()+e.cat.slice(1)}</span>
+          <button class="save-btn${saved.has(e.id)?' saved':''}" onclick="event.stopPropagation();toggleSave(${e.id},this)">${saved.has(e.id)?'Saved ✓':'Save'}</button>
+        </div>
+      </div>
+      <div class="ec-expand" id="ex-${e.id}">
+        <div class="ec-desc">${e.desc}</div>
+        <div class="ec-acts">
+          <button class="btn-p" onclick="location.href='map.html'">Find location ↗</button>
+          <button class="btn-s">Add to calendar</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function toggleTheme(){
+  dark=!dark;
+  document.getElementById('app').className=dark?'dark':'';
+  document.getElementById('tbtn').textContent=dark?'☽':'☀';
+  localStorage.setItem('pih-dark',dark?'1':'0');
+}
+
+// Campus Assistant
+const aiR={
+  'today':'3 events today (Mar 27): Hackathon Kickoff (10 AM, ET 108), Career Fair (12 PM, Ballroom), Student Org Showcase (3 PM, Commons).',
+  'hackathon':'Hackathon Kickoff Workshop — today at 10:00 AM in ET 108. Pizza provided! Organized by the CS Club.',
+  'career fair':'Spring Career Fair — today at 12:00 PM in the Campus Center Ballroom. 40+ employers, open to all majors.',
+  'student org':'Student Org Showcase — today at 3:00 PM at IUPUI Commons. 60+ clubs, free food!',
+  'research':'Research Symposium — Mar 28 at 9:00 AM in the Science & Liberal Arts Building.',
+  'resume':'Resume Review Drop-In — Mar 28 at 1:00 PM at the Academic Success Center. No appointment needed.',
+  'food festival':'International Food Festival — Mar 29 at 12:00 PM in the Campus Center Atrium.',
+  'python':'Python Workshop: Data Science Basics — Mar 30 at 2:00 PM in ET 112. Limited to 30 seats, RSVP required.',
+  'wellness':'Wellness & Mindfulness Seminar — Apr 1 at 11:00 AM in Campus Center Room 302.',
+  'engineering':'Engineering events this week: Hackathon Kickoff (Mar 27), Research Symposium (Mar 28), Python Workshop (Mar 30).',
+  'career':'Career events: Spring Career Fair (Mar 27), Resume Review Drop-In (Mar 28).',
+  'social':'Social events: Student Org Showcase (Mar 27), International Food Festival (Mar 29).',
+  'free food':'Free food at the Hackathon Kickoff (ET 108, 10 AM) and Student Org Showcase (IUPUI Commons, 3 PM) today!',
+  'map':'<a href="map.html" style="color:inherit;text-decoration:underline">Find event locations on the map →</a>',
+  'schedule':'<a href="schedule.html" style="color:inherit;text-decoration:underline">View your class schedule →</a>',
+};
+function toggleAI(){
+  aiOpen=!aiOpen;
+  document.getElementById('ai-panel').className='ai-panel'+(aiOpen?' open':'');
+}
+function doAI(){
+  const inp=document.getElementById('ai-inp');
+  const msgs=document.getElementById('ai-msgs');
+  const t=inp.value.trim();if(!t)return;
+  const um=document.createElement('div');um.className='ai-msg u';um.textContent=t;msgs.appendChild(um);
+  inp.value='';
+  setTimeout(()=>{
+    const low=t.toLowerCase();
+    let r='Ask me about events today, this week, or by category — Engineering, Career, Social, or General!';
+    for(const k of Object.keys(aiR)){if(low.includes(k)){r=aiR[k];break;}}
+    const bm=document.createElement('div');bm.className='ai-msg a';bm.innerHTML=r;msgs.appendChild(bm);
+    msgs.scrollTop=msgs.scrollHeight;
+  },500);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').textContent='☽';}
+render();
+</script>
+</body>
+</html>

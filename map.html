@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Map · Purdue Indy Hub</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+--bg0:#ffffff;--bg1:#f2f1ee;--bg2:#e8e7e3;
+--txt0:#111110;--txt1:#52514d;--txt2:#8a897f;
+--bdr:rgba(0,0,0,0.09);--bdr2:rgba(0,0,0,0.16);
+--gold:#CFB991;--gold-dk:#3E2200;--stat:#eceae6;
+--mfill:#dce3ea;--mroad:#b4bec8;--mroad2:#c8d0d8;--mblock:#9eaab5;--mblock2:#b8c4cc;--mlbl:#6b7a88;
+}
+.dark{
+--bg0:#111113;--bg1:#18181a;--bg2:#222224;
+--txt0:#f2f1ee;--txt1:#9a9890;--txt2:#5c5b55;
+--bdr:rgba(255,255,255,0.08);--bdr2:rgba(255,255,255,0.14);
+--gold:#CFB991;--gold-dk:#4a2c00;--stat:#1e1e20;
+--mfill:#16181e;--mroad:#0c0e14;--mroad2:#111318;--mblock:#22263a;--mblock2:#1c2030;--mlbl:#4a5470;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:var(--txt0);}
+.navbar{background:var(--bg0);border-bottom:0.5px solid var(--bdr);padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.nav-logo{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--txt0);}
+.logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;}
+.nav-links{display:flex;gap:2px;}
+.nav-btn{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;transition:background .15s;}
+.nav-btn:hover{background:var(--bg2);color:var(--txt0);}
+.nav-btn.active{background:var(--bg2);color:var(--txt0);font-weight:500;}
+.nav-right{display:flex;align-items:center;gap:8px;}
+.theme-btn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--txt0);}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--gold-dk);}
+.layout{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 52px);}
+.sidebar{background:var(--bg0);border-right:0.5px solid var(--bdr);display:flex;flex-direction:column;}
+.search-area{padding:12px 14px;border-bottom:0.5px solid var(--bdr);}
+.sbox{display:flex;align-items:center;gap:7px;background:var(--bg2);border:0.5px solid var(--bdr);border-radius:7px;padding:7px 10px;}
+.sbox input{border:none;background:transparent;font-size:12px;color:var(--txt0);outline:none;flex:1;font-family:inherit;}
+.sbox input::placeholder{color:var(--txt2);}
+.sicon{color:var(--txt2);font-size:13px;}
+.chip-row{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}
+.chip{font-size:10px;padding:3px 9px;border-radius:20px;border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt1);cursor:pointer;font-family:inherit;transition:background .15s;}
+.chip.on{background:var(--gold-dk);color:var(--gold);border-color:var(--gold-dk);}
+.blist{flex:1;overflow-y:auto;}
+.bitem{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:0.5px solid var(--bdr);transition:background .15s;}
+.bitem:hover{background:var(--bg2);}
+.bitem.sel{background:var(--stat);}
+.bdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.bname{font-size:12px;font-weight:500;color:var(--txt0);}
+.baddr{font-size:10px;color:var(--txt2);margin-top:1px;}
+.cbadge{font-size:9px;padding:2px 7px;border-radius:20px;margin-left:auto;white-space:nowrap;}
+.map-wrap{position:relative;background:var(--mfill);display:flex;flex-direction:column;}
+.map-svg-wrap{flex:1;position:relative;min-height:420px;}
+.map-svg{width:100%;height:100%;display:block;}
+.legend{position:absolute;top:12px;right:12px;background:var(--bg0);border:0.5px solid var(--bdr);border-radius:8px;padding:9px 12px;}
+.leg-ttl{font-size:9px;font-weight:500;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--txt1);margin-bottom:4px;}
+.leg-item:last-child{margin-bottom:0;}
+.ldot{width:7px;height:7px;border-radius:50%;}
+.zoom-c{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:4px;}
+.zbtn{width:28px;height:28px;background:var(--bg0);border:0.5px solid var(--bdr);border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--txt0);}
+.zbtn:hover{background:var(--bg2);}
+.detail{background:var(--bg0);border-top:0.5px solid var(--bdr);padding:14px 18px;}
+.detail.hidden{display:none;}
+.dp-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;}
+.dp-name{font-size:15px;font-weight:500;color:var(--txt0);}
+.dp-addr{font-size:11px;color:var(--txt1);margin-top:2px;}
+.dp-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:15px;}
+.dp-desc{font-size:12px;color:var(--txt1);line-height:1.5;margin-bottom:11px;}
+.dp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:11px;}
+.dp-stat{background:var(--stat);border-radius:7px;padding:9px 10px;}
+.dp-sl{font-size:9px;color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;}
+.dp-sv{font-size:12px;font-weight:500;color:var(--txt0);}
+.dp-acts{display:flex;gap:7px;}
+.btn-p{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:8px 15px;font-size:12px;cursor:pointer;font-family:inherit;}
+.btn-s{background:var(--bg2);color:var(--txt0);border:0.5px solid var(--bdr2);border-radius:7px;padding:8px 15px;font-size:12px;cursor:pointer;font-family:inherit;}
+.btn-s:hover{background:var(--stat);}
+/* Campus Assistant — fixed */
+.fab-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
+.fab:hover{background:#5c3a00;}.dark .fab:hover{background:#6a4400;}
+.ai-panel{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:12px;padding:1rem 1.1rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;}
+.ai-panel.open{display:block;}
+.ai-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);}
+.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:15px;line-height:1;}
+.ai-msgs{min-height:80px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
+.ai-msg{font-size:12px;padding:8px 10px;border-radius:8px;max-width:90%;line-height:1.45;}
+.ai-msg.a{background:var(--stat);color:var(--txt0);align-self:flex-start;}
+.ai-msg.u{background:var(--gold-dk);color:var(--gold);align-self:flex-end;}
+.ai-row{display:flex;gap:6px;}
+.ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
+.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="navbar">
+  <div class="nav-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
+  <div class="nav-links">
+    <button class="nav-btn" onclick="location.href='index.html'">Home</button>
+    <button class="nav-btn active">Map</button>
+    <button class="nav-btn" onclick="location.href='schedule.html'">Schedule</button>
+    <button class="nav-btn" onclick="location.href='events.html'">Events</button>
+    <button class="nav-btn" onclick="location.href='services.html'">More</button>
+  </div>
+  <div class="nav-right">
+    <button class="theme-btn" id="tbtn" onclick="toggleTheme()">☀</button>
+    <div class="avatar">JS</div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="search-area">
+      <div class="sbox">
+        <span class="sicon">⌕</span>
+        <input type="text" id="srch" placeholder="Search buildings or rooms..." oninput="render()">
+      </div>
+      <div class="chip-row">
+        <button class="chip on" onclick="setF('all',this)">All</button>
+        <button class="chip" onclick="setF('academic',this)">Academic</button>
+        <button class="chip" onclick="setF('dining',this)">Dining</button>
+        <button class="chip" onclick="setF('admin',this)">Admin</button>
+        <button class="chip" onclick="setF('transit',this)">Transit</button>
+      </div>
+    </div>
+    <div class="blist" id="blist"></div>
+  </div>
+
+  <div class="map-wrap">
+    <div class="map-svg-wrap">
+      <svg class="map-svg" id="msvg" viewBox="0 0 680 420" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+        <rect width="680" height="420" fill="var(--mfill)"/>
+        <line x1="0" y1="210" x2="680" y2="210" stroke="var(--mroad)" stroke-width="10" stroke-linecap="round"/>
+        <line x1="340" y1="0" x2="340" y2="420" stroke="var(--mroad)" stroke-width="8" stroke-linecap="round"/>
+        <line x1="0" y1="110" x2="680" y2="110" stroke="var(--mroad)" stroke-width="5" stroke-linecap="round"/>
+        <line x1="0" y1="310" x2="680" y2="310" stroke="var(--mroad)" stroke-width="5" stroke-linecap="round"/>
+        <line x1="170" y1="0" x2="170" y2="420" stroke="var(--mroad)" stroke-width="4" stroke-linecap="round"/>
+        <line x1="510" y1="0" x2="510" y2="420" stroke="var(--mroad)" stroke-width="4" stroke-linecap="round"/>
+        <line x1="255" y1="110" x2="255" y2="310" stroke="var(--mroad2)" stroke-width="2"/>
+        <line x1="425" y1="110" x2="425" y2="310" stroke="var(--mroad2)" stroke-width="2"/>
+        <rect x="75" y="48" width="65" height="42" rx="3" fill="var(--mblock2)"/>
+        <rect x="182" y="48" width="48" height="38" rx="3" fill="var(--mblock2)"/>
+        <rect x="545" y="48" width="72" height="48" rx="3" fill="var(--mblock2)"/>
+        <rect x="75" y="228" width="58" height="65" rx="3" fill="var(--mblock2)"/>
+        <rect x="545" y="228" width="68" height="62" rx="3" fill="var(--mblock2)"/>
+        <rect x="362" y="328" width="52" height="52" rx="3" fill="var(--mblock2)"/>
+        <rect x="193" y="328" width="68" height="52" rx="3" fill="var(--mblock2)"/>
+        <rect x="264" y="126" width="58" height="50" rx="3" fill="var(--mblock)"/>
+        <rect x="356" y="126" width="54" height="50" rx="3" fill="var(--mblock)"/>
+        <rect x="264" y="228" width="76" height="44" rx="3" fill="var(--mblock)"/>
+        <rect x="363" y="228" width="50" height="44" rx="3" fill="var(--mblock)"/>
+        <rect x="170" y="135" width="64" height="60" rx="3" fill="var(--mblock)"/>
+        <rect x="446" y="140" width="44" height="38" rx="3" fill="var(--mblock)"/>
+        <rect x="264" y="326" width="62" height="42" rx="3" fill="var(--mblock)"/>
+        <text x="291" y="153" font-size="8" fill="var(--mlbl)" text-anchor="middle" font-family="sans-serif">ET</text>
+        <text x="381" y="153" font-size="8" fill="var(--mlbl)" text-anchor="middle" font-family="sans-serif">SL</text>
+        <text x="298" y="252" font-size="8" fill="var(--mlbl)" text-anchor="middle" font-family="sans-serif">CC</text>
+        <text x="385" y="252" font-size="8" fill="var(--mlbl)" text-anchor="middle" font-family="sans-serif">TD</text>
+        <text x="199" y="166" font-size="8" fill="var(--mlbl)" text-anchor="middle" font-family="sans-serif">CAV</text>
+        <text x="463" y="161" font-size="8" fill="var(--mlbl)" text-anchor="middle" font-family="sans-serif">LIB</text>
+        <text x="291" y="349" font-size="8" fill="var(--mlbl)" text-anchor="middle" font-family="sans-serif">ASC</text>
+        <g id="mmarkers"></g>
+      </svg>
+      <div class="zoom-c">
+        <button class="zbtn">+</button>
+        <button class="zbtn">−</button>
+      </div>
+      <div class="legend">
+        <div class="leg-ttl">Building types</div>
+        <div class="leg-item"><div class="ldot" style="background:#2062a4"></div>Academic</div>
+        <div class="leg-item"><div class="ldot" style="background:#3d7e18"></div>Dining</div>
+        <div class="leg-item"><div class="ldot" style="background:#a06010"></div>Admin</div>
+        <div class="leg-item"><div class="ldot" style="background:#a33060"></div>Recreation</div>
+        <div class="leg-item"><div class="ldot" style="background:#5040b0"></div>Transit</div>
+      </div>
+    </div>
+    <div class="detail hidden" id="detail">
+      <div class="dp-hdr">
+        <div><div class="dp-name" id="dpn"></div><div class="dp-addr" id="dpa"></div></div>
+        <button class="dp-close" onclick="closeD()">✕</button>
+      </div>
+      <div class="dp-desc" id="dpd"></div>
+      <div class="dp-stats">
+        <div class="dp-stat"><div class="dp-sl">Category</div><div class="dp-sv" id="dpc"></div></div>
+        <div class="dp-stat"><div class="dp-sl">Floors</div><div class="dp-sv" id="dpf"></div></div>
+        <div class="dp-stat"><div class="dp-sl">Rooms</div><div class="dp-sv" id="dpr"></div></div>
+      </div>
+      <div class="dp-acts">
+        <button class="btn-p" id="dpnav">Get directions</button>
+        <button class="btn-s" onclick="location.href='schedule.html'">My classes here</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Campus Assistant — fixed -->
+<div class="fab-wrap">
+  <div class="ai-panel" id="ai-panel">
+    <div class="ai-hdr">
+      <span class="ai-hdr-txt">✦ Campus Assistant</span>
+      <button class="ai-close" onclick="toggleAI()">✕</button>
+    </div>
+    <div class="ai-msgs" id="ai-msgs">
+      <div class="ai-msg a">Ask me to find a building or room — I know every spot on campus!</div>
+    </div>
+    <div class="ai-row">
+      <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
+      <button class="ai-send" onclick="doAI()">↑</button>
+    </div>
+  </div>
+  <button class="fab" onclick="toggleAI()" title="Campus Assistant">✦</button>
+</div>
+</div>
+
+<script>
+let dark=localStorage.getItem('pih-dark')==='1', filt='all', selId=null, aiOpen=false;
+const CC={academic:'#2062a4',dining:'#3d7e18',admin:'#a06010',recreation:'#a33060',transit:'#5040b0'};
+const BLDGS=[
+  {id:'ET',name:'Engineering Technology Building',short:'ET',addr:'723 W. Michigan St',cat:'academic',desc:'Home to Computer Science, Electrical Engineering, and Engineering Technology. Labs, classrooms, and faculty offices.',floors:5,rooms:48,mx:291,my:151},
+  {id:'SL',name:'Science & Liberal Arts',short:'SL',addr:'402 N. Blackford St',cat:'academic',desc:'Biology, Chemistry, Physics, and Liberal Arts. State-of-the-art labs and lecture halls.',floors:4,rooms:36,mx:381,my:151},
+  {id:'CC',name:'Campus Center',short:'CC',addr:'420 University Blvd',cat:'admin',desc:'Heart of student life — union, bookstore, meeting rooms, and student org offices.',floors:3,rooms:22,mx:298,my:250},
+  {id:'TD',name:'Tower Dining',short:'TD',addr:'425 N. University Blvd',cat:'dining',desc:'Main dining hall with breakfast, lunch, and dinner daily. Multiple stations and vegetarian options.',floors:2,rooms:4,mx:385,my:250},
+  {id:'CAV',name:'Cavanaugh Hall',short:'CAV',addr:'425 University Blvd',cat:'academic',desc:'School of Business and SPEA. Modern classrooms and faculty offices.',floors:5,rooms:40,mx:199,my:164},
+  {id:'LIB',name:'University Library',short:'LIB',addr:'755 W. Michigan St',cat:'academic',desc:'400,000+ volumes, private study rooms, computer labs. Open 24/7 during finals.',floors:4,rooms:30,mx:463,my:159},
+  {id:'ASC',name:'Academic Success Center',short:'ASC',addr:'620 Union Dr',cat:'admin',desc:'Free tutoring, writing help, academic coaching, and disability services.',floors:2,rooms:12,mx:291,my:347},
+  {id:'BUS',name:'Transit Hub',short:'BUS',addr:'Michigan St & University Blvd',cat:'transit',desc:'Main Campus Connect stop. Routes to West Lafayette, downtown Indy, and surrounding areas.',floors:1,rooms:2,mx:340,my:210},
+];
+function toggleTheme(){
+  dark=!dark;
+  document.getElementById('app').className=dark?'dark':'';
+  document.getElementById('tbtn').textContent=dark?'☽':'☀';
+  localStorage.setItem('pih-dark',dark?'1':'0');
+  drawMarkers();
+}
+function setF(f,el){
+  filt=f;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  render();
+}
+function render(){
+  const q=document.getElementById('srch').value.toLowerCase();
+  const list=BLDGS.filter(b=>(filt==='all'||b.cat===filt)&&(!q||b.name.toLowerCase().includes(q)||b.short.toLowerCase().includes(q)));
+  document.getElementById('blist').innerHTML=list.map(b=>`
+    <div class="bitem${selId===b.id?' sel':''}" onclick="selB('${b.id}')">
+      <div class="bdot" style="background:${CC[b.cat]}"></div>
+      <div><div class="bname">${b.name}</div><div class="baddr">${b.addr}</div></div>
+      <span class="cbadge" style="background:${CC[b.cat]}22;color:${CC[b.cat]}">${b.cat}</span>
+    </div>`).join('');
+  drawMarkers();
+}
+function drawMarkers(){
+  document.getElementById('mmarkers').innerHTML=BLDGS.map(b=>{
+    const c=CC[b.cat],s=selId===b.id;
+    return `<g onclick="selB('${b.id}')" style="cursor:pointer" transform="translate(${b.mx},${b.my})">
+      <circle r="14" fill="${c}" opacity="0.14"/>
+      <circle r="7" fill="${c}"/>
+      ${s?`<circle r="11" fill="none" stroke="${c}" stroke-width="2.5"/>`:''}
+      <text y="23" text-anchor="middle" font-size="8" fill="${c}" font-family="sans-serif" font-weight="500">${b.short}</text>
+    </g>`;
+  }).join('');
+}
+function selB(id){
+  selId=id;
+  const b=BLDGS.find(x=>x.id===id);if(!b)return;
+  document.getElementById('dpn').textContent=b.name;
+  document.getElementById('dpa').textContent=b.addr;
+  document.getElementById('dpd').textContent=b.desc;
+  document.getElementById('dpc').textContent=b.cat.charAt(0).toUpperCase()+b.cat.slice(1);
+  document.getElementById('dpf').textContent=b.floors;
+  document.getElementById('dpr').textContent=b.rooms;
+  document.getElementById('dpnav').onclick=()=>{
+    const bm=document.getElementById('ai-msgs');
+    const msg=document.createElement('div');msg.className='ai-msg a';
+    msg.textContent=`Directions to ${b.name}: ${b.addr}. ${b.floors} floors, ${b.rooms} rooms.`;
+    bm.appendChild(msg);bm.scrollTop=bm.scrollHeight;
+    aiOpen=true;document.getElementById('ai-panel').className='ai-panel open';
+  };
+  document.getElementById('detail').classList.remove('hidden');
+  render();
+}
+function closeD(){selId=null;document.getElementById('detail').classList.add('hidden');render();}
+
+// Campus Assistant
+let aiOpen=false;
+const aiR={
+  'et building':'ET Building — 723 W. Michigan St. Floors: 5, Rooms: 48. Home to CS, ECE, and Engineering Tech.',
+  'science':'Science & Liberal Arts — 402 N. Blackford St. Biology, Chemistry, Physics, and more.',
+  'campus center':'Campus Center — 420 University Blvd. Union, bookstore, meeting rooms, and student org offices.',
+  'dining':'Tower Dining — 425 N. University Blvd. Open daily for breakfast, lunch, and dinner.',
+  'cavanaugh':'Cavanaugh Hall — 425 University Blvd. School of Business and SPEA.',
+  'library':'University Library — 755 W. Michigan St. Open 24/7 during finals.',
+  'asc':'Academic Success Center — 620 Union Dr. Free tutoring and writing help.',
+  'transit':'Transit Hub — Michigan St & University Blvd. Main Campus Connect stop.',
+  'parking':'Main parking lot is on West Street. Permit required Mon–Fri 7 AM–5 PM.',
+  'schedule':'<a href="schedule.html" style="color:inherit;text-decoration:underline">View your class schedule →</a>',
+  'dining menu':'<a href="dining.html" style="color:inherit;text-decoration:underline">See today\'s dining menu →</a>',
+  'events':'<a href="events.html" style="color:inherit;text-decoration:underline">See today\'s campus events →</a>',
+  'bus':'<a href="transit.html" style="color:inherit;text-decoration:underline">See live bus countdowns →</a>',
+};
+function toggleAI(){
+  aiOpen=!aiOpen;
+  document.getElementById('ai-panel').className='ai-panel'+(aiOpen?' open':'');
+}
+function doAI(){
+  const inp=document.getElementById('ai-inp');
+  const msgs=document.getElementById('ai-msgs');
+  const t=inp.value.trim();if(!t)return;
+  const um=document.createElement('div');um.className='ai-msg u';um.textContent=t;msgs.appendChild(um);
+  inp.value='';
+  setTimeout(()=>{
+    const low=t.toLowerCase();
+    let r='Try asking about a specific building like "ET Building" or "Library". I can also search the map for you!';
+    for(const k of Object.keys(aiR)){if(low.includes(k)){r=aiR[k];break;}}
+    // Check if it matches a building name and highlight it
+    const found=BLDGS.find(b=>low.includes(b.name.toLowerCase())||low.includes(b.short.toLowerCase())||low.includes(b.id.toLowerCase()));
+    if(found&&!Object.keys(aiR).some(k=>low.includes(k))){selB(found.id);r=`Found ${found.name} at ${found.addr}. Click it on the map for more details.`;}
+    const bm=document.createElement('div');bm.className='ai-msg a';bm.innerHTML=r;msgs.appendChild(bm);
+    msgs.scrollTop=msgs.scrollHeight;
+  },500);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+// Init
+if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').textContent='☽';}
+render();
+</script>
+</body>
+</html>

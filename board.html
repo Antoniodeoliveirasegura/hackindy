@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campus Board · Purdue Indy Hub</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+--bg0:#ffffff;--bg1:#f2f1ee;--bg2:#e8e7e3;
+--txt0:#111110;--txt1:#52514d;--txt2:#8a897f;
+--bdr:rgba(0,0,0,0.09);--bdr2:rgba(0,0,0,0.16);
+--gold:#CFB991;--gold-dk:#3E2200;--stat:#eceae6;
+}
+.dark{
+--bg0:#111113;--bg1:#18181a;--bg2:#222224;
+--txt0:#f2f1ee;--txt1:#9a9890;--txt2:#5c5b55;
+--bdr:rgba(255,255,255,0.08);--bdr2:rgba(255,255,255,0.14);
+--gold:#CFB991;--gold-dk:#4a2c00;--stat:#1e1e20;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:var(--txt0);}
+.navbar{background:var(--bg0);border-bottom:0.5px solid var(--bdr);padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.nav-logo{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--txt0);}
+.logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;}
+.nav-links{display:flex;gap:2px;}
+.nb{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;}
+.nb:hover,.nb.active{background:var(--bg2);color:var(--txt0);}.nb.active{font-weight:500;}
+.nav-r{display:flex;align-items:center;gap:8px;}
+.tbtn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--txt0);}
+.av{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--gold-dk);}
+.main{max-width:760px;margin:0 auto;padding:1.5rem 2rem 5rem;}
+.page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;}
+.page-hdr h1{font-size:22px;font-weight:500;}
+.page-hdr p{font-size:13px;color:var(--txt1);margin-top:3px;}
+.ask-btn{background:var(--gold-dk);color:var(--gold);border:none;border-radius:8px;padding:9px 18px;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;}
+.controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;}
+.sort-row{display:flex;gap:5px;}
+.schip{font-size:12px;padding:5px 13px;border-radius:20px;border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt1);cursor:pointer;font-family:inherit;}
+.schip.on{background:var(--gold-dk);color:var(--gold);border-color:var(--gold-dk);}
+.post-count{font-size:12px;color:var(--txt2);}
+.ask-form{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:12px;padding:1.1rem 1.25rem;margin-bottom:1.25rem;display:none;}
+.ask-form.open{display:block;}
+.af-title{font-size:14px;font-weight:500;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;color:var(--txt0);}
+.af-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:15px;}
+.af-inp{width:100%;font-size:13px;border:0.5px solid var(--bdr2);border-radius:7px;padding:9px 12px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;margin-bottom:8px;}
+.af-ta{width:100%;font-size:13px;border:0.5px solid var(--bdr2);border-radius:7px;padding:9px 12px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;resize:vertical;min-height:80px;margin-bottom:10px;}
+.af-bottom{display:flex;align-items:center;justify-content:space-between;}
+.af-anon{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--txt1);cursor:pointer;}
+.af-submit{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:8px 18px;font-size:12px;cursor:pointer;font-family:inherit;}
+.posts{display:flex;flex-direction:column;gap:10px;}
+.post-card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:12px;padding:1rem 1.25rem;}
+.post-card.pinned{border-color:var(--gold);}
+.pc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.pc-left{flex:1;}
+.pc-pin{font-size:9px;font-weight:500;color:var(--gold-dk);background:var(--gold);padding:2px 7px;border-radius:20px;margin-bottom:6px;display:inline-block;}
+.dark .pc-pin{color:var(--gold-dk);}
+.pc-title{font-size:14px;font-weight:500;color:var(--txt0);cursor:pointer;margin-bottom:4px;}
+.pc-title:hover{color:#2062a4;}.dark .pc-title:hover{color:#93c2f0;}
+.pc-body{font-size:13px;color:var(--txt1);line-height:1.5;margin-bottom:8px;display:none;}
+.pc-body.open{display:block;}
+.pc-meta{font-size:11px;color:var(--txt2);display:flex;gap:10px;flex-wrap:wrap;}
+.pc-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.upvote-btn{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:500;color:var(--txt1);background:var(--stat);border:0.5px solid var(--bdr);border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;}
+.upvote-btn.voted{background:var(--gold-dk);color:var(--gold);border-color:var(--gold-dk);}
+.replies-section{margin-top:10px;border-top:0.5px solid var(--bdr);padding-top:10px;display:none;}
+.replies-section.open{display:block;}
+.reply-item{padding:8px 0;border-bottom:0.5px solid var(--bdr);}
+.reply-item:last-child{border-bottom:none;}
+.reply-body{font-size:12px;color:var(--txt1);margin-bottom:3px;}
+.reply-meta{font-size:10px;color:var(--txt2);display:flex;gap:8px;}
+.reply-form{margin-top:10px;display:flex;gap:6px;}
+.reply-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
+.reply-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;font-size:12px;cursor:pointer;}
+.show-replies{font-size:11px;color:#2062a4;background:none;border:none;cursor:pointer;font-family:inherit;margin-top:6px;padding:0;}
+.dark .show-replies{color:#93c2f0;}
+/* Campus Assistant — fixed */
+.fab-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
+.fab:hover{background:#5c3a00;}.dark .fab:hover{background:#6a4400;}
+.ai-panel{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:12px;padding:1rem 1.1rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;}
+.ai-panel.open{display:block;}
+.ai-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);}
+.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:15px;line-height:1;}
+.ai-msgs{min-height:80px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
+.ai-msg{font-size:12px;padding:8px 10px;border-radius:8px;max-width:90%;line-height:1.45;}
+.ai-msg.a{background:var(--stat);color:var(--txt0);align-self:flex-start;}
+.ai-msg.u{background:var(--gold-dk);color:var(--gold);align-self:flex-end;}
+.ai-row{display:flex;gap:6px;}
+.ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
+.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="navbar">
+  <div class="nav-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
+  <div class="nav-links">
+    <button class="nb" onclick="location.href='index.html'">Home</button>
+    <button class="nb" onclick="location.href='map.html'">Map</button>
+    <button class="nb" onclick="location.href='schedule.html'">Schedule</button>
+    <button class="nb" onclick="location.href='events.html'">Events</button>
+    <button class="nb" onclick="location.href='services.html'">More</button>
+  </div>
+  <div class="nav-r">
+    <button class="tbtn" id="tbtn" onclick="toggleTheme()">☀</button>
+    <div class="av">JS</div>
+  </div>
+</div>
+<div class="main">
+  <div class="page-hdr">
+    <div><h1>Campus Board</h1><p>Ask questions, share tips, and connect with other students.</p></div>
+    <button class="ask-btn" onclick="toggleForm()">+ Ask a question</button>
+  </div>
+  <div class="ask-form" id="ask-form">
+    <div class="af-title">New question <button class="af-close" onclick="toggleForm()">✕</button></div>
+    <input class="af-inp" id="af-title-inp" placeholder="What's your question?">
+    <textarea class="af-ta" id="af-body-inp" placeholder="Add more context (optional)..."></textarea>
+    <div class="af-bottom">
+      <label class="af-anon"><input type="checkbox" id="af-anon" checked style="width:14px;height:14px;"> Post anonymously</label>
+      <button class="af-submit" onclick="submitPost()">Post question</button>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="sort-row">
+      <button class="schip on" onclick="setSort('recent',this)">Recent</button>
+      <button class="schip" onclick="setSort('popular',this)">Popular</button>
+    </div>
+    <span class="post-count" id="post-count"></span>
+  </div>
+  <div class="posts" id="posts"></div>
+</div>
+
+<!-- Campus Assistant — fixed -->
+<div class="fab-wrap">
+  <div class="ai-panel" id="ai-panel">
+    <div class="ai-hdr">
+      <span class="ai-hdr-txt">✦ Campus Assistant</span>
+      <button class="ai-close" onclick="toggleAI()">✕</button>
+    </div>
+    <div class="ai-msgs" id="ai-msgs">
+      <div class="ai-msg a">Have a question about campus? Ask me or post it on the board!</div>
+    </div>
+    <div class="ai-row">
+      <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
+      <button class="ai-send" onclick="doAI()">↑</button>
+    </div>
+  </div>
+  <button class="fab" onclick="toggleAI()" title="Campus Assistant">✦</button>
+</div>
+</div>
+
+<script>
+let dark=localStorage.getItem('pih-dark')==='1', sort='recent', aiOpen=false;
+const voted=new Set(), expanded=new Set(), repOpen=new Set();
+let posts=[
+  {id:1,title:'Anyone know if ET 215 has outlets near the windows?',body:'Trying to find a good spot to charge my laptop during class. The ones by the door are always taken.',anon:true,user:'Anonymous',upvotes:14,pinned:false,time:'2h ago',replies:[
+    {user:'Anonymous',body:'Yes! There are a few power strips along the south wall near the windows. Get there early though.',time:'1h ago'},
+    {user:'jake_cs',body:'Also the front row has outlets under the desks.',time:'45m ago'},
+  ]},
+  {id:2,title:'Best place to study during finals week?',body:'Looking for somewhere quiet with good wifi and outlets. Library gets packed early.',anon:false,user:'sarah_k',upvotes:31,pinned:false,time:'5h ago',replies:[
+    {user:'Anonymous',body:'Try the 3rd floor of the Campus Center after 8pm — much quieter.',time:'4h ago'},
+    {user:'TA_Mike',body:'The ASC has private study rooms you can book online. Highly recommend.',time:'3h ago'},
+    {user:'sarah_k',body:'Thanks! Didn\'t know about the ASC rooms.',time:'2h ago'},
+  ]},
+  {id:3,title:'Is the Career Fair open to freshmen?',body:'I\'m a first-year CS student — not sure if I should bother going or if it\'s mainly for upperclassmen.',anon:true,user:'Anonymous',upvotes:8,pinned:false,time:'6h ago',replies:[
+    {user:'career_office',body:'Absolutely! All class years are welcome. Freshmen are encouraged to come, introduce themselves, and start building connections early.',time:'5h ago'},
+  ]},
+  {id:4,title:'Reminder: free tutoring at ASC this week',body:'The Academic Success Center is offering extended hours this week Mon–Fri until 8pm. All subjects covered.',anon:false,user:'ASC_Staff',upvotes:22,pinned:true,time:'1d ago',replies:[]},
+  {id:5,title:'Where can I print on campus for free?',body:'',anon:true,user:'Anonymous',upvotes:5,pinned:false,time:'1d ago',replies:[
+    {user:'lib_help',body:'The University Library gives you 25 free pages per day with your student ID. After that it\'s 10¢/page.',time:'22h ago'},
+  ]},
+];
+function toggleForm(){document.getElementById('ask-form').classList.toggle('open');}
+function setSort(s,el){sort=s;document.querySelectorAll('.schip').forEach(c=>c.classList.remove('on'));el.classList.add('on');render();}
+function submitPost(){
+  const t=document.getElementById('af-title-inp').value.trim();if(!t)return;
+  const anon=document.getElementById('af-anon').checked;
+  posts.unshift({id:Date.now(),title:t,body:document.getElementById('af-body-inp').value.trim(),anon,user:anon?'Anonymous':'Jordan S.',upvotes:0,pinned:false,time:'Just now',replies:[]});
+  document.getElementById('af-title-inp').value='';
+  document.getElementById('af-body-inp').value='';
+  document.getElementById('ask-form').classList.remove('open');
+  render();
+}
+function upvote(id,btn){
+  const p=posts.find(x=>x.id===id);if(!p)return;
+  if(voted.has(id)){voted.delete(id);p.upvotes--;btn.classList.remove('voted');}
+  else{voted.add(id);p.upvotes++;btn.classList.add('voted');}
+  btn.querySelector('.uv-count').textContent=p.upvotes;
+}
+function toggleExpand(id){expanded.has(id)?expanded.delete(id):expanded.add(id);render();}
+function toggleReplies(id){repOpen.has(id)?repOpen.delete(id):repOpen.add(id);render();}
+function submitReply(id){
+  const inp=document.getElementById('ri-'+id);if(!inp)return;
+  const t=inp.value.trim();if(!t)return;
+  const p=posts.find(x=>x.id===id);if(!p)return;
+  p.replies.push({user:'Jordan S.',body:t,time:'Just now'});
+  render();
+  setTimeout(()=>{const ni=document.getElementById('ri-'+id);if(ni)ni.focus();},50);
+}
+function render(){
+  let sorted=[...posts].sort((a,b)=>{
+    if(a.pinned&&!b.pinned)return -1;if(!a.pinned&&b.pinned)return 1;
+    return sort==='popular'?b.upvotes-a.upvotes:0;
+  });
+  document.getElementById('post-count').textContent=sorted.length+' posts';
+  document.getElementById('posts').innerHTML=sorted.map(p=>`
+    <div class="post-card${p.pinned?' pinned':''}">
+      ${p.pinned?'<div class="pc-pin">Pinned</div>':''}
+      <div class="pc-top">
+        <div class="pc-left">
+          <div class="pc-title" onclick="toggleExpand(${p.id})">${p.title}</div>
+          ${p.body?`<div class="pc-body${expanded.has(p.id)?' open':''}">${p.body}</div>`:''}
+          <div class="pc-meta"><span>${p.user}</span><span>${p.time}</span><span>${p.replies.length} ${p.replies.length===1?'reply':'replies'}</span></div>
+        </div>
+        <div class="pc-right">
+          <button class="upvote-btn${voted.has(p.id)?' voted':''}" onclick="upvote(${p.id},this)">
+            <span>▲</span><span class="uv-count">${p.upvotes}</span>
+          </button>
+        </div>
+      </div>
+      ${p.replies.length?`<button class="show-replies" onclick="toggleReplies(${p.id})">${repOpen.has(p.id)?'Hide':'Show'} ${p.replies.length} ${p.replies.length===1?'reply':'replies'}</button>`:''}
+      <div class="replies-section${repOpen.has(p.id)?' open':''}">
+        ${p.replies.map(r=>`<div class="reply-item"><div class="reply-body">${r.body}</div><div class="reply-meta"><span>${r.user}</span><span>${r.time}</span></div></div>`).join('')}
+        <div class="reply-form">
+          <input class="reply-inp" id="ri-${p.id}" placeholder="Write a reply...">
+          <button class="reply-send" onclick="submitReply(${p.id})">↑</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function toggleTheme(){
+  dark=!dark;
+  document.getElementById('app').className=dark?'dark':'';
+  document.getElementById('tbtn').textContent=dark?'☽':'☀';
+  localStorage.setItem('pih-dark',dark?'1':'0');
+}
+
+// Campus Assistant
+let aiOpen=false;
+const aiR={
+  'outlet':'ET 215 has power strips along the south wall near the windows, and outlets under the front-row desks.',
+  'study':'Top spots: ASC private study rooms (book online), Campus Center 3rd floor after 8pm, University Library 24/7 during finals.',
+  'print':'University Library gives you 25 free pages/day with your student ID. After that, 10¢/page.',
+  'career fair':'The Career Fair is open to all class years — freshmen are encouraged to attend and start networking!',
+  'tutor':'ASC offers free tutoring Mon–Fri until 8pm this week. All subjects covered at 620 Union Dr.',
+  'wifi':'Connect to Purdue-WiFi with your career account credentials.',
+  'parking':'Main parking is on West Street. Permit required Mon–Fri 7 AM–5 PM.',
+  'schedule':'<a href="schedule.html" style="color:inherit;text-decoration:underline">View your class schedule →</a>',
+  'map':'<a href="map.html" style="color:inherit;text-decoration:underline">Explore the campus map →</a>',
+  'events':'<a href="events.html" style="color:inherit;text-decoration:underline">See today\'s campus events →</a>',
+  'dining':'<a href="dining.html" style="color:inherit;text-decoration:underline">See today\'s dining menu →</a>',
+};
+function toggleAI(){
+  aiOpen=!aiOpen;
+  document.getElementById('ai-panel').className='ai-panel'+(aiOpen?' open':'');
+}
+function doAI(){
+  const inp=document.getElementById('ai-inp');
+  const msgs=document.getElementById('ai-msgs');
+  const t=inp.value.trim();if(!t)return;
+  const um=document.createElement('div');um.className='ai-msg u';um.textContent=t;msgs.appendChild(um);
+  inp.value='';
+  setTimeout(()=>{
+    const low=t.toLowerCase();
+    let r='I can help with campus questions — or post it on the board to get answers from other students!';
+    for(const k of Object.keys(aiR)){if(low.includes(k)){r=aiR[k];break;}}
+    const bm=document.createElement('div');bm.className='ai-msg a';bm.innerHTML=r;msgs.appendChild(bm);
+    msgs.scrollTop=msgs.scrollHeight;
+  },500);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').textContent='☽';}
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Transit · Purdue Indy Hub</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+--bg0:#ffffff;--bg1:#f2f1ee;--bg2:#e8e7e3;
+--txt0:#111110;--txt1:#52514d;--txt2:#8a897f;
+--bdr:rgba(0,0,0,0.09);--bdr2:rgba(0,0,0,0.16);
+--gold:#CFB991;--gold-dk:#3E2200;--stat:#eceae6;
+--bus-bg:#faebd4;--bus-title:#5c3200;--bus-sub:#a86200;
+}
+.dark{
+--bg0:#111113;--bg1:#18181a;--bg2:#222224;
+--txt0:#f2f1ee;--txt1:#9a9890;--txt2:#5c5b55;
+--bdr:rgba(255,255,255,0.08);--bdr2:rgba(255,255,255,0.14);
+--gold:#CFB991;--gold-dk:#4a2c00;--stat:#1e1e20;
+--bus-bg:#2e1800;--bus-title:#f0b86a;--bus-sub:#c47a1a;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:var(--txt0);}
+.navbar{background:var(--bg0);border-bottom:0.5px solid var(--bdr);padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.nav-logo{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--txt0);}
+.logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;}
+.nav-links{display:flex;gap:2px;}
+.nb{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;}
+.nb:hover,.nb.active{background:var(--bg2);color:var(--txt0);}.nb.active{font-weight:500;}
+.nav-r{display:flex;align-items:center;gap:8px;}
+.tbtn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--txt0);}
+.av{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--gold-dk);}
+.main{max-width:960px;margin:0 auto;padding:1.5rem 2rem 5rem;}
+.page-hdr{margin-bottom:1.25rem;}
+.page-hdr h1{font-size:22px;font-weight:500;}
+.page-hdr p{font-size:13px;color:var(--txt1);margin-top:3px;}
+.next-bus{background:var(--bus-bg);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;}
+.nb-left h2{font-size:16px;font-weight:500;color:var(--bus-title);}
+.nb-left p{font-size:12px;color:var(--bus-sub);margin-top:3px;}
+.nb-right{text-align:right;}
+.nb-countdown{font-size:36px;font-weight:500;color:var(--bus-title);line-height:1;}
+.nb-countdown span{font-size:14px;font-weight:400;color:var(--bus-sub);}
+.nb-time{font-size:12px;color:var(--bus-sub);margin-top:3px;}
+.route-tabs{display:flex;gap:6px;margin-bottom:1.25rem;}
+.rtab{font-size:12px;padding:6px 16px;border-radius:20px;border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt1);cursor:pointer;font-family:inherit;}
+.rtab.on{background:var(--gold-dk);color:var(--gold);border-color:var(--gold-dk);}
+.route-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.route-card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:12px;padding:1.1rem 1.25rem;}
+.rc-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.rc-name{font-size:14px;font-weight:500;}
+.rc-badge{font-size:10px;padding:3px 8px;border-radius:20px;background:var(--stat);color:var(--txt1);}
+.rc-stops{font-size:12px;color:var(--txt1);margin-bottom:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.stop-arrow{color:var(--txt2);font-size:10px;}
+.sched-hdr{display:grid;grid-template-columns:1fr 1fr 1fr;font-size:10px;font-weight:500;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;padding:0 2px;}
+.sched-row{display:grid;grid-template-columns:1fr 1fr 1fr;font-size:12px;padding:6px 2px;border-bottom:0.5px solid var(--bdr);}
+.sched-row:last-child{border-bottom:none;}
+.sched-row.next-row{background:var(--bus-bg);border-radius:6px;margin:0 -4px;padding:6px 6px;font-weight:500;}
+.sr-dep{font-weight:500;color:var(--txt0);}
+.sr-arr{color:var(--txt1);}
+.sr-status{color:var(--txt2);font-size:11px;}
+.next-row .sr-dep,.next-row .sr-arr{color:var(--bus-title);}
+.next-row .sr-status{color:var(--bus-sub);}
+.alert-box{background:var(--stat);border-radius:10px;padding:12px 16px;margin-bottom:1.25rem;font-size:12px;color:var(--txt1);display:flex;align-items:flex-start;gap:8px;}
+/* Campus Assistant — fixed */
+.fab-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
+.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
+.fab:hover{background:#5c3a00;}.dark .fab:hover{background:#6a4400;}
+.ai-panel{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:12px;padding:1rem 1.1rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;}
+.ai-panel.open{display:block;}
+.ai-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);}
+.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);font-size:15px;line-height:1;}
+.ai-msgs{min-height:80px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
+.ai-msg{font-size:12px;padding:8px 10px;border-radius:8px;max-width:90%;line-height:1.45;}
+.ai-msg.a{background:var(--stat);color:var(--txt0);align-self:flex-start;}
+.ai-msg.u{background:var(--gold-dk);color:var(--gold);align-self:flex-end;}
+.ai-row{display:flex;gap:6px;}
+.ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
+.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="navbar">
+  <div class="nav-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
+  <div class="nav-links">
+    <button class="nb" onclick="location.href='index.html'">Home</button>
+    <button class="nb" onclick="location.href='map.html'">Map</button>
+    <button class="nb" onclick="location.href='schedule.html'">Schedule</button>
+    <button class="nb" onclick="location.href='events.html'">Events</button>
+    <button class="nb" onclick="location.href='services.html'">More</button>
+  </div>
+  <div class="nav-r">
+    <button class="tbtn" id="tbtn" onclick="toggleTheme()">☀</button>
+    <div class="av">JS</div>
+  </div>
+</div>
+<div class="main">
+  <div class="page-hdr"><h1>Campus Transit</h1><p>Campus Connect bus schedules and live countdowns</p></div>
+  <div class="next-bus">
+    <div class="nb-left">
+      <h2>Next departure — Route 1</h2>
+      <p>Union Station → ET Building → Campus Center → Library</p>
+    </div>
+    <div class="nb-right">
+      <div class="nb-countdown" id="cd">8<span> min</span></div>
+      <div class="nb-time">Departs 12:38 PM</div>
+    </div>
+  </div>
+  <div class="alert-box">ℹ Route 2 (Downtown Connector) is running 5 min delayed today due to construction on Capitol Ave. Plan accordingly.</div>
+  <div class="route-tabs">
+    <button class="rtab on">All routes</button>
+    <button class="rtab">Route 1</button>
+    <button class="rtab">Route 2</button>
+    <button class="rtab">Route 3</button>
+  </div>
+  <div class="route-grid">
+    <div class="route-card">
+      <div class="rc-hdr"><div class="rc-name">Route 1 · West Lafayette Shuttle</div><span class="rc-badge">Active</span></div>
+      <div class="rc-stops"><span>Union Station</span><span class="stop-arrow">→</span><span>ET Bldg</span><span class="stop-arrow">→</span><span>Campus Ctr</span><span class="stop-arrow">→</span><span>Library</span></div>
+      <div class="sched-hdr"><span>Departs</span><span>Arrives</span><span>Status</span></div>
+      <div class="sched-row next-row"><span class="sr-dep">12:38 PM</span><span class="sr-arr">1:05 PM</span><span class="sr-status">Next · 8 min</span></div>
+      <div class="sched-row"><span class="sr-dep">1:08 PM</span><span class="sr-arr">1:35 PM</span><span class="sr-status">In 38 min</span></div>
+      <div class="sched-row"><span class="sr-dep">1:38 PM</span><span class="sr-arr">2:05 PM</span><span class="sr-status">In 68 min</span></div>
+      <div class="sched-row"><span class="sr-dep">2:08 PM</span><span class="sr-arr">2:35 PM</span><span class="sr-status">Scheduled</span></div>
+      <div class="sched-row"><span class="sr-dep">2:38 PM</span><span class="sr-arr">3:05 PM</span><span class="sr-status">Scheduled</span></div>
+    </div>
+    <div class="route-card">
+      <div class="rc-hdr"><div class="rc-name">Route 2 · Downtown Connector</div><span class="rc-badge" style="background:#faebd4;color:#a86200;">Delayed</span></div>
+      <div class="rc-stops"><span>Campus Ctr</span><span class="stop-arrow">→</span><span>Stadium</span><span class="stop-arrow">→</span><span>Union Station</span><span class="stop-arrow">→</span><span>Downtown</span></div>
+      <div class="sched-hdr"><span>Departs</span><span>Arrives</span><span>Status</span></div>
+      <div class="sched-row next-row"><span class="sr-dep">12:45 PM</span><span class="sr-arr">1:15 PM</span><span class="sr-status">Next · +5 min</span></div>
+      <div class="sched-row"><span class="sr-dep">1:15 PM</span><span class="sr-arr">1:45 PM</span><span class="sr-status">Scheduled</span></div>
+      <div class="sched-row"><span class="sr-dep">1:45 PM</span><span class="sr-arr">2:15 PM</span><span class="sr-status">Scheduled</span></div>
+      <div class="sched-row"><span class="sr-dep">2:15 PM</span><span class="sr-arr">2:45 PM</span><span class="sr-status">Scheduled</span></div>
+      <div class="sched-row"><span class="sr-dep">2:45 PM</span><span class="sr-arr">3:15 PM</span><span class="sr-status">Scheduled</span></div>
+    </div>
+    <div class="route-card">
+      <div class="rc-hdr"><div class="rc-name">Route 3 · Northside Loop</div><span class="rc-badge">Active</span></div>
+      <div class="rc-stops"><span>Campus Ctr</span><span class="stop-arrow">→</span><span>Cavanaugh</span><span class="stop-arrow">→</span><span>Dorms</span><span class="stop-arrow">→</span><span>Campus Ctr</span></div>
+      <div class="sched-hdr"><span>Departs</span><span>Arrives</span><span>Status</span></div>
+      <div class="sched-row next-row"><span class="sr-dep">12:50 PM</span><span class="sr-arr">1:10 PM</span><span class="sr-status">Next · 13 min</span></div>
+      <div class="sched-row"><span class="sr-dep">1:20 PM</span><span class="sr-arr">1:40 PM</span><span class="sr-status">In 50 min</span></div>
+      <div class="sched-row"><span class="sr-dep">1:50 PM</span><span class="sr-arr">2:10 PM</span><span class="sr-status">Scheduled</span></div>
+      <div class="sched-row"><span class="sr-dep">2:20 PM</span><span class="sr-arr">2:40 PM</span><span class="sr-status">Scheduled</span></div>
+      <div class="sched-row"><span class="sr-dep">2:50 PM</span><span class="sr-arr">3:10 PM</span><span class="sr-status">Scheduled</span></div>
+    </div>
+    <div class="route-card">
+      <div class="rc-hdr"><div class="rc-name">Route 4 · Airport Express</div><span class="rc-badge" style="color:#8a897f;">Weekends only</span></div>
+      <div class="rc-stops"><span>Campus Ctr</span><span class="stop-arrow">→</span><span>Union Station</span><span class="stop-arrow">→</span><span>IND Airport</span></div>
+      <div class="sched-hdr"><span>Departs</span><span>Arrives</span><span>Status</span></div>
+      <div class="sched-row"><span class="sr-dep">8:00 AM</span><span class="sr-arr">8:40 AM</span><span class="sr-status">Sat & Sun</span></div>
+      <div class="sched-row"><span class="sr-dep">12:00 PM</span><span class="sr-arr">12:40 PM</span><span class="sr-status">Sat & Sun</span></div>
+      <div class="sched-row"><span class="sr-dep">5:00 PM</span><span class="sr-arr">5:40 PM</span><span class="sr-status">Sat & Sun</span></div>
+      <div class="sched-row"><span class="sr-dep" style="color:var(--txt2)">—</span><span class="sr-arr" style="color:var(--txt2)">—</span><span class="sr-status">Not today</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Campus Assistant — fixed -->
+<div class="fab-wrap">
+  <div class="ai-panel" id="ai-panel">
+    <div class="ai-hdr">
+      <span class="ai-hdr-txt">✦ Campus Assistant</span>
+      <button class="ai-close" onclick="toggleAI()">✕</button>
+    </div>
+    <div class="ai-msgs" id="ai-msgs">
+      <div class="ai-msg a">Ask me about bus routes, next departures, or delays!</div>
+    </div>
+    <div class="ai-row">
+      <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
+      <button class="ai-send" onclick="doAI()">↑</button>
+    </div>
+  </div>
+  <button class="fab" onclick="toggleAI()" title="Campus Assistant">✦</button>
+</div>
+</div>
+
+<script>
+let dark=localStorage.getItem('pih-dark')==='1', mins=8, aiOpen=false;
+function toggleTheme(){
+  dark=!dark;
+  document.getElementById('app').className=dark?'dark':'';
+  document.getElementById('tbtn').textContent=dark?'☽':'☀';
+  localStorage.setItem('pih-dark',dark?'1':'0');
+}
+setInterval(()=>{
+  if(mins>0)mins--;
+  const el=document.getElementById('cd');
+  if(el)el.innerHTML=mins+'<span> min</span>';
+},60000);
+
+// Campus Assistant
+const aiR={
+  'next bus':'Next bus: Route 1 departs in 8 min at 12:38 PM. Union Station → ET Building → Campus Center → Library.',
+  'route 1':'Route 1 (West Lafayette Shuttle): Union Station → ET Building → Campus Center → Library. Next: 12:38 PM.',
+  'route 2':'Route 2 (Downtown Connector) is delayed +5 min today due to Capitol Ave construction. Next: ~12:50 PM.',
+  'route 3':'Route 3 (Northside Loop): Campus Center → Cavanaugh → Dorms → Campus Center. Next: 12:50 PM.',
+  'route 4':'Route 4 (Airport Express) runs weekends only. Next Sat/Sun departures: 8 AM, 12 PM, 5 PM.',
+  'airport':'Route 4 runs to IND Airport on weekends only — Sat & Sun at 8 AM, 12 PM, and 5 PM.',
+  'downtown':'Route 2 goes downtown. Running 5 min late today due to Capitol Ave construction.',
+  'delay':'Route 2 (Downtown Connector) is delayed ~5 minutes due to construction on Capitol Ave.',
+  'et building':'Route 1 stops at ET Building. Next departure: 12:38 PM from Union Station.',
+  'schedule':'<a href="schedule.html" style="color:inherit;text-decoration:underline">View your class schedule →</a>',
+  'map':'<a href="map.html" style="color:inherit;text-decoration:underline">See the Transit Hub on the campus map →</a>',
+  'how many':'There are 4 routes: Route 1 (West Lafayette), Route 2 (Downtown), Route 3 (Northside Loop), Route 4 (Airport, weekends only).',
+};
+function toggleAI(){
+  aiOpen=!aiOpen;
+  document.getElementById('ai-panel').className='ai-panel'+(aiOpen?' open':'');
+}
+function doAI(){
+  const inp=document.getElementById('ai-inp');
+  const msgs=document.getElementById('ai-msgs');
+  const t=inp.value.trim();if(!t)return;
+  const um=document.createElement('div');um.className='ai-msg u';um.textContent=t;msgs.appendChild(um);
+  inp.value='';
+  setTimeout(()=>{
+    const low=t.toLowerCase();
+    let r='Ask me about a specific route (Route 1–4), next departures, or delays!';
+    for(const k of Object.keys(aiR)){if(low.includes(k)){r=aiR[k];break;}}
+    const bm=document.createElement('div');bm.className='ai-msg a';bm.innerHTML=r;msgs.appendChild(bm);
+    msgs.scrollTop=msgs.scrollHeight;
+  },500);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').textContent='☽';}
+</script>
+</body>
+</html>
