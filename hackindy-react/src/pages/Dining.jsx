@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Icon from '../components/Icons'
 
 const diningLocations = [
@@ -8,6 +8,7 @@ const diningLocations = [
     status: 'open',
     hours: 'Closes 2:00 PM',
     meal: 'Lunch',
+    rating: 4.5,
     entrees: ['Grilled Chicken', 'Pasta Marinara', 'Black Bean Burger', 'Mac & Cheese', 'Beef Stir-Fry'],
     sides: ['Caesar Salad', 'Roasted Veggies', 'Garlic Bread', 'Fresh Fruit'],
     desserts: ['Chocolate Cake', 'Vanilla Ice Cream', 'Cookies'],
@@ -18,6 +19,7 @@ const diningLocations = [
     status: 'open',
     hours: 'Closes 8:00 PM',
     meal: 'All Day',
+    rating: 4.2,
     entrees: ['Pizza', 'Burgers', 'Sushi', 'Tacos', 'Sandwiches'],
     sides: ['French Fries', 'Onion Rings', 'Cole Slaw'],
     desserts: ['Brownies', 'Fruit Cups'],
@@ -28,6 +30,7 @@ const diningLocations = [
     status: 'open',
     hours: 'Closes 10:00 PM',
     meal: 'Coffee & Snacks',
+    rating: 4.7,
     entrees: ['Bagels', 'Muffins', 'Breakfast Sandwiches'],
     sides: ['Yogurt Parfait', 'Fruit Cup'],
     desserts: ['Pastries', 'Cookies'],
@@ -38,79 +41,104 @@ const diningLocations = [
     status: 'closed',
     hours: 'Opens 9:00 PM',
     meal: 'Late Night',
+    rating: 4.0,
     entrees: ['Burgers', 'Wings', 'Loaded Fries', 'Quesadillas'],
     sides: ['Mozzarella Sticks', 'Nachos'],
     desserts: ['Milkshakes', 'Churros'],
   },
 ]
 
+const hours = [
+  { meal: 'Breakfast', time: '7:00 – 10:30 AM', icon: 'coffee' },
+  { meal: 'Lunch', time: '11:00 AM – 2:00 PM', icon: 'dining' },
+  { meal: 'Dinner', time: '4:30 – 8:00 PM', icon: 'moon' },
+]
+
 export default function Dining() {
   const [selectedLocation, setSelectedLocation] = useState(diningLocations[0])
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
-    <div className="max-w-[900px] mx-auto px-8 py-6 pb-20">
+    <div className={`max-w-[1000px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
       {/* Header */}
-      <div className="flex items-start justify-between mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
-          <h1 className="text-[22px] font-medium text-[var(--color-txt-0)]">Campus Dining</h1>
-          <p className="text-[13px] text-[var(--color-txt-1)] mt-1">
+          <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Campus Dining</h1>
+          <p className="text-[14px] text-[var(--color-txt-2)] mt-1">
             See what's being served today
           </p>
         </div>
-        <div className="text-xs text-[var(--color-txt-1)] bg-[var(--color-bg-0)] border border-[var(--color-border-2)] rounded-lg px-3.5 py-1.5 flex items-center gap-1.5">
-          <Icon name="clock" size={13} className="text-[var(--color-txt-2)]" />
+        <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2.5 shadow-sm">
+          <Icon name="clock" size={14} className="text-[var(--color-txt-3)]" />
           Lunch service
         </div>
       </div>
 
       {/* Location Tabs */}
-      <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
-        {diningLocations.map(loc => (
-          <button
-            key={loc.id}
-            onClick={() => setSelectedLocation(loc)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border whitespace-nowrap transition-all
-              ${selectedLocation.id === loc.id 
-                ? 'bg-[var(--color-bg-0)] border-[var(--color-border-2)]' 
-                : 'bg-transparent border-transparent hover:bg-[var(--color-bg-0)]'
-              }`}
-          >
-            <div className={`w-2 h-2 rounded-full ${loc.status === 'open' ? 'bg-green-500' : 'bg-red-400'}`} />
-            <span className="text-[13px] font-medium text-[var(--color-txt-0)]">{loc.name}</span>
-          </button>
-        ))}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1 animate-fade-in-up stagger-1">
+        {diningLocations.map(loc => {
+          const isSelected = selectedLocation.id === loc.id
+          return (
+            <button
+              key={loc.id}
+              onClick={() => setSelectedLocation(loc)}
+              className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border whitespace-nowrap transition-all duration-300
+                ${isSelected 
+                  ? 'bg-[var(--color-surface)] border-[var(--color-border-2)] shadow-md' 
+                  : 'bg-transparent border-transparent hover:bg-[var(--color-surface)] hover:border-[var(--color-border)]'
+                }`}
+            >
+              <div className={`status-dot ${loc.status === 'open' ? 'status-open' : 'status-closed'}`} />
+              <span className={`text-[13px] font-medium ${isSelected ? 'text-[var(--color-txt-0)]' : 'text-[var(--color-txt-1)]'}`}>
+                {loc.name}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Selected Location Details */}
-      <div className="bg-[var(--color-bg-0)] border border-[var(--color-border)] rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
+      <div className="card p-6 mb-6 animate-fade-in-up stagger-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-lg font-medium text-[var(--color-txt-0)]">{selectedLocation.name}</h2>
-            <div className="flex items-center gap-2 mt-1">
-              <div className={`w-2 h-2 rounded-full ${selectedLocation.status === 'open' ? 'bg-green-500 animate-pulse-dot' : 'bg-red-400'}`} />
-              <span className="text-xs text-[var(--color-txt-1)]">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-semibold text-[var(--color-txt-0)]">{selectedLocation.name}</h2>
+              <div className="flex items-center gap-1 text-[12px] text-[var(--color-gold-muted)]">
+                <Icon name="star" size={12} className="fill-current" />
+                {selectedLocation.rating}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-1.5">
+              <span className={`status-dot ${selectedLocation.status === 'open' ? 'status-open' : 'status-closed'}`} />
+              <span className="text-[13px] text-[var(--color-txt-2)]">
                 {selectedLocation.status === 'open' ? 'Open now' : 'Closed'} · {selectedLocation.meal} · {selectedLocation.hours}
               </span>
             </div>
           </div>
-          <button className="bg-gold-dark text-gold rounded-lg px-4 py-2 text-xs flex items-center gap-1.5">
-            <Icon name="mapPin" size={12} />
-            Get directions
+          <button className="btn btn-primary text-[12px] px-4 py-2.5 w-fit">
+            <Icon name="mapPin" size={14} />
+            Get Directions
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-3 gap-6">
           {/* Entrees */}
           <div>
-            <div className="text-[10px] font-semibold text-[var(--color-txt-2)] uppercase tracking-wide mb-2 flex items-center gap-1.5">
-              <Icon name="dining" size={12} />
+            <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-3 flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-[var(--color-dining-bg)] flex items-center justify-center">
+                <Icon name="dining" size={12} className="text-[var(--color-dining-color)]" />
+              </div>
               Entrées
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="space-y-2">
               {selectedLocation.entrees.map(item => (
                 <div 
                   key={item}
-                  className="text-xs bg-[var(--color-stat)] rounded-lg px-3 py-2 text-[var(--color-txt-0)]"
+                  className="text-[13px] bg-[var(--color-stat)] hover:bg-[var(--color-bg-3)] rounded-xl px-4 py-2.5 text-[var(--color-txt-0)] transition-colors cursor-default"
                 >
                   {item}
                 </div>
@@ -120,14 +148,17 @@ export default function Dining() {
 
           {/* Sides */}
           <div>
-            <div className="text-[10px] font-semibold text-[var(--color-txt-2)] uppercase tracking-wide mb-2">
+            <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-3 flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-[var(--color-map-bg)] flex items-center justify-center">
+                <Icon name="grid" size={12} className="text-[var(--color-map-color)]" />
+              </div>
               Sides & Salads
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="space-y-2">
               {selectedLocation.sides.map(item => (
                 <div 
                   key={item}
-                  className="text-xs bg-[var(--color-stat)] rounded-lg px-3 py-2 text-[var(--color-txt-0)]"
+                  className="text-[13px] bg-[var(--color-stat)] hover:bg-[var(--color-bg-3)] rounded-xl px-4 py-2.5 text-[var(--color-txt-0)] transition-colors cursor-default"
                 >
                   {item}
                 </div>
@@ -137,14 +168,17 @@ export default function Dining() {
 
           {/* Desserts */}
           <div>
-            <div className="text-[10px] font-semibold text-[var(--color-txt-2)] uppercase tracking-wide mb-2">
+            <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-3 flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-[var(--color-events-bg)] flex items-center justify-center">
+                <Icon name="star" size={12} className="text-[var(--color-events-color)]" />
+              </div>
               Desserts
             </div>
-            <div className="flex flex-col gap-1.5">
+            <div className="space-y-2">
               {selectedLocation.desserts.map(item => (
                 <div 
                   key={item}
-                  className="text-xs bg-[var(--color-stat)] rounded-lg px-3 py-2 text-[var(--color-txt-0)]"
+                  className="text-[13px] bg-[var(--color-stat)] hover:bg-[var(--color-bg-3)] rounded-xl px-4 py-2.5 text-[var(--color-txt-0)] transition-colors cursor-default"
                 >
                   {item}
                 </div>
@@ -152,26 +186,28 @@ export default function Dining() {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Hours */}
-        <div className="mt-5 pt-4 border-t border-[var(--color-border)]">
-          <div className="text-[10px] font-semibold text-[var(--color-txt-2)] uppercase tracking-wide mb-2">
-            Hours
-          </div>
-          <div className="grid grid-cols-3 gap-4 text-xs">
-            <div className="bg-[var(--color-stat)] rounded-lg p-3">
-              <div className="text-[var(--color-txt-2)] mb-1">Breakfast</div>
-              <div className="text-[var(--color-txt-0)] font-medium">7:00 – 10:30 AM</div>
+      {/* Hours Section */}
+      <div className="card p-6 animate-fade-in-up stagger-3">
+        <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-4">
+          Operating Hours
+        </div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {hours.map(({ meal, time, icon }) => (
+            <div 
+              key={meal}
+              className="bg-[var(--color-stat)] rounded-xl p-4 flex items-center gap-4 hover:bg-[var(--color-bg-3)] transition-colors"
+            >
+              <div className="w-10 h-10 rounded-xl bg-[var(--color-bg-2)] flex items-center justify-center">
+                <Icon name={icon} size={18} className="text-[var(--color-txt-2)]" />
+              </div>
+              <div>
+                <div className="text-[12px] text-[var(--color-txt-2)]">{meal}</div>
+                <div className="text-[14px] font-medium text-[var(--color-txt-0)]">{time}</div>
+              </div>
             </div>
-            <div className="bg-[var(--color-stat)] rounded-lg p-3">
-              <div className="text-[var(--color-txt-2)] mb-1">Lunch</div>
-              <div className="text-[var(--color-txt-0)] font-medium">11:00 AM – 2:00 PM</div>
-            </div>
-            <div className="bg-[var(--color-stat)] rounded-lg p-3">
-              <div className="text-[var(--color-txt-2)] mb-1">Dinner</div>
-              <div className="text-[var(--color-txt-0)] font-medium">4:30 – 8:00 PM</div>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>
