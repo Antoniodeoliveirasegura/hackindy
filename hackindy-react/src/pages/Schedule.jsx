@@ -5,6 +5,13 @@ import { authRequest } from '../lib/authApi'
 import Icon from '../components/Icons'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+const DAY_CODES = {
+  Monday: 'M',
+  Tuesday: 'T',
+  Wednesday: 'W',
+  Thursday: 'Th',
+  Friday: 'F',
+}
 
 const colorOrder = ['blue', 'green', 'purple', 'orange']
 const colorConfig = {
@@ -46,8 +53,29 @@ function getTimeRange(startTime, endTime) {
   return endLabel ? `${startLabel} – ${endLabel}` : startLabel
 }
 
+function getPatternLabel(days) {
+  const normalized = [...new Set(days)].sort((a, b) => DAYS.indexOf(a) - DAYS.indexOf(b))
+  const compact = normalized.map((day) => DAY_CODES[day] || day.slice(0, 1)).join('')
+
+  const knownPatterns = {
+    MWF: 'MWF',
+    MW: 'MW',
+    MF: 'MF',
+    WF: 'WF',
+    TTh: 'TTh',
+    T: 'T',
+    Th: 'Th',
+    W: 'W',
+    F: 'F',
+    MTWThF: 'MTWThF',
+  }
+
+  return knownPatterns[compact] || compact
+}
+
 function getWeeklyPattern(items) {
   const seen = new Map()
+  const seriesDays = new Map()
 
   for (const item of items) {
     const day = getDayName(item.startTime)
@@ -65,10 +93,20 @@ function getWeeklyPattern(items) {
       end?.getHours() || '',
       end?.getMinutes() || '',
     ].join('|')
+    const seriesKey = [
+      item.title,
+      item.description || '',
+      item.location || '',
+    ].join('|')
+
+    const existingDays = seriesDays.get(seriesKey) || new Set()
+    existingDays.add(day)
+    seriesDays.set(seriesKey, existingDays)
 
     if (!seen.has(key)) {
       seen.set(key, {
         id: key,
+        seriesKey,
         day,
         code: item.title,
         name: item.description || 'Class meeting',
@@ -86,7 +124,10 @@ function getWeeklyPattern(items) {
 
   const grouped = Object.fromEntries(DAYS.map((day) => [day, []]))
   for (const item of seen.values()) {
-    grouped[item.day].push(item)
+    grouped[item.day].push({
+      ...item,
+      pattern: getPatternLabel(seriesDays.get(item.seriesKey) || [item.day]),
+    })
   }
 
   for (const day of DAYS) {
@@ -254,8 +295,11 @@ export default function Schedule() {
                     <div className={`flex-1 p-4 ${config.bg} ${config.border} border-l-0 border`}>
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <div className={`text-[11px] font-semibold ${config.text} tracking-wide`}>
-                            {cls.code}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className={`text-[11px] font-semibold ${config.text} tracking-wide`}>
+                              {cls.code}
+                            </div>
+                            <span className="badge">{cls.pattern}</span>
                           </div>
                           <div className="text-[16px] font-semibold text-[var(--color-txt-0)] mt-1">
                             {cls.name}
@@ -271,7 +315,7 @@ export default function Schedule() {
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Icon name="calendar" size={12} />
-                              Meets {cls.count} time{cls.count === 1 ? '' : 's'} this term
+                              Meets {cls.pattern} · {cls.count} time{cls.count === 1 ? '' : 's'} this term
                             </span>
                           </div>
                         </div>
@@ -300,6 +344,10 @@ export default function Schedule() {
                   <div className="bg-[var(--color-stat)] rounded-xl p-3">
                     <div className="text-[10px] text-[var(--color-txt-3)] uppercase tracking-wider mb-1">Day</div>
                     <div className="text-[13px] font-medium text-[var(--color-txt-0)]">{selectedClass.day}</div>
+                  </div>
+                  <div className="bg-[var(--color-stat)] rounded-xl p-3">
+                    <div className="text-[10px] text-[var(--color-txt-3)] uppercase tracking-wider mb-1">Pattern</div>
+                    <div className="text-[13px] font-medium text-[var(--color-txt-0)]">{selectedClass.pattern}</div>
                   </div>
                   <div className="bg-[var(--color-stat)] rounded-xl p-3">
                     <div className="text-[10px] text-[var(--color-txt-3)] uppercase tracking-wider mb-1">Time</div>

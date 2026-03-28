@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': { target: apiTarget, changeOrigin: true },
-        '/auth': { target: apiTarget, changeOrigin: true },
+        // Only Purdue server routes — do not proxy /auth/callback (React + Supabase email/OAuth).
+        '/auth/purdue': { target: apiTarget, changeOrigin: true },
       },
     },
   }

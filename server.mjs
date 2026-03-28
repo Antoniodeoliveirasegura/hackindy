@@ -6,6 +6,7 @@ import express from 'express'
 import session from 'express-session'
 import ical from 'node-ical'
 import { createClient } from '@supabase/supabase-js'
+import { cancelCalendarCapture, getCalendarCaptureJob, startCalendarCapture } from './purdueCalendarAutomation.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -55,6 +56,13 @@ app.use(
     },
   }),
 )
+
+// Supabase email/OAuth may redirect to the API origin (e.g. localhost:3000). Forward query params to the SPA.
+app.get('/auth/callback', (req, res) => {
+  const search = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
+  res.redirect(302, `${clientAppUrl}/auth/callback${search}`)
+})
+
 app.use(express.static(__dirname))
 
 function nowIso() {
@@ -403,6 +411,24 @@ async function getSourceForUser(sourceId, userId) {
 
   if (error || !data) return null
   return data
+}
+
+async function deleteSourceForUser(sourceId, userId) {
+  const source = await getSourceForUser(sourceId, userId)
+  if (!source) return null
+
+  const { data, error } = await supabase
+    .from('linked_sources')
+    .delete()
+    .eq('id', sourceId)
+    .eq('user_id', userId)
+    .select('id')
+
+  if (error) throw new Error(error.message)
+  if (!data?.length) {
+    throw new Error('Could not remove this source. Try refreshing the page.')
+  }
+  return source
 }
 
 function validateSourceUrl(sourceUrl) {
@@ -935,6 +961,38 @@ app.patch('/api/me/profile', requireAuth, async (req, res) => {
 
 app.get('/api/me/sources', requireAuth, async (req, res) => {
   res.json({ sources: await listSourcesForUser(req.currentUser.id) })
+})
+
+async function removeLinkedSourceRoute(req, res) {
+  try {
+    const deleted = await deleteSourceForUser(req.params.sourceId, req.currentUser.id)
+    if (!deleted) {
+      return res.status(404).json({ error: { message: 'Source not found.', status: 404 } })
+    }
+    res.json({ ok: true })
+  } catch (error) {
+    res.status(400).json({ error: { message: error.message || 'Could not remove this source.', status: 400 } })
+  }
+}
+
+app.post('/api/me/sources/:sourceId/remove', requireAuth, removeLinkedSourceRoute)
+app.delete('/api/me/sources/:sourceId', requireAuth, removeLinkedSourceRoute)
+
+app.post('/api/purdue/calendar-link/start', requireAuth, requirePurdueLinked, async (req, res) => {
+  try {
+    const job = await startCalendarCapture(req.currentUser.id)
+    res.status(202).json({ job })
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message || 'Could not start Purdue timetable automation.', status: 500 } })
+  }
+})
+
+app.get('/api/purdue/calendar-link/status', requireAuth, requirePurdueLinked, async (req, res) => {
+  res.json({ job: getCalendarCaptureJob(req.currentUser.id) })
+})
+
+app.post('/api/purdue/calendar-link/cancel', requireAuth, requirePurdueLinked, async (req, res) => {
+  res.json({ job: await cancelCalendarCapture(req.currentUser.id) })
 })
 
 app.post('/api/sources/purdue/schedule', requireAuth, requirePurdueLinked, async (req, res) => {
