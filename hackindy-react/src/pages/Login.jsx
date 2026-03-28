@@ -113,17 +113,6 @@ export default function Login() {
         await refreshSession()
         navigate(parseNextPath(window.location.search), { replace: true })
       } else {
-        // Try Supabase Auth first
-        let supabaseSuccess = false
-        try {
-          await signInWithEmail(email.trim(), password)
-          supabaseSuccess = true
-        } catch (supabaseError) {
-          // If Supabase fails (user doesn't exist there), try backend local auth
-          console.log('Supabase auth failed, trying backend:', supabaseError.message)
-        }
-        
-        // Call backend to create session (with rememberMe flag)
         const response = await fetch('/api/auth/sign-in', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -131,10 +120,13 @@ export default function Login() {
           body: JSON.stringify({ email: email.trim(), password, rememberMe }),
         })
         const data = await response.json()
-        if (!response.ok && !supabaseSuccess) {
+        if (!response.ok) {
           throw new Error(data.error?.message || 'Invalid email or password.')
         }
-        
+
+        // Also sign in on the client Supabase (non-blocking — only needed for OAuth features)
+        try { await signInWithEmail(email.trim(), password) } catch { /* ok */ }
+
         await refreshSession()
         navigate(parseNextPath(window.location.search), { replace: true })
       }

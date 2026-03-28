@@ -1,4 +1,7 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
+import os from 'node:os'
 
 const jobs = new Map()
 const DEFAULT_TIMEOUT_MS = 1000 * 60 * 8
@@ -125,6 +128,36 @@ async function extractIcsUrl(page) {
   return normalizeCandidateUrl(generic?.[0] || '')
 }
 
+function findChromiumExecutable() {
+  const envPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+  if (envPath && fs.existsSync(envPath)) return envPath
+
+  const browsersCachePath = process.env.PLAYWRIGHT_BROWSERS_PATH
+    || path.join(os.homedir(), 'Library', 'Caches', 'ms-playwright')
+
+  if (!fs.existsSync(browsersCachePath)) return null
+
+  const chromiumDirs = fs.readdirSync(browsersCachePath)
+    .filter((d) => d.startsWith('chromium-'))
+    .sort()
+    .reverse()
+
+  for (const dir of chromiumDirs) {
+    const base = path.join(browsersCachePath, dir)
+    const candidates = [
+      path.join(base, 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+      path.join(base, 'chrome-mac-x64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+      path.join(base, 'chrome-mac', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+      path.join(base, 'chrome-linux', 'chrome'),
+      path.join(base, 'chrome-win', 'chrome.exe'),
+    ]
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c
+    }
+  }
+  return null
+}
+
 async function runCalendarCapture(job) {
   try {
     setJobState(job, 'launching', 'Opening Purdue timetable in a local browser...')
@@ -136,13 +169,20 @@ async function runCalendarCapture(job) {
         'Playwright is not available. From the project root run: npx playwright install chromium',
       )
     }
+
+    const launchOptions = { headless: false }
+    const resolvedExec = findChromiumExecutable()
+    if (resolvedExec) {
+      launchOptions.executablePath = resolvedExec
+    }
+
     try {
-      job.browser = await chromium.launch({ headless: false })
+      job.browser = await chromium.launch(launchOptions)
     } catch (e) {
       const msg = e?.message || String(e)
       throw new Error(
         msg.includes('Executable doesn') || msg.includes('browser')
-          ? `${msg} — run: npx playwright install chromium`
+          ? `Chromium not found. Run: npx playwright install chromium (from outside Cursor sandbox / in a regular terminal)`
           : msg,
       )
     }

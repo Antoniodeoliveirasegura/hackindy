@@ -6,6 +6,7 @@ import express from 'express'
 import session from 'express-session'
 import ical from 'node-ical'
 import { createClient } from '@supabase/supabase-js'
+import { cancelCalendarCapture, getCalendarCaptureJob, startCalendarCapture } from './purdueCalendarAutomation.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -798,7 +799,7 @@ app.post('/api/auth/register-supabase', async (req, res) => {
       .insert({
         id: authUser.id,
         email: normalizedEmail,
-        password_hash: '',
+        password_hash: hashPassword(password),
         display_name: deriveDisplayName(normalizedEmail, displayName),
         auth_provider: 'email',
         created_at: timestamp,
@@ -850,65 +851,106 @@ app.post('/api/auth/sign-up', async (req, res) => {
   }
 })
 
+async function verifySupabasePassword(email, password) {
+  const gotrue = `${supabaseUrl}/auth/v1/token?grant_type=password`
+  const anonKey = process.env.SUPABASE_ANON_KEY || supabaseServiceKey
+  const resp = await fetch(gotrue, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: anonKey,
+    },
+    body: JSON.stringify({ email, password }),
+  })
+  if (!resp.ok) return null
+  const data = await resp.json()
+  return data?.user ?? null
+}
+
+async function ensureUserRowForSupabaseAuth(supabaseUser, fallbackEmail) {
+  const normalizedEmail = normalizeEmail(supabaseUser?.email || fallbackEmail)
+  if (!normalizedEmail) return null
+
+  let user = await getUserByEmail(normalizedEmail)
+  if (user) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        display_name:
+          supabaseUser?.user_metadata?.full_name ||
+          supabaseUser?.user_metadata?.name ||
+          user.display_name ||
+          deriveDisplayName(normalizedEmail, ''),
+        auth_provider: user.auth_provider || 'email',
+        updated_at: nowIso(),
+      })
+      .eq('id', user.id)
+      .select()
+      .single()
+
+    return error ? user : data
+  }
+
+  const timestamp = nowIso()
+  const { data, error } = await supabase
+    .from('users')
+    .insert({
+      id: supabaseUser?.id || makeId(),
+      email: normalizedEmail,
+      password_hash: '',
+      display_name:
+        supabaseUser?.user_metadata?.full_name ||
+        supabaseUser?.user_metadata?.name ||
+        deriveDisplayName(normalizedEmail, ''),
+      auth_provider: 'email',
+      avatar_url: supabaseUser?.user_metadata?.avatar_url || null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    const existing = await getUserByEmail(normalizedEmail)
+    if (existing) return existing
+    throw new Error(error.message || 'Could not create your profile.')
+  }
+
+  return data
+}
+
 app.post('/api/auth/sign-in', async (req, res) => {
   try {
     const normalizedEmail = normalizeEmail(req.body.email)
     const password = req.body.password
     const rememberMe = req.body.rememberMe === true
-    
-    // Set cookie maxAge based on rememberMe
-    // rememberMe: 30 days, otherwise: session cookie (expires when browser closes)
     const cookieMaxAge = rememberMe ? 1000 * 60 * 60 * 24 * 30 : undefined
-    
-    // First try to authenticate via Supabase Auth
-    const { data: supabaseData, error: supabaseError } = await supabase.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
-    })
-    
-    if (!supabaseError && supabaseData?.user) {
-      // Supabase auth succeeded - get or create user in our table
-      let user = await getUserByEmail(normalizedEmail)
-      
-      if (!user) {
-        // User exists in Supabase Auth but not in our users table - create them
-        const timestamp = nowIso()
-        const { data: newUser, error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: supabaseData.user.id,
-            email: normalizedEmail,
-            password_hash: '',
-            display_name: deriveDisplayName(normalizedEmail, supabaseData.user.user_metadata?.full_name),
-            auth_provider: 'email',
-            created_at: timestamp,
-            updated_at: timestamp,
-          })
-          .select()
-          .single()
-        
-        if (insertError) {
-          console.error('sign-in: failed to create user record:', insertError)
-          return res.status(500).json({ error: { message: 'Could not complete sign in.', status: 500 } })
-        }
-        user = newUser
+
+    let user = await getUserByEmail(normalizedEmail)
+
+    // Always allow Supabase Auth to be the source of truth if the local profile row/hash is missing or stale.
+    let supabaseUser = null
+    const hasLocalHash = user?.password_hash && user.password_hash.includes(':')
+    const localPasswordMatches = hasLocalHash ? verifyPassword(password, user.password_hash) : false
+
+    if (!localPasswordMatches) {
+      supabaseUser = await verifySupabasePassword(normalizedEmail, password)
+      if (!supabaseUser) {
+        return res.status(401).json({ error: { message: 'Invalid email or password.', status: 401 } })
       }
-      
-      req.session.regenerate(async (err) => {
-        if (err) {
-          return res.status(500).json({ error: { message: 'Could not create a session.', status: 500 } })
-        }
-        req.session.cookie.maxAge = cookieMaxAge
-        req.session.userId = user.id
-        req.session.save(async () => {
-          res.json({ session: await buildSessionPayload(user) })
-        })
-      })
-      return
+
+      user = await ensureUserRowForSupabaseAuth(supabaseUser, normalizedEmail)
+
+      await supabase
+        .from('users')
+        .update({ password_hash: hashPassword(password), updated_at: nowIso() })
+        .eq('id', user.id)
     }
-    
-    // Fall back to local authentication (for users created before Supabase)
-    const user = await authenticateLocalUser({ email: req.body.email, password: req.body.password })
+
+    if (!user) {
+      return res.status(401).json({ error: { message: 'Invalid email or password.', status: 401 } })
+    }
+
     req.session.regenerate(async (err) => {
       if (err) {
         return res.status(500).json({ error: { message: 'Could not create a session.', status: 500 } })
@@ -1033,6 +1075,19 @@ app.post('/auth/purdue/dev/link', requireAuth, async (req, res) => {
   }
 })
 
+app.post('/api/purdue/mock-link', requireAuth, async (req, res) => {
+  if (purdueAuthMode === 'cas') {
+    return res.status(400).json({ error: { message: 'Mock Purdue linking is disabled while CAS mode is active.', status: 400 } })
+  }
+  try {
+    await linkPurdueIdentity(req.currentUser.id, { email: req.body.email })
+    const payload = await buildSessionPayload(await getUserById(req.currentUser.id))
+    res.json({ ok: true, session: payload })
+  } catch (error) {
+    res.status(400).json({ error: { message: error.message || 'Could not link Purdue account.', status: 400 } })
+  }
+})
+
 app.get('/auth/purdue/callback', requireAuth, async (req, res) => {
   const nextPath = sanitizeNext(req.query.next)
   const ticket = req.query.ticket
@@ -1071,6 +1126,23 @@ app.patch('/api/me/profile', requireAuth, async (req, res) => {
 
 app.get('/api/me/sources', requireAuth, async (req, res) => {
   res.json({ sources: await listSourcesForUser(req.currentUser.id) })
+})
+
+app.post('/api/purdue/calendar-link/start', requireAuth, requirePurdueLinked, async (req, res) => {
+  try {
+    const job = await startCalendarCapture(req.currentUser.id)
+    res.status(202).json({ job })
+  } catch (error) {
+    res.status(500).json({ error: { message: error.message || 'Could not start Purdue timetable automation.', status: 500 } })
+  }
+})
+
+app.get('/api/purdue/calendar-link/status', requireAuth, requirePurdueLinked, async (req, res) => {
+  res.json({ job: getCalendarCaptureJob(req.currentUser.id) })
+})
+
+app.post('/api/purdue/calendar-link/cancel', requireAuth, requirePurdueLinked, async (req, res) => {
+  res.json({ job: await cancelCalendarCapture(req.currentUser.id) })
 })
 
 app.post('/api/sources/purdue/schedule', requireAuth, requirePurdueLinked, async (req, res) => {
