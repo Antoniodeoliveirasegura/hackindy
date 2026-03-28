@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import Icon from '../components/Icons'
 
 const quickActions = [
@@ -65,7 +66,7 @@ function getGreeting() {
 }
 
 function getCurrentDate() {
-  return new Date().toLocaleDateString('en-US', { 
+  return new Date().toLocaleDateString(undefined, {
     weekday: 'long', 
     month: 'long', 
     day: 'numeric', 
@@ -75,6 +76,8 @@ function getCurrentDate() {
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
+  const { getFirstName } = useAuth()
+  const firstName = getFirstName()
 
   useEffect(() => {
     setMounted(true)
@@ -89,7 +92,7 @@ export default function Home() {
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-txt-0)] flex items-center gap-3">
-              {getGreeting()}, Jordan
+              {getGreeting()}, {firstName}
               <span className="animate-wave text-2xl">👋</span>
             </h1>
             <p className="text-[14px] text-[var(--color-txt-2)] mt-2">

@@ -12,6 +12,16 @@ const app = express();
 const port = Number(process.env.PORT || 3000);
 const host = process.env.HOST || "127.0.0.1";
 
+/** When set (e.g. http://localhost:5173), OAuth and resets redirect into the Vite app instead of static HTML. */
+const clientAppUrl = (process.env.CLIENT_APP_URL || "").replace(/\/$/, "");
+const dashboardPath = "/dashboard";
+const oauthSuccessUrl = clientAppUrl
+  ? `${clientAppUrl}${dashboardPath}`
+  : "/index.html";
+const oauthErrorUrl = clientAppUrl
+  ? `${clientAppUrl}/login?error=social`
+  : "/login.html?error=social";
+
 function setResponseHeaders(res, headers) {
   headers.forEach((value, key) => {
     if (key.toLowerCase() === "set-cookie") {
@@ -102,8 +112,8 @@ app.get("/auth/social/:provider", async (req, res) => {
       headers: fromNodeHeaders(req.headers),
       body: {
         provider,
-        callbackURL: "/index.html",
-        errorCallbackURL: "/login.html?error=social",
+        callbackURL: oauthSuccessUrl,
+        errorCallbackURL: oauthErrorUrl,
       },
     });
 

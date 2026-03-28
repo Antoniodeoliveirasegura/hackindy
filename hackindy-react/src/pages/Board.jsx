@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import Icon from '../components/Icons'
 
 const initialPosts = [
@@ -21,6 +22,7 @@ const initialPosts = [
 ]
 
 export default function Board() {
+  const { getDisplayName } = useAuth()
   const [posts, setPosts] = useState(initialPosts)
   const [sort, setSort] = useState('recent')
   const [voted, setVoted] = useState(new Set())
@@ -35,6 +37,8 @@ export default function Board() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  const currentUserName = getDisplayName()
 
   const sortedPosts = [...posts].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1
@@ -83,7 +87,7 @@ export default function Board() {
       title: newTitle,
       body: newBody,
       anon: isAnon,
-      user: isAnon ? 'Anonymous' : 'Jordan S.',
+      user: isAnon ? 'Anonymous' : currentUserName,
       upvotes: 0,
       pinned: false,
       hot: false,
@@ -102,7 +106,7 @@ export default function Board() {
       if (p.id === postId) {
         return {
           ...p,
-          replies: [...p.replies, { user: 'Jordan S.', body: text, time: 'Just now' }]
+          replies: [...p.replies, { user: currentUserName, body: text, time: 'Just now' }]
         }
       }
       return p

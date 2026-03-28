@@ -1,7 +1,11 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
-import Navbar from './components/Navbar'
-import CampusAssistant from './components/CampusAssistant'
+import { AuthProvider } from './context/AuthContext'
+import AppLayout from './components/AppLayout'
+import RequireAuth from './components/RequireAuth'
+import Landing from './pages/Landing'
+import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import Home from './pages/Home'
 import Map from './pages/Map'
 import Schedule from './pages/Schedule'
@@ -15,20 +19,79 @@ export default function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
-        <div className="min-h-screen">
-          <Navbar />
+        <AuthProvider>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/map" element={<Map />} />
-            <Route path="/schedule" element={<Schedule />} />
-            <Route path="/events" element={<Events />} />
-            <Route path="/dining" element={<Dining />} />
-            <Route path="/transit" element={<Transit />} />
-            <Route path="/services" element={<Services />} />
-            <Route path="/board" element={<Board />} />
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route element={<AppLayout />}>
+              <Route
+                path="/dashboard"
+                element={
+                  <RequireAuth>
+                    <Home />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/map"
+                element={
+                  <RequireAuth>
+                    <Map />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/schedule"
+                element={
+                  <RequireAuth>
+                    <Schedule />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/events"
+                element={
+                  <RequireAuth>
+                    <Events />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/dining"
+                element={
+                  <RequireAuth>
+                    <Dining />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/transit"
+                element={
+                  <RequireAuth>
+                    <Transit />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/services"
+                element={
+                  <RequireAuth>
+                    <Services />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/board"
+                element={
+                  <RequireAuth>
+                    <Board />
+                  </RequireAuth>
+                }
+              />
+            </Route>
           </Routes>
-          <CampusAssistant />
-        </div>
+        </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
   )
