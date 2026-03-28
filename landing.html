@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Purdue Indy Hub — Your Campus, Connected</title>
+<script src="icons.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+--bg0:#ffffff;--bg1:#f2f1ee;--bg2:#e8e7e3;--bg3:#dddcd8;
+--txt0:#111110;--txt1:#52514d;--txt2:#8a897f;
+--bdr:rgba(0,0,0,0.09);--bdr2:rgba(0,0,0,0.16);
+--gold:#CFB991;--gold-dk:#3E2200;--gold-lt:#f5ecd8;
+--accent:#2062a4;--accent-lt:#ddeaf8;
+}
+.dark{
+--bg0:#111113;--bg1:#18181a;--bg2:#222224;--bg3:#2a2a2c;
+--txt0:#f2f1ee;--txt1:#9a9890;--txt2:#5c5b55;
+--bdr:rgba(255,255,255,0.08);--bdr2:rgba(255,255,255,0.14);
+--gold:#CFB991;--gold-dk:#4a2c00;--gold-lt:#1e1200;
+--accent:#6aaee8;--accent-lt:#0a2d52;
+}
+html{scroll-behavior:smooth;}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg0);color:var(--txt0);transition:background .25s,color .25s;overflow-x:hidden;}
+.pih-icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pih-icon svg{width:100%;height:100%;}
+
+/* ── Navbar ── */
+.navbar{background:rgba(255,255,255,0.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:0.5px solid var(--bdr);padding:0 2rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;transition:background .25s;}
+.dark .navbar{background:rgba(17,17,19,0.85);}
+.nav-logo{font-size:15px;font-weight:600;display:flex;align-items:center;gap:9px;color:var(--txt0);text-decoration:none;}
+.logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:700;padding:3px 9px;border-radius:5px;letter-spacing:0.6px;}
+.nav-center{display:flex;gap:2px;}
+.nav-link{font-size:13px;color:var(--txt1);padding:6px 13px;border-radius:7px;cursor:pointer;border:none;background:none;font-family:inherit;transition:background .15s,color .15s;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.nav-link:hover{background:var(--bg2);color:var(--txt0);}
+.nav-right{display:flex;align-items:center;gap:8px;}
+.theme-btn{width:34px;height:34px;border-radius:8px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt0);transition:background .15s,transform .15s;}
+.theme-btn:hover{transform:scale(1.05);background:var(--bg3);}
+.theme-btn .pih-icon{width:16px;height:16px;}
+.btn-ghost{font-size:13px;color:var(--txt1);padding:7px 16px;border-radius:8px;border:0.5px solid var(--bdr2);background:transparent;cursor:pointer;font-family:inherit;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.btn-ghost:hover{background:var(--bg2);color:var(--txt0);}
+.btn-gold{font-size:13px;font-weight:600;color:var(--gold-dk);background:var(--gold);padding:7px 18px;border-radius:8px;border:none;cursor:pointer;font-family:inherit;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.btn-gold:hover{filter:brightness(1.05);transform:translateY(-1px);box-shadow:0 4px 12px rgba(207,185,145,0.4);}
+
+/* ── Hero ── */
+.hero{min-height:calc(100vh - 56px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem 2rem 6rem;text-align:center;position:relative;overflow:hidden;}
+.hero-glow{position:absolute;top:-10%;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(ellipse at center,rgba(207,185,145,0.12) 0%,transparent 70%);pointer-events:none;}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--gold-dk);background:var(--gold-lt);border:0.5px solid rgba(207,185,145,0.5);border-radius:20px;padding:5px 14px;margin-bottom:1.5rem;letter-spacing:0.3px;}
+.dark .hero-badge{color:var(--gold);background:var(--gold-lt);border-color:rgba(207,185,145,0.2);}
+.hero-badge .pih-icon{width:13px;height:13px;}
+.hero h1{font-size:clamp(2.2rem,5vw,3.8rem);font-weight:700;letter-spacing:-0.03em;line-height:1.1;color:var(--txt0);max-width:720px;margin-bottom:1.25rem;}
+.hero h1 span{color:var(--gold);background:linear-gradient(135deg,#CFB991,#e8d5a8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.dark .hero h1 span{background:linear-gradient(135deg,#CFB991,#f0d8a0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero p{font-size:1.05rem;color:var(--txt1);max-width:520px;line-height:1.65;margin-bottom:2.25rem;}
+.hero-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:3rem;}
+.btn-primary{font-size:14px;font-weight:600;color:var(--gold-dk);background:var(--gold);padding:11px 28px;border-radius:10px;border:none;cursor:pointer;font-family:inherit;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
+.btn-primary:hover{filter:brightness(1.05);transform:translateY(-2px);box-shadow:0 6px 20px rgba(207,185,145,0.4);}
+.btn-outline{font-size:14px;color:var(--txt0);padding:11px 28px;border-radius:10px;border:0.5px solid var(--bdr2);background:transparent;cursor:pointer;font-family:inherit;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
+.btn-outline:hover{background:var(--bg2);transform:translateY(-1px);}
+.btn-primary .pih-icon,.btn-outline .pih-icon{width:16px;height:16px;}
+.hero-stat-row{display:flex;gap:2rem;justify-content:center;flex-wrap:wrap;}
+.hero-stat{text-align:center;}
+.hero-stat-num{font-size:22px;font-weight:700;color:var(--txt0);}
+.hero-stat-lbl{font-size:12px;color:var(--txt2);margin-top:2px;}
+
+/* ── Preview strip ── */
+.preview-wrap{padding:0 2rem 5rem;max-width:1000px;margin:0 auto;}
+.preview-card{background:var(--bg1);border:0.5px solid var(--bdr);border-radius:16px;padding:1.5rem;position:relative;overflow:hidden;}
+.preview-bar{display:flex;align-items:center;gap:8px;margin-bottom:1rem;}
+.preview-dot{width:11px;height:11px;border-radius:50%;}
+.pd-r{background:#ff5f57;}.pd-y{background:#febc2e;}.pd-g{background:#28c840;}
+.preview-url{flex:1;background:var(--bg2);border-radius:6px;padding:5px 12px;font-size:11px;color:var(--txt2);font-family:monospace;}
+.preview-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+.pv-card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:10px;padding:12px 14px;}
+.pv-label{font-size:10px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;}
+.pv-icon-wrap{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:7px;}
+.pv-icon-wrap .pih-icon{width:17px;height:17px;}
+.pvi-map{background:#ddeaf8;color:#1a4e8c;}.dark .pvi-map{background:#0a2d52;color:#93c2f0;}
+.pvi-dining{background:#dff0e0;color:#2a5e10;}.dark .pvi-dining{background:#0f3018;color:#8fd470;}
+.pvi-bus{background:#faebd4;color:#7a4800;}.dark .pvi-bus{background:#2e1800;color:#f0a050;}
+.pvi-events{background:#f8e0ec;color:#7a2048;}.dark .pvi-events{background:#320c20;color:#e88ab8;}
+.pv-title{font-size:13px;font-weight:500;color:var(--txt0);}
+.pv-sub{font-size:11px;color:var(--txt2);margin-top:2px;}
+.pv-cls{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+.pv-cls-inner{background:#ddeaf8;border-radius:7px;padding:9px 11px;}
+.dark .pv-cls-inner{background:#0a2d52;}
+.pv-cls-code{font-size:10px;font-weight:600;color:#2f7bbf;letter-spacing:.4px;}
+.pv-cls-name{font-size:13px;font-weight:500;color:#0C447C;margin:2px 0;}
+.dark .pv-cls-name{color:#93c2f0;}
+.pv-cls-meta{font-size:11px;color:#2f7bbf;}
+.pv-evt{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:10px;padding:12px 14px;}
+.pv-evt-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--bdr);}
+.pv-evt-row:last-child{border-bottom:none;}
+.pv-evt-dot{width:6px;height:6px;border-radius:2px;flex-shrink:0;}
+.pv-evt-ttl{font-size:11px;font-weight:500;color:var(--txt0);flex:1;}
+.pv-evt-time{font-size:10px;color:var(--txt2);}
+
+/* ── Features ── */
+.features{padding:5rem 2rem;background:var(--bg1);}
+.sec-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:.75rem;}
+.sec-title{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:700;letter-spacing:-0.02em;color:var(--txt0);margin-bottom:.75rem;}
+.sec-sub{font-size:15px;color:var(--txt1);line-height:1.6;max-width:540px;}
+.features-inner{max-width:1100px;margin:0 auto;}
+.features-header{margin-bottom:3rem;text-align:center;}
+.features-header .sec-sub{margin:0 auto;}
+.feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;}
+.feat-card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:14px;padding:1.4rem 1.5rem;transition:border-color .2s,transform .2s,box-shadow .2s;cursor:default;}
+.feat-card:hover{border-color:var(--bdr2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.07);}
+.dark .feat-card:hover{box-shadow:0 8px 24px rgba(0,0,0,.3);}
+.feat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;}
+.feat-icon .pih-icon{width:22px;height:22px;}
+.feat-title{font-size:15px;font-weight:600;color:var(--txt0);margin-bottom:6px;}
+.feat-desc{font-size:13px;color:var(--txt1);line-height:1.6;}
+
+/* ── Integrations ── */
+.integrations{padding:5rem 2rem;max-width:1100px;margin:0 auto;}
+.int-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:2rem;}
+.int-chip{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:500;color:var(--txt0);background:var(--bg1);border:0.5px solid var(--bdr);border-radius:10px;padding:10px 18px;transition:border-color .15s,transform .15s;}
+.int-chip:hover{border-color:var(--bdr2);transform:translateY(-1px);}
+.int-chip .pih-icon{width:18px;height:18px;color:var(--txt2);}
+
+/* ── CTA ── */
+.cta{padding:5rem 2rem;background:linear-gradient(135deg,var(--gold-dk) 0%,#5c3a00 60%,#3E2200 100%);text-align:center;position:relative;overflow:hidden;}
+.dark .cta{background:linear-gradient(135deg,#2a1800 0%,#3e2400 60%,#1e1000 100%);}
+.cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(207,185,145,0.15) 0%,transparent 70%);pointer-events:none;}
+.cta h2{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:700;letter-spacing:-0.02em;color:var(--gold);margin-bottom:.75rem;position:relative;}
+.cta p{font-size:15px;color:rgba(207,185,145,0.7);margin-bottom:2rem;position:relative;}
+.cta .btn-primary{background:var(--gold);color:var(--gold-dk);position:relative;}
+.cta .btn-outline{border-color:rgba(207,185,145,0.3);color:var(--gold);position:relative;}
+.cta .btn-outline:hover{background:rgba(207,185,145,0.1);}
+
+/* ── Footer ── */
+footer{background:var(--bg0);border-top:0.5px solid var(--bdr);padding:2rem;text-align:center;}
+.footer-logo{font-size:14px;font-weight:600;color:var(--txt0);display:inline-flex;align-items:center;gap:8px;margin-bottom:.5rem;}
+.footer-sub{font-size:12px;color:var(--txt2);}
+
+/* ── Responsive ── */
+@media(max-width:640px){
+  .navbar{padding:0 1.2rem;}
+  .nav-center{display:none;}
+  .hero{padding:3rem 1.5rem 5rem;}
+  .features,.integrations,.cta{padding:4rem 1.5rem;}
+  .preview-wrap{padding:0 1.5rem 4rem;}
+  .preview-grid{grid-template-columns:repeat(2,1fr);}
+  .hero-stat-row{gap:1.5rem;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- Navbar -->
+<nav class="navbar">
+  <a class="nav-logo" href="landing.html">
+    <div class="logo-badge">PIH</div>
+    Purdue Indy Hub
+  </a>
+  <div class="nav-center">
+    <a class="nav-link" href="#features"><span data-icon="grid" data-size="13"></span>Features</a>
+    <a class="nav-link" href="#integrations"><span data-icon="sparkles" data-size="13"></span>Integrations</a>
+    <a class="nav-link" href="index.html"><span data-icon="home" data-size="13"></span>Dashboard</a>
+  </div>
+  <div class="nav-right">
+    <button class="theme-btn" onclick="toggleTheme()"><span id="theme-icon" data-icon="sun" data-size="16"></span></button>
+    <a class="btn-ghost" href="login.html">Sign in</a>
+    <a class="btn-gold" href="login.html"><span data-icon="sparkles" data-size="14"></span>Get started</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-badge"><span data-icon="sparkles" data-size="13"></span>Built for Purdue Indianapolis</div>
+  <h1>Your campus,<br><span>all in one place.</span></h1>
+  <p>Schedules, dining, transit, events, and an AI campus assistant — everything you need to navigate student life at Purdue Indy.</p>
+  <div class="hero-actions">
+    <a class="btn-primary" href="login.html"><span data-icon="home" data-size="16"></span>Get started free</a>
+    <a class="btn-outline" href="#features"><span data-icon="arrowUpRight" data-size="16"></span>See features</a>
+  </div>
+  <div class="hero-stat-row">
+    <div class="hero-stat">
+      <div class="hero-stat-num">8+</div>
+      <div class="hero-stat-lbl">Campus features</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">Live</div>
+      <div class="hero-stat-lbl">Bus tracking</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">AI</div>
+      <div class="hero-stat-lbl">Campus assistant</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">Free</div>
+      <div class="hero-stat-lbl">For all students</div>
+    </div>
+  </div>
+</section>
+
+<!-- App Preview -->
+<div class="preview-wrap">
+  <div class="preview-card">
+    <div class="preview-bar">
+      <div class="preview-dot pd-r"></div>
+      <div class="preview-dot pd-y"></div>
+      <div class="preview-dot pd-g"></div>
+      <div class="preview-url">purdueindyhub.edu</div>
+    </div>
+    <div class="preview-grid">
+      <div class="pv-card">
+        <div class="pv-icon-wrap pvi-map"><span data-icon="mapPin" data-size="17"></span></div>
+        <div class="pv-title">Campus Map</div>
+        <div class="pv-sub">Find any building</div>
+      </div>
+      <div class="pv-card">
+        <div class="pv-icon-wrap pvi-dining"><span data-icon="dining" data-size="17"></span></div>
+        <div class="pv-title">Dining</div>
+        <div class="pv-sub">Open now</div>
+      </div>
+      <div class="pv-card">
+        <div class="pv-icon-wrap pvi-bus"><span data-icon="bus" data-size="17"></span></div>
+        <div class="pv-title">Transit</div>
+        <div class="pv-sub">Next in 8 min</div>
+      </div>
+      <div class="pv-card">
+        <div class="pv-icon-wrap pvi-events"><span data-icon="calendar" data-size="17"></span></div>
+        <div class="pv-title">Events</div>
+        <div class="pv-sub">3 today</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="pv-cls">
+        <div class="pv-label">Next class</div>
+        <div class="pv-cls-inner">
+          <div class="pv-cls-code">CS 30200</div>
+          <div class="pv-cls-name">Software Engineering</div>
+          <div class="pv-cls-meta">ET 215 · 1:30 PM · Prof. Nguyen</div>
+        </div>
+      </div>
+      <div class="pv-evt">
+        <div class="pv-label">Events today</div>
+        <div class="pv-evt-row"><div class="pv-evt-dot" style="background:#2062a4"></div><div class="pv-evt-ttl">Hackathon Kickoff</div><div class="pv-evt-time">10 AM</div></div>
+        <div class="pv-evt-row"><div class="pv-evt-dot" style="background:#3d7e18"></div><div class="pv-evt-ttl">Spring Career Fair</div><div class="pv-evt-time">12 PM</div></div>
+        <div class="pv-evt-row"><div class="pv-evt-dot" style="background:#a33060"></div><div class="pv-evt-ttl">Student Org Showcase</div><div class="pv-evt-time">3 PM</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Features -->
+<section class="features" id="features">
+  <div class="features-inner">
+    <div class="features-header">
+      <div class="sec-label">Everything you need</div>
+      <h2 class="sec-title">One hub for campus life</h2>
+      <p class="sec-sub">No more juggling five different apps. Purdue Indy Hub brings it all together in a clean, fast interface.</p>
+    </div>
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#ddeaf8;color:#1a4e8c;"><span data-icon="schedule" data-size="22"></span></div>
+        <div class="feat-title">Smart Schedule</div>
+        <div class="feat-desc">See your classes, track free time, and get AI-powered suggestions on what to do before your next lecture.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#dff0e0;color:#2a5e10;"><span data-icon="dining" data-size="22"></span></div>
+        <div class="feat-title">Live Dining</div>
+        <div class="feat-desc">Check which dining halls are open right now, browse today's menu, and never wonder what's for lunch again.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#faebd4;color:#7a4800;"><span data-icon="bus" data-size="22"></span></div>
+        <div class="feat-title">Real-time Transit</div>
+        <div class="feat-desc">Live countdowns for every campus bus route, with departure times, stops, and route maps in one place.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#f8e0ec;color:#7a2048;"><span data-icon="calendar" data-size="22"></span></div>
+        <div class="feat-title">Events Hub</div>
+        <div class="feat-desc">Discover workshops, career fairs, club meetings, and social events happening across campus today and this week.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:#ede8f5;color:#5a3ea0;"><span data-icon="mapPin" data-size="22"></span></div>
+        <div class="feat-title">Interactive Map</div>
+        <div class="feat-desc">Find any building, parking lot, or campus resource instantly. Get walking directions from your current location.</div>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon" style="background:var(--gold-lt);color:var(--gold-dk);"><span data-icon="sparkles" data-size="22"></span></div>
+        <div class="feat-title">AI Campus Assistant</div>
+        <div class="feat-desc">Ask anything — where's my class, what's on the menu, what time is the next bus. Get instant answers powered by AI.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Integrations -->
+<section id="integrations">
+  <div class="integrations">
+    <div style="text-align:center;margin-bottom:1rem;">
+      <div class="sec-label">Integrations</div>
+      <h2 class="sec-title">Plugged into campus systems</h2>
+      <p class="sec-sub" style="margin:0 auto;text-align:center;">Purdue Indy Hub connects to the systems you already use, pulling in real data so you're never out of the loop.</p>
+    </div>
+    <div class="int-row">
+      <div class="int-chip"><span data-icon="schedule" data-size="18"></span>Brightspace LMS</div>
+      <div class="int-chip"><span data-icon="dining" data-size="18"></span>Campus Dining API</div>
+      <div class="int-chip"><span data-icon="bus" data-size="18"></span>IndyGo Transit</div>
+      <div class="int-chip"><span data-icon="calendar" data-size="18"></span>Campus Events Feed</div>
+      <div class="int-chip"><span data-icon="mapPin" data-size="18"></span>Campus Map Data</div>
+      <div class="int-chip"><span data-icon="sparkles" data-size="18"></span>Claude AI</div>
+      <div class="int-chip"><span data-icon="book" data-size="18"></span>University Library</div>
+      <div class="int-chip"><span data-icon="home" data-size="18"></span>Student Portal</div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="cta-glow"></div>
+  <div class="sec-label" style="color:rgba(207,185,145,0.6);">Ready to get started?</div>
+  <h2>Join Purdue Indy Hub today</h2>
+  <p>Free for all Purdue Indianapolis students. Sign in with your university account.</p>
+  <div class="hero-actions" style="margin-bottom:0;">
+    <a class="btn-primary" href="login.html"><span data-icon="home" data-size="16"></span>Sign up free</a>
+    <a class="btn-outline" href="login.html">Sign in</a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
+  <div class="footer-sub">Built for Purdue University Indianapolis students · Not an official Purdue product</div>
+</footer>
+
+</div>
+
+<script>
+let dark = localStorage.getItem('pih-dark') === '1';
+if (dark) document.getElementById('app').className = 'dark';
+
+function updateThemeIcon() {
+  const el = document.getElementById('theme-icon');
+  el.setAttribute('data-icon', dark ? 'moon' : 'sun');
+  if (window.initPIHIcons) initPIHIcons();
+}
+function toggleTheme() {
+  dark = !dark;
+  document.getElementById('app').className = dark ? 'dark' : '';
+  localStorage.setItem('pih-dark', dark ? '1' : '0');
+  updateThemeIcon();
+}
+document.addEventListener('DOMContentLoaded', () => { updateThemeIcon(); });
+</script>
+</body>
+</html>
