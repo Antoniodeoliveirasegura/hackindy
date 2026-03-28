@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Home · Purdue Indy Hub</title>
-<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="icons.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -16,6 +16,7 @@
 --bus-bg:#faebd4;--bus-title:#5c3200;--bus-sub:#a86200;
 --tag-bg:#e8e7e3;--tag-txt:#52514d;
 --stat:#eceae6;
+--accent:#2062a4;
 }
 .dark{
 --bg0:#111113;--bg1:#18181a;--bg2:#222224;
@@ -26,30 +27,36 @@
 --bus-bg:#2e1800;--bus-title:#f0b86a;--bus-sub:#c47a1a;
 --tag-bg:#222224;--tag-txt:#9a9890;
 --stat:#1e1e20;
+--accent:#6aaee8;
 }
 body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:var(--txt0);transition:background .25s,color .25s;}
+.pih-icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pih-icon svg{width:100%;height:100%;}
 .navbar{background:var(--bg0);border-bottom:0.5px solid var(--bdr);padding:0 2rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
 .nav-logo{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;color:var(--txt0);}
-.logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:500;padding:2px 7px;border-radius:4px;}
+.logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;letter-spacing:0.5px;}
 .nav-links{display:flex;gap:2px;}
-.nav-btn{font-size:13px;color:var(--txt1);padding:5px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;transition:background .15s,color .15s;display:flex;align-items:center;gap:5px;}
+.nav-btn{font-size:13px;color:var(--txt1);padding:6px 12px;border-radius:6px;cursor:pointer;border:none;background:none;font-family:inherit;transition:background .15s,color .15s;display:flex;align-items:center;gap:6px;}
 .nav-btn:hover{background:var(--bg2);color:var(--txt0);}
 .nav-btn.active{background:var(--bg2);color:var(--txt0);font-weight:500;}
-.nav-btn svg{width:13px;height:13px;stroke-width:2.5;flex-shrink:0;}
+.nav-btn .pih-icon{width:14px;height:14px;}
 .nav-right{display:flex;align-items:center;gap:8px;}
-.theme-btn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt0);transition:background .15s;}
-.theme-btn svg{width:15px;height:15px;stroke-width:2;}
-.avatar{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--gold-dk);}
+.theme-btn{width:32px;height:32px;border-radius:7px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt0);transition:background .15s,transform .15s;}
+.theme-btn:hover{transform:scale(1.05);}
+.theme-btn .pih-icon{width:16px;height:16px;}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--gold);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--gold-dk);}
 .main{max-width:1160px;margin:0 auto;padding:1.5rem 2rem 5rem;}
 .greeting-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;}
-.greeting-row h1{font-size:22px;font-weight:500;color:var(--txt0);}
+.greeting-row h1{font-size:22px;font-weight:500;color:var(--txt0);display:flex;align-items:center;gap:8px;}
+.greeting-row h1 .pih-icon{width:24px;height:24px;}
 .greeting-row p{font-size:13px;color:var(--txt1);margin-top:3px;}
-.date-chip{font-size:12px;color:var(--txt1);background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:7px;padding:6px 14px;white-space:nowrap;}
+.date-chip{font-size:12px;color:var(--txt1);background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:7px;padding:6px 14px;white-space:nowrap;display:flex;align-items:center;gap:6px;}
+.date-chip .pih-icon{width:13px;height:13px;color:var(--txt2);}
 .qa-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem;}
-.qa-btn{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:10px;padding:13px 14px;cursor:pointer;display:flex;align-items:center;gap:11px;transition:border-color .15s,background .15s;text-align:left;}
-.qa-btn:hover{background:var(--bg2);border-color:var(--bdr2);}
-.qa-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.qa-icon svg{width:17px;height:17px;stroke-width:2;}
+.qa-btn{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:10px;padding:13px 14px;cursor:pointer;display:flex;align-items:center;gap:11px;transition:border-color .15s,background .15s,transform .15s;text-align:left;}
+.qa-btn:hover{background:var(--bg2);border-color:var(--bdr2);transform:translateY(-1px);}
+.qa-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.qa-icon .pih-icon{width:18px;height:18px;}
 .qi-map{background:#ddeaf8;color:#1a4e8c;}.dark .qi-map{background:#0a2d52;color:#93c2f0;}
 .qi-dining{background:#dff0e0;color:#2a5e10;}.dark .qi-dining{background:#0f3018;color:#8fd470;}
 .qi-bus{background:#faebd4;color:#7a4800;}.dark .qi-bus{background:#2e1800;color:#f0a050;}
@@ -57,51 +64,58 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .qa-label{font-size:13px;font-weight:500;color:var(--txt0);}
 .qa-sub{font-size:11px;color:var(--txt2);margin-top:1px;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
-.card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:12px;padding:1.1rem 1.25rem;}
-.card-lbl{font-size:10px;font-weight:500;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+.card{background:var(--bg0);border:0.5px solid var(--bdr);border-radius:12px;padding:1.1rem 1.25rem;transition:border-color .2s;}
+.card:hover{border-color:var(--bdr2);}
+.card-lbl{font-size:10px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
 .cls-block{background:var(--cls-bg);border-radius:8px;padding:11px 13px;margin-top:6px;}
-.cls-code{font-size:10px;font-weight:500;color:var(--cls-sub);}
+.cls-code{font-size:10px;font-weight:600;color:var(--cls-sub);letter-spacing:0.5px;}
 .cls-name{font-size:14px;font-weight:500;color:var(--cls-title);margin:3px 0 2px;}
 .cls-meta{font-size:11px;color:var(--cls-sub);}
 .link-btns{margin-top:10px;display:flex;gap:6px;}
-.link-btn{font-size:11px;padding:5px 11px;border-radius:6px;border:0.5px solid var(--bdr2);background:transparent;color:var(--txt1);cursor:pointer;font-family:inherit;transition:background .15s;display:flex;align-items:center;gap:4px;}
-.link-btn svg{width:11px;height:11px;stroke-width:2.5;}
-.link-btn:hover{background:var(--bg2);}
+.link-btn{font-size:11px;padding:6px 11px;border-radius:6px;border:0.5px solid var(--bdr2);background:transparent;color:var(--txt1);cursor:pointer;font-family:inherit;transition:background .15s,color .15s;display:flex;align-items:center;gap:5px;}
+.link-btn .pih-icon{width:12px;height:12px;}
+.link-btn:hover{background:var(--bg2);color:var(--txt0);}
 .time-num{font-size:32px;font-weight:500;line-height:1;margin:6px 0 3px;color:var(--txt0);}
 .time-desc{font-size:13px;color:var(--txt1);}
 .sugg-box{margin-top:11px;background:var(--stat);border-radius:8px;padding:10px 12px;}
-.sugg-lbl{font-size:10px;color:var(--txt2);margin-bottom:5px;}
-.sugg-item{font-size:12px;margin-bottom:3px;color:var(--txt0);display:flex;align-items:center;gap:6px;}
-.sugg-item svg{width:12px;height:12px;stroke-width:2;color:var(--txt2);flex-shrink:0;}
+.sugg-lbl{font-size:10px;font-weight:600;color:var(--txt2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;}
+.sugg-item{font-size:12px;margin-bottom:4px;color:var(--txt0);display:flex;align-items:center;gap:8px;}
+.sugg-item .pih-icon{width:14px;height:14px;color:var(--txt2);}
 .sugg-item:last-child{margin-bottom:0;}
 .sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;}
-.see-all{font-size:11px;color:#2a7cc7;cursor:pointer;background:none;border:none;font-family:inherit;display:flex;align-items:center;gap:3px;}
-.see-all svg{width:11px;height:11px;stroke-width:2.5;}
-.dark .see-all{color:#6aaee8;}
-.dot-open{width:7px;height:7px;border-radius:50%;background:#4d9e3a;flex-shrink:0;}
+.see-all{font-size:11px;color:var(--accent);cursor:pointer;background:none;border:none;font-family:inherit;display:flex;align-items:center;gap:4px;transition:gap .15s;}
+.see-all:hover{gap:6px;}
+.see-all .pih-icon{width:12px;height:12px;}
+.dot-open{width:7px;height:7px;border-radius:50%;background:#4d9e3a;flex-shrink:0;animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
 .dining-status{font-size:12px;color:var(--txt1);margin-bottom:9px;display:flex;align-items:center;gap:5px;}
-.menu-lbl{font-size:10px;font-weight:500;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.menu-lbl{font-size:10px;font-weight:600;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
 .tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:9px;}
-.tag{font-size:11px;background:var(--tag-bg);border:0.5px solid var(--bdr);border-radius:20px;padding:3px 10px;color:var(--tag-txt);}
+.tag{font-size:11px;background:var(--tag-bg);border:0.5px solid var(--bdr);border-radius:20px;padding:4px 11px;color:var(--tag-txt);transition:background .15s;}
+.tag:hover{background:var(--bg2);}
 .pill-row{display:flex;gap:5px;margin-bottom:9px;}
-.pill{font-size:11px;padding:4px 11px;border-radius:20px;border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt1);cursor:pointer;font-family:inherit;}
+.pill{font-size:11px;padding:5px 12px;border-radius:20px;border:0.5px solid var(--bdr2);background:var(--bg2);color:var(--txt1);cursor:pointer;font-family:inherit;transition:all .15s;}
+.pill:hover{background:var(--stat);}
 .pill.on{background:var(--gold-dk);color:var(--gold);border-color:var(--gold-dk);}
 .evt-list{display:flex;flex-direction:column;}
-.evt-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--bdr);}
+.evt-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--bdr);transition:background .15s;margin:0 -4px;padding-left:4px;padding-right:4px;border-radius:4px;}
+.evt-item:hover{background:var(--stat);}
 .evt-item:last-child{border-bottom:none;}
 .evt-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0;}
 .evt-dot.e{background:#2062a4;}.evt-dot.c{background:#3d7e18;}.evt-dot.s{background:#a33060;}
 .evt-info{flex:1;}
 .evt-ttl{font-size:13px;font-weight:500;color:var(--txt0);}
-.evt-time{font-size:11px;color:var(--txt2);margin-top:1px;}
-.evt-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500;white-space:nowrap;}
+.evt-time{font-size:11px;color:var(--txt2);margin-top:1px;display:flex;align-items:center;gap:4px;}
+.evt-time .pih-icon{width:10px;height:10px;}
+.evt-badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:500;white-space:nowrap;}
 .eb-e{background:#ddeaf8;color:#1a4e8c;}.dark .eb-e{background:#0a2d52;color:#93c2f0;}
 .eb-c{background:#dff0e0;color:#2a5e10;}.dark .eb-c{background:#0f3018;color:#8fd470;}
 .eb-s{background:#f8e0ec;color:#7a2048;}.dark .eb-s{background:#320c20;color:#e88ab8;}
 .bus-block{background:var(--bus-bg);border-radius:8px;padding:11px 13px;margin-top:8px;display:flex;align-items:center;justify-content:space-between;}
-.bus-rname{font-size:11px;font-weight:500;color:var(--bus-title);}
+.bus-rname{font-size:11px;font-weight:600;color:var(--bus-title);display:flex;align-items:center;gap:5px;}
+.bus-rname .pih-icon{width:13px;height:13px;}
 .bus-stops{font-size:10px;color:var(--bus-sub);margin-top:2px;}
-.bus-cd{font-size:22px;font-weight:500;color:var(--bus-title);}
+.bus-cd{font-size:22px;font-weight:600;color:var(--bus-title);}
 .bus-cd span{font-size:11px;font-weight:400;color:var(--bus-sub);}
 .bus-rows{margin-top:9px;display:flex;flex-direction:column;}
 .bus-row{display:flex;justify-content:space-between;font-size:11px;padding:5px 0;border-bottom:0.5px solid var(--bdr);}
@@ -110,71 +124,83 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 .bus-rs{color:var(--txt2);}
 .board-post{padding:9px 0;border-bottom:0.5px solid var(--bdr);}
 .board-post:last-child{border-bottom:none;}
-.board-ttl{font-size:12px;font-weight:500;cursor:pointer;color:var(--txt0);}
-.board-ttl:hover{color:#2a7cc7;}
-.board-meta{font-size:10px;color:var(--txt2);margin-top:2px;display:flex;gap:9px;}
-.ask-btn{font-size:11px;padding:5px 11px;border-radius:6px;border:0.5px solid var(--bdr2);background:transparent;color:var(--txt1);cursor:pointer;margin-top:9px;font-family:inherit;display:flex;align-items:center;gap:4px;}
-.ask-btn svg{width:11px;height:11px;stroke-width:2.5;}
-/* Campus Assistant — fixed */
+.board-ttl{font-size:12px;font-weight:500;cursor:pointer;color:var(--txt0);transition:color .15s;}
+.board-ttl:hover{color:var(--accent);}
+.board-meta{font-size:10px;color:var(--txt2);margin-top:3px;display:flex;align-items:center;gap:9px;}
+.board-meta .pih-icon{width:10px;height:10px;}
+.ask-btn{font-size:11px;padding:6px 12px;border-radius:6px;border:0.5px solid var(--bdr2);background:transparent;color:var(--txt1);cursor:pointer;margin-top:9px;font-family:inherit;display:flex;align-items:center;gap:5px;transition:background .15s,color .15s;}
+.ask-btn .pih-icon{width:12px;height:12px;}
+.ask-btn:hover{background:var(--bg2);color:var(--txt0);}
+/* Campus Assistant */
 .fab-wrap{position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
-.fab{width:46px;height:46px;border-radius:50%;background:var(--gold-dk);color:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(0,0,0,.18);transition:background .15s;}
-.fab:hover{background:#5c3a00;}.dark .fab:hover{background:#6a4400;}
-.fab svg{width:20px;height:20px;stroke-width:2;}
-.ai-panel{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:12px;padding:1rem 1.1rem;width:320px;box-shadow:0 4px 24px rgba(0,0,0,.12);display:none;}
+.fab{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--gold-dk) 0%,#5c3a00 100%);color:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.2);transition:transform .2s,box-shadow .2s;}
+.fab:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(0,0,0,.25);}
+.fab .pih-icon{width:22px;height:22px;}
+.ai-panel{background:var(--bg0);border:0.5px solid var(--bdr2);border-radius:14px;padding:1rem 1.1rem;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.15);display:none;animation:slideUp .2s ease-out;}
+@keyframes slideUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 .ai-panel.open{display:block;}
 .ai-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.ai-hdr-txt{font-size:13px;font-weight:500;color:var(--txt0);display:flex;align-items:center;gap:5px;}
-.ai-hdr-txt svg{width:13px;height:13px;stroke-width:2;}
-.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);display:flex;align-items:center;}
-.ai-close svg{width:15px;height:15px;stroke-width:2;}
+.ai-hdr-txt{font-size:13px;font-weight:600;color:var(--txt0);display:flex;align-items:center;gap:6px;}
+.ai-hdr-txt .pih-icon{width:14px;height:14px;color:var(--gold);}
+.ai-close{background:none;border:none;cursor:pointer;color:var(--txt2);display:flex;align-items:center;padding:4px;border-radius:4px;transition:background .15s;}
+.ai-close:hover{background:var(--bg2);}
+.ai-close .pih-icon{width:14px;height:14px;}
 .ai-msgs{min-height:80px;max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:7px;margin-bottom:10px;}
-.ai-msg{font-size:12px;padding:8px 10px;border-radius:8px;max-width:90%;line-height:1.45;}
-.ai-msg.a{background:var(--stat);color:var(--txt0);align-self:flex-start;}
-.ai-msg.u{background:var(--gold-dk);color:var(--gold);align-self:flex-end;}
+.ai-msg{font-size:12px;padding:9px 11px;border-radius:10px;max-width:90%;line-height:1.5;}
+.ai-msg.a{background:var(--stat);color:var(--txt0);align-self:flex-start;border-bottom-left-radius:4px;}
+.ai-msg.u{background:var(--gold-dk);color:var(--gold);align-self:flex-end;border-bottom-right-radius:4px;}
 .ai-row{display:flex;gap:6px;}
-.ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:7px;padding:7px 10px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;}
-.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:7px;padding:7px 13px;cursor:pointer;display:flex;align-items:center;}
-.ai-send svg{width:14px;height:14px;stroke-width:2.5;}
+.ai-inp{flex:1;font-size:12px;border:0.5px solid var(--bdr2);border-radius:8px;padding:8px 11px;background:var(--bg2);color:var(--txt0);outline:none;font-family:inherit;transition:border-color .15s;}
+.ai-inp:focus{border-color:var(--gold);}
+.ai-send{background:var(--gold-dk);color:var(--gold);border:none;border-radius:8px;padding:8px 14px;cursor:pointer;display:flex;align-items:center;transition:background .15s;}
+.ai-send:hover{background:#5c3a00;}
+.ai-send .pih-icon{width:14px;height:14px;}
 </style>
 </head>
 <body>
 <div id="app">
 <div class="navbar">
-  <div class="nav-logo"><div class="logo-badge">PIH</div>Purdue Indy Hub</div>
+  <div class="nav-logo">
+    <div class="logo-badge">PIH</div>
+    Purdue Indy Hub
+  </div>
   <div class="nav-links">
-    <button class="nav-btn active"><i data-lucide="home"></i>Home</button>
-    <button class="nav-btn" onclick="location.href='map.html'"><i data-lucide="map"></i>Map</button>
-    <button class="nav-btn" onclick="location.href='schedule.html'"><i data-lucide="calendar"></i>Schedule</button>
-    <button class="nav-btn" onclick="location.href='events.html'"><i data-lucide="calendar-days"></i>Events</button>
-    <button class="nav-btn" onclick="location.href='services.html'"><i data-lucide="grid-2x2"></i>More</button>
+    <button class="nav-btn active"><span data-icon="home" data-size="14"></span>Home</button>
+    <button class="nav-btn" onclick="location.href='map.html'"><span data-icon="mapPin" data-size="14"></span>Map</button>
+    <button class="nav-btn" onclick="location.href='schedule.html'"><span data-icon="schedule" data-size="14"></span>Schedule</button>
+    <button class="nav-btn" onclick="location.href='events.html'"><span data-icon="calendar" data-size="14"></span>Events</button>
+    <button class="nav-btn" onclick="location.href='services.html'"><span data-icon="grid" data-size="14"></span>More</button>
   </div>
   <div class="nav-right">
-    <button class="theme-btn" id="tbtn" onclick="toggleTheme()"><i data-lucide="sun"></i></button>
+    <button class="theme-btn" id="tbtn" onclick="toggleTheme()"><span id="theme-icon" data-icon="sun" data-size="16"></span></button>
     <div class="avatar">JS</div>
   </div>
 </div>
 
 <div class="main">
   <div class="greeting-row">
-    <div><h1>Good morning, Jordan 👋</h1><p>Here's what's happening on campus today.</p></div>
-    <div class="date-chip">Friday, March 27, 2026</div>
+    <div>
+      <h1>Good morning, Jordan <span data-icon="wave" data-size="24"></span></h1>
+      <p>Here's what's happening on campus today.</p>
+    </div>
+    <div class="date-chip"><span data-icon="calendar" data-size="13"></span>Friday, March 27, 2026</div>
   </div>
 
   <div class="qa-row">
     <button class="qa-btn" onclick="location.href='map.html'">
-      <div class="qa-icon qi-map"><i data-lucide="map-pin"></i></div>
+      <div class="qa-icon qi-map"><span data-icon="mapPin" data-size="18"></span></div>
       <div><div class="qa-label">Map</div><div class="qa-sub">Find buildings</div></div>
     </button>
     <button class="qa-btn" onclick="location.href='dining.html'">
-      <div class="qa-icon qi-dining"><i data-lucide="utensils"></i></div>
+      <div class="qa-icon qi-dining"><span data-icon="dining" data-size="18"></span></div>
       <div><div class="qa-label">Dining</div><div class="qa-sub">Open now</div></div>
     </button>
     <button class="qa-btn" onclick="location.href='transit.html'">
-      <div class="qa-icon qi-bus"><i data-lucide="bus"></i></div>
+      <div class="qa-icon qi-bus"><span data-icon="bus" data-size="18"></span></div>
       <div><div class="qa-label">Bus</div><div class="qa-sub">Next in 8 min</div></div>
     </button>
     <button class="qa-btn" onclick="location.href='events.html'">
-      <div class="qa-icon qi-events"><i data-lucide="calendar-days"></i></div>
+      <div class="qa-icon qi-events"><span data-icon="calendar" data-size="18"></span></div>
       <div><div class="qa-label">Events</div><div class="qa-sub">3 today</div></div>
     </button>
   </div>
@@ -188,8 +214,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
         <div class="cls-meta">ET 215 · 1:30 – 2:45 PM · Prof. Nguyen</div>
       </div>
       <div class="link-btns">
-        <button class="link-btn" onclick="location.href='schedule.html'"><i data-lucide="calendar"></i>View schedule</button>
-        <button class="link-btn" onclick="location.href='map.html'"><i data-lucide="map-pin"></i>Find building</button>
+        <button class="link-btn" onclick="location.href='schedule.html'"><span data-icon="calendar" data-size="12"></span>View schedule</button>
+        <button class="link-btn" onclick="location.href='map.html'"><span data-icon="mapPin" data-size="12"></span>Find building</button>
       </div>
     </div>
     <div class="card">
@@ -198,9 +224,9 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
       <div class="time-desc">Free before Software Engineering</div>
       <div class="sugg-box">
         <div class="sugg-lbl">Suggestions</div>
-        <div class="sugg-item"><i data-lucide="coffee"></i>Grab coffee at the Union</div>
-        <div class="sugg-item"><i data-lucide="book-open"></i>Study at Cavanaugh Hall</div>
-        <div class="sugg-item"><i data-lucide="utensils"></i>Lunch at Tower Dining</div>
+        <div class="sugg-item"><span data-icon="coffee" data-size="14"></span>Grab coffee at the Union</div>
+        <div class="sugg-item"><span data-icon="book" data-size="14"></span>Study at Cavanaugh Hall</div>
+        <div class="sugg-item"><span data-icon="dining" data-size="14"></span>Lunch at Tower Dining</div>
       </div>
     </div>
   </div>
@@ -208,7 +234,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
   <div class="card" style="margin-bottom:12px;">
     <div class="sec-hdr">
       <div class="card-lbl" style="margin-bottom:0">Tower Dining</div>
-      <button class="see-all" onclick="location.href='dining.html'">Full menu<i data-lucide="arrow-up-right"></i></button>
+      <button class="see-all" onclick="location.href='dining.html'">Full menu<span data-icon="arrowUpRight" data-size="12"></span></button>
     </div>
     <div class="dining-status"><div class="dot-open"></div>Open now · Lunch · Closes 2:00 PM</div>
     <div class="menu-lbl">Entrées</div>
@@ -220,7 +246,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
   <div class="card" style="margin-bottom:12px;">
     <div class="sec-hdr">
       <div class="card-lbl" style="margin-bottom:0">Events today</div>
-      <button class="see-all" onclick="location.href='events.html'">See all<i data-lucide="arrow-up-right"></i></button>
+      <button class="see-all" onclick="location.href='events.html'">See all<span data-icon="arrowUpRight" data-size="12"></span></button>
     </div>
     <div class="pill-row">
       <button class="pill on">All</button>
@@ -229,9 +255,9 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
       <button class="pill">Social</button>
     </div>
     <div class="evt-list">
-      <div class="evt-item"><div class="evt-dot e"></div><div class="evt-info"><div class="evt-ttl">Hackathon Kickoff Workshop</div><div class="evt-time">10:00 AM · ET 108</div></div><span class="evt-badge eb-e">Engineering</span></div>
-      <div class="evt-item"><div class="evt-dot c"></div><div class="evt-info"><div class="evt-ttl">Spring Career Fair</div><div class="evt-time">12:00 PM · Campus Center Ballroom</div></div><span class="evt-badge eb-c">Career</span></div>
-      <div class="evt-item"><div class="evt-dot s"></div><div class="evt-info"><div class="evt-ttl">Student Org Showcase</div><div class="evt-time">3:00 PM · IUPUI Commons</div></div><span class="evt-badge eb-s">Social</span></div>
+      <div class="evt-item"><div class="evt-dot e"></div><div class="evt-info"><div class="evt-ttl">Hackathon Kickoff Workshop</div><div class="evt-time"><span data-icon="clock" data-size="10"></span>10:00 AM · ET 108</div></div><span class="evt-badge eb-e">Engineering</span></div>
+      <div class="evt-item"><div class="evt-dot c"></div><div class="evt-info"><div class="evt-ttl">Spring Career Fair</div><div class="evt-time"><span data-icon="clock" data-size="10"></span>12:00 PM · Campus Center Ballroom</div></div><span class="evt-badge eb-c">Career</span></div>
+      <div class="evt-item"><div class="evt-dot s"></div><div class="evt-info"><div class="evt-ttl">Student Org Showcase</div><div class="evt-time"><span data-icon="clock" data-size="10"></span>3:00 PM · IUPUI Commons</div></div><span class="evt-badge eb-s">Social</span></div>
     </div>
   </div>
 
@@ -239,10 +265,13 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
     <div class="card">
       <div class="sec-hdr">
         <div class="card-lbl" style="margin-bottom:0">Campus Connect Bus</div>
-        <button class="see-all" onclick="location.href='transit.html'">Schedule<i data-lucide="arrow-up-right"></i></button>
+        <button class="see-all" onclick="location.href='transit.html'">Schedule<span data-icon="arrowUpRight" data-size="12"></span></button>
       </div>
       <div class="bus-block">
-        <div><div class="bus-rname">Route 1 · West Lafayette Shuttle</div><div class="bus-stops">Union → ET Building → Campus Ctr</div></div>
+        <div>
+          <div class="bus-rname"><span data-icon="bus" data-size="13"></span>Route 1 · West Lafayette Shuttle</div>
+          <div class="bus-stops">Union → ET Building → Campus Ctr</div>
+        </div>
         <div style="text-align:right"><div class="bus-cd">8<span> min</span></div><div class="bus-stops">12:38 PM</div></div>
       </div>
       <div class="bus-rows">
@@ -254,12 +283,21 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
     <div class="card">
       <div class="sec-hdr">
         <div class="card-lbl" style="margin-bottom:0">Campus board</div>
-        <button class="see-all" onclick="location.href='board.html'">View board<i data-lucide="arrow-up-right"></i></button>
+        <button class="see-all" onclick="location.href='board.html'">View board<span data-icon="arrowUpRight" data-size="12"></span></button>
       </div>
-      <div class="board-post"><div class="board-ttl" onclick="location.href='board.html'">Anyone know if ET 215 has outlets near the windows?</div><div class="board-meta"><span>Anonymous</span><span>▲ 14</span><span>5 replies</span></div></div>
-      <div class="board-post"><div class="board-ttl" onclick="location.href='board.html'">Best place to study during finals week?</div><div class="board-meta"><span>sarah_k</span><span>▲ 31</span><span>12 replies</span></div></div>
-      <div class="board-post"><div class="board-ttl" onclick="location.href='board.html'">Is the Career Fair open to freshmen?</div><div class="board-meta"><span>Anonymous</span><span>▲ 8</span><span>3 replies</span></div></div>
-      <button class="ask-btn" onclick="location.href='board.html'"><i data-lucide="plus"></i>Ask a question</button>
+      <div class="board-post">
+        <div class="board-ttl" onclick="location.href='board.html'">Anyone know if ET 215 has outlets near the windows?</div>
+        <div class="board-meta"><span>Anonymous</span><span><span data-icon="chevronUp" data-size="10"></span> 14</span><span>5 replies</span></div>
+      </div>
+      <div class="board-post">
+        <div class="board-ttl" onclick="location.href='board.html'">Best place to study during finals week?</div>
+        <div class="board-meta"><span>sarah_k</span><span><span data-icon="chevronUp" data-size="10"></span> 31</span><span>12 replies</span></div>
+      </div>
+      <div class="board-post">
+        <div class="board-ttl" onclick="location.href='board.html'">Is the Career Fair open to freshmen?</div>
+        <div class="board-meta"><span>Anonymous</span><span><span data-icon="chevronUp" data-size="10"></span> 8</span><span>3 replies</span></div>
+      </div>
+      <button class="ask-btn" onclick="location.href='board.html'"><span data-icon="plus" data-size="12"></span>Ask a question</button>
     </div>
   </div>
 </div>
@@ -267,71 +305,97 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <div class="fab-wrap">
   <div class="ai-panel" id="ai-panel">
     <div class="ai-hdr">
-      <span class="ai-hdr-txt"><i data-lucide="sparkles"></i>Campus Assistant</span>
-      <button class="ai-close" onclick="toggleAI()"><i data-lucide="x"></i></button>
+      <span class="ai-hdr-txt"><span data-icon="sparkles" data-size="14"></span>Campus Assistant</span>
+      <button class="ai-close" onclick="toggleAI()"><span data-icon="close" data-size="14"></span></button>
     </div>
     <div class="ai-msgs" id="ai-msgs">
       <div class="ai-msg a">Hey Jordan! Ask me anything — schedule, dining, buses, or buildings.</div>
     </div>
     <div class="ai-row">
       <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
-      <button class="ai-send" onclick="doAI()"><i data-lucide="arrow-up"></i></button>
+      <button class="ai-send" onclick="doAI()"><span data-icon="send" data-size="14"></span></button>
     </div>
   </div>
-  <button class="fab" onclick="toggleAI()" title="Campus Assistant"><i data-lucide="bot"></i></button>
+  <button class="fab" onclick="toggleAI()" title="Campus Assistant"><span data-icon="sparkles" data-size="22"></span></button>
 </div>
 </div>
 
 <script>
-let dark=localStorage.getItem('pih-dark')==='1', aiOpen=false;
+let dark = localStorage.getItem('pih-dark') === '1';
+let aiOpen = false;
 
-function toggleTheme(){
-  dark=!dark;
-  document.getElementById('app').className=dark?'dark':'';
-  document.getElementById('tbtn').innerHTML=dark?'<i data-lucide="moon"></i>':'<i data-lucide="sun"></i>';
-  localStorage.setItem('pih-dark',dark?'1':'0');
-  lucide.createIcons();
+function updateThemeIcon() {
+  const iconEl = document.getElementById('theme-icon');
+  iconEl.setAttribute('data-icon', dark ? 'moon' : 'sun');
+  initPIHIcons();
 }
-function toggleAI(){
-  aiOpen=!aiOpen;
-  document.getElementById('ai-panel').className='ai-panel'+(aiOpen?' open':'');
+
+function toggleTheme() {
+  dark = !dark;
+  document.getElementById('app').className = dark ? 'dark' : '';
+  localStorage.setItem('pih-dark', dark ? '1' : '0');
+  updateThemeIcon();
 }
-const aiR={
-  'next class':'Your next class is CS 30200 – Software Engineering at 1:30 PM in ET 215 with Prof. Nguyen.',
-  'schedule':'<a href="schedule.html" style="color:inherit;text-decoration:underline">View your full schedule →</a>',
-  'bus':'Next bus (Route 1) departs in 8 min at 12:38 PM. Union → ET Building → Campus Center.',
-  'transit':'<a href="transit.html" style="color:inherit;text-decoration:underline">See live bus countdowns →</a>',
-  'dining':'Tower Dining is open for lunch until 2:00 PM. Today: Grilled Chicken, Pasta Marinara, Black Bean Burger, and more.',
-  'menu':'<a href="dining.html" style="color:inherit;text-decoration:underline">See the full dining menu →</a>',
-  'hours':'Dining hours: Breakfast 7–10:30 AM · Lunch 11 AM–2 PM · Dinner 4:30–8 PM.',
-  'et building':'ET Building is at 723 W. Michigan St — home to CS, ECE, and Engineering Technology labs.',
-  'map':'<a href="map.html" style="color:inherit;text-decoration:underline">Explore the campus map →</a>',
-  'events':'3 events today: Hackathon Workshop (10am, ET 108), Career Fair (12pm, Ballroom), Student Org Showcase (3pm).',
-  'career fair':'Spring Career Fair is today at 12:00 PM in the Campus Center Ballroom. Open to all majors.',
-  'hackathon':'Hackathon Kickoff Workshop today at 10:00 AM in ET 108. Pizza and snacks provided!',
-  'board':'<a href="board.html" style="color:inherit;text-decoration:underline">Visit the Campus Board →</a>',
-  'services':'<a href="services.html" style="color:inherit;text-decoration:underline">Browse student services →</a>',
-  'library':'University Library — 400,000+ volumes, private study rooms, 24/7 during finals.',
-  'print':'The Library gives you 25 free pages/day with your student ID.',
-  'tutor':'The Academic Success Center offers free tutoring at 620 Union Dr.',
+
+function toggleAI() {
+  aiOpen = !aiOpen;
+  document.getElementById('ai-panel').className = 'ai-panel' + (aiOpen ? ' open' : '');
+}
+
+const aiR = {
+  'next class': 'Your next class is CS 30200 – Software Engineering at 1:30 PM in ET 215 with Prof. Nguyen.',
+  'schedule': '<a href="schedule.html" style="color:inherit;text-decoration:underline">View your full schedule →</a>',
+  'bus': 'Next bus (Route 1) departs in 8 min at 12:38 PM. Union → ET Building → Campus Center.',
+  'transit': '<a href="transit.html" style="color:inherit;text-decoration:underline">See live bus countdowns →</a>',
+  'dining': 'Tower Dining is open for lunch until 2:00 PM. Today: Grilled Chicken, Pasta Marinara, Black Bean Burger, and more.',
+  'menu': '<a href="dining.html" style="color:inherit;text-decoration:underline">See the full dining menu →</a>',
+  'hours': 'Dining hours: Breakfast 7–10:30 AM · Lunch 11 AM–2 PM · Dinner 4:30–8 PM.',
+  'et building': 'ET Building is at 723 W. Michigan St — home to CS, ECE, and Engineering Technology labs.',
+  'map': '<a href="map.html" style="color:inherit;text-decoration:underline">Explore the campus map →</a>',
+  'events': '3 events today: Hackathon Workshop (10am, ET 108), Career Fair (12pm, Ballroom), Student Org Showcase (3pm).',
+  'career fair': 'Spring Career Fair is today at 12:00 PM in the Campus Center Ballroom. Open to all majors.',
+  'hackathon': 'Hackathon Kickoff Workshop today at 10:00 AM in ET 108. Pizza and snacks provided!',
+  'board': '<a href="board.html" style="color:inherit;text-decoration:underline">Visit the Campus Board →</a>',
+  'services': '<a href="services.html" style="color:inherit;text-decoration:underline">Browse student services →</a>',
+  'library': 'University Library — 400,000+ volumes, private study rooms, 24/7 during finals.',
+  'print': 'The Library gives you 25 free pages/day with your student ID.',
+  'tutor': 'The Academic Success Center offers free tutoring at 620 Union Dr.',
 };
-function doAI(){
-  const inp=document.getElementById('ai-inp');
-  const msgs=document.getElementById('ai-msgs');
-  const t=inp.value.trim();if(!t)return;
-  const um=document.createElement('div');um.className='ai-msg u';um.textContent=t;msgs.appendChild(um);
-  inp.value='';
-  setTimeout(()=>{
-    const low=t.toLowerCase();
-    let r='I can help with schedule, dining, buses, buildings, and events. Try asking about your next class!';
-    for(const k of Object.keys(aiR)){if(low.includes(k)){r=aiR[k];break;}}
-    const bm=document.createElement('div');bm.className='ai-msg a';bm.innerHTML=r;msgs.appendChild(bm);
-    msgs.scrollTop=msgs.scrollHeight;
-  },500);
-  msgs.scrollTop=msgs.scrollHeight;
+
+function doAI() {
+  const inp = document.getElementById('ai-inp');
+  const msgs = document.getElementById('ai-msgs');
+  const t = inp.value.trim();
+  if (!t) return;
+  
+  const um = document.createElement('div');
+  um.className = 'ai-msg u';
+  um.textContent = t;
+  msgs.appendChild(um);
+  inp.value = '';
+  
+  setTimeout(() => {
+    const low = t.toLowerCase();
+    let r = 'I can help with schedule, dining, buses, buildings, and events. Try asking about your next class!';
+    for (const k of Object.keys(aiR)) {
+      if (low.includes(k)) { r = aiR[k]; break; }
+    }
+    const bm = document.createElement('div');
+    bm.className = 'ai-msg a';
+    bm.innerHTML = r;
+    msgs.appendChild(bm);
+    msgs.scrollTop = msgs.scrollHeight;
+  }, 500);
+  msgs.scrollTop = msgs.scrollHeight;
 }
-if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').innerHTML='<i data-lucide="moon"></i>';}
-lucide.createIcons();
+
+// Initialize
+if (dark) {
+  document.getElementById('app').className = 'dark';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  updateThemeIcon();
+});
 </script>
 </body>
 </html>
