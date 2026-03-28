@@ -34,17 +34,16 @@ export default function Navbar() {
 
   return (
     <>
-      <nav 
+      <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out
-          ${scrolled 
-            ? 'h-14 glass shadow-md border-b border-[var(--color-border)]' 
+          ${scrolled
+            ? 'h-14 glass shadow-md border-b border-[var(--color-border)]'
             : 'h-16 bg-transparent'
           }`}
       >
         <div className="max-w-[1200px] mx-auto px-6 h-full flex items-center justify-between">
-          {/* Logo */}
-          <Link 
-            to="/dashboard" 
+          <Link
+            to="/dashboard"
             className="flex items-center gap-2.5 group"
           >
             <div className="relative">
@@ -58,7 +57,6 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1 bg-[var(--color-bg-2)]/60 backdrop-blur-sm rounded-full p-1 border border-[var(--color-border)]">
             {navItems.map(({ path, label, icon }) => {
               const isActive = location.pathname === path
@@ -67,13 +65,13 @@ export default function Navbar() {
                   key={path}
                   to={path}
                   className={`relative text-[13px] px-4 py-2 rounded-full flex items-center gap-2 transition-all duration-300
-                    ${isActive 
-                      ? 'text-[var(--color-gold-dark)] font-medium' 
+                    ${isActive
+                      ? 'text-[var(--color-gold-dark)] font-medium'
                       : 'text-[var(--color-txt-1)] hover:text-[var(--color-txt-0)]'
                     }`}
                 >
                   {isActive && (
-                    <span 
+                    <span
                       className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] rounded-full animate-fade-in"
                       style={{ zIndex: -1 }}
                     />
@@ -85,9 +83,7 @@ export default function Navbar() {
             })}
           </div>
 
-          {/* Right Side */}
           <div className="flex items-center gap-3">
-            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className="relative w-10 h-10 rounded-xl bg-[var(--color-bg-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-txt-1)] hover:text-[var(--color-txt-0)] hover:border-[var(--color-border-2)] hover:bg-[var(--color-bg-3)] transition-all duration-300 overflow-hidden group"
@@ -101,7 +97,6 @@ export default function Navbar() {
               </div>
             </button>
 
-            {/* Account menu */}
             <div className="relative hidden md:block">
               <button
                 type="button"
@@ -123,7 +118,7 @@ export default function Navbar() {
                   />
                   <div
                     role="menu"
-                    className="absolute right-0 top-12 z-[70] min-w-[200px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1 text-left"
+                    className="absolute right-0 top-12 z-[70] min-w-[220px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1 text-left"
                   >
                     <div className="px-3 py-2 border-b border-[var(--color-border)]">
                       <div className="text-[13px] font-medium text-[var(--color-txt-0)] truncate">
@@ -134,11 +129,30 @@ export default function Navbar() {
                       )}
                     </div>
                     <Link
-                      to="/"
+                      to="/settings"
                       role="menuitem"
-                      className="block px-3 py-2 text-[13px] text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] no-underline"
+                      className="flex items-center gap-2 px-3 py-2 text-[13px] text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] no-underline"
                       onClick={() => setMenuOpen(false)}
                     >
+                      <Icon name="settings" size={14} />
+                      Settings
+                    </Link>
+                    <Link
+                      to="/setup"
+                      role="menuitem"
+                      className="flex items-center gap-2 px-3 py-2 text-[13px] text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] no-underline"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <Icon name="calendar" size={14} />
+                      Setup
+                    </Link>
+                    <Link
+                      to="/"
+                      role="menuitem"
+                      className="flex items-center gap-2 px-3 py-2 text-[13px] text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] no-underline"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <Icon name="home" size={14} />
                       Marketing site
                     </Link>
                     <button
@@ -157,7 +171,6 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Mobile Menu Button */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               className="md:hidden w-10 h-10 rounded-xl bg-[var(--color-bg-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-txt-1)] hover:text-[var(--color-txt-0)] transition-all duration-300"
@@ -173,14 +186,12 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Menu Overlay */}
-      <div 
+      <div
         className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setMobileOpen(false)}
       />
 
-      {/* Mobile Menu */}
-      <div 
+      <div
         className={`fixed top-0 right-0 h-full w-72 bg-[var(--color-surface)] z-50 md:hidden transition-transform duration-500 ease-out shadow-xl ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="p-6 pt-20">
@@ -192,11 +203,11 @@ export default function Navbar() {
                   key={path}
                   to={path}
                   className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] text-[var(--color-gold-dark)] font-medium shadow-sm' 
+                    ${isActive
+                      ? 'bg-gradient-to-r from-[var(--color-gold)] to-[var(--color-gold-light)] text-[var(--color-gold-dark)] font-medium shadow-sm'
                       : 'text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] hover:text-[var(--color-txt-0)]'
                     }`}
-                  style={{ 
+                  style={{
                     animationDelay: `${idx * 0.05}s`,
                     opacity: mobileOpen ? 1 : 0,
                     transform: mobileOpen ? 'translateX(0)' : 'translateX(20px)',
@@ -208,6 +219,13 @@ export default function Navbar() {
                 </Link>
               )
             })}
+            <Link
+              to="/settings"
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-[var(--color-txt-1)] hover:bg-[var(--color-bg-2)] hover:text-[var(--color-txt-0)] transition-all duration-300"
+            >
+              <Icon name="settings" size={20} />
+              <span className="text-[15px]">Settings</span>
+            </Link>
           </div>
 
           <div className="mt-8 pt-6 border-t border-[var(--color-border)]">
@@ -238,7 +256,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Spacer for fixed navbar */}
       <div className="h-16" />
     </>
   )

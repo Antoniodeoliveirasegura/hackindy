@@ -1,6 +1,3 @@
-/**
- * Fetch helpers aligned with `browser-auth.js` and better-auth routes on the Express server.
- */
 export async function authRequest(url, options = {}) {
   const headers = new Headers(options.headers || {})
   const init = {
@@ -8,6 +5,7 @@ export async function authRequest(url, options = {}) {
     headers,
     credentials: 'include',
   }
+
   if (options.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
@@ -36,18 +34,14 @@ export async function authRequest(url, options = {}) {
 export function getInitials(name, email) {
   const source = (name || email || 'PIH').trim()
   const parts = source.split(/\s+/).filter(Boolean)
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
-  }
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
   return source.slice(0, 2).toUpperCase()
 }
 
 export function getDisplayName(user) {
   if (!user) return 'Student'
   if (user.name && user.name.trim()) return user.name.trim()
-  if (user.email && user.email.includes('@')) {
-    return user.email.split('@')[0]
-  }
+  if (user.email && user.email.includes('@')) return user.email.split('@')[0]
   return 'Student'
 }
 
@@ -58,6 +52,11 @@ export function getFirstName(user) {
 
 export function parseNextPath(search) {
   const next = new URLSearchParams(search).get('next')
-  if (!next || !next.startsWith('/')) return '/dashboard'
+  if (!next || !next.startsWith('/')) return '/setup'
   return next
+}
+
+export function startPurdueLink(nextPath = '/setup') {
+  const safeNext = nextPath.startsWith('/') ? nextPath : '/setup'
+  window.location.href = `/auth/purdue/connect?next=${encodeURIComponent(safeNext)}`
 }
