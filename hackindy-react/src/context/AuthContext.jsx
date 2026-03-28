@@ -5,6 +5,7 @@ import {
   getDisplayName,
   getFirstName,
   getInitials,
+  startPurdueLink,
 } from '../lib/authApi'
 
 const AuthContext = createContext(null)
@@ -12,7 +13,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [socialProviders, setSocialProviders] = useState([])
+  const [authConfig, setAuthConfig] = useState({ authProvider: 'local', purdueAuthMode: 'mock' })
 
   const refreshSession = useCallback(async () => {
     try {
@@ -35,11 +36,11 @@ export function AuthProvider({ children }) {
         ])
         if (cancelled) return
         setSession(sessionData.session ?? null)
-        setSocialProviders(config.socialProviders || [])
+        setAuthConfig(config)
       } catch {
         if (!cancelled) {
           setSession(null)
-          setSocialProviders([])
+          setAuthConfig({ authProvider: 'local', purdueAuthMode: 'mock' })
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -56,20 +57,29 @@ export function AuthProvider({ children }) {
   }, [])
 
   const user = session?.user ?? null
+  const onboarding = session?.onboarding ?? {
+    linkedSourceCount: 0,
+    classCount: 0,
+    hasPurdueLinked: false,
+    needsPurdueConnection: true,
+    needsScheduleSource: false,
+  }
 
   const value = useMemo(
     () => ({
       session,
       user,
+      onboarding,
       loading,
-      socialProviders,
+      authConfig,
       refreshSession,
       signOut,
+      startPurdueLink,
       getInitials: () => getInitials(user?.name, user?.email),
       getDisplayName: () => getDisplayName(user),
       getFirstName: () => getFirstName(user),
     }),
-    [session, user, loading, socialProviders, refreshSession, signOut],
+    [session, user, onboarding, loading, authConfig, refreshSession, signOut],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -83,7 +93,6 @@ export function useAuth() {
   return ctx
 }
 
-/** Call from a component inside Router when you need navigate after signOut */
 export function useSignOutAndRedirect() {
   const navigate = useNavigate()
   const { signOut } = useAuth()

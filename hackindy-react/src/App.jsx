@@ -5,7 +5,6 @@ import AppLayout from './components/AppLayout'
 import RequireAuth from './components/RequireAuth'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
-import ResetPassword from './pages/ResetPassword'
 import Home from './pages/Home'
 import Map from './pages/Map'
 import Schedule from './pages/Schedule'
@@ -14,6 +13,8 @@ import Dining from './pages/Dining'
 import Transit from './pages/Transit'
 import Services from './pages/Services'
 import Board from './pages/Board'
+import ConnectSchedule from './pages/ConnectSchedule'
+import Settings from './pages/Settings'
 
 export default function App() {
   return (
@@ -23,8 +24,23 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
             <Route element={<AppLayout />}>
+              <Route
+                path="/setup"
+                element={
+                  <RequireAuth>
+                    <ConnectSchedule />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <RequireAuth>
+                    <Settings />
+                  </RequireAuth>
+                }
+              />
               <Route
                 path="/dashboard"
                 element={
