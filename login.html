@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in · Purdue Indy Hub</title>
+<script src="icons.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+--bg0:#ffffff;--bg1:#f2f1ee;--bg2:#e8e7e3;--bg3:#dddcd8;
+--txt0:#111110;--txt1:#52514d;--txt2:#8a897f;--txt3:#b5b3aa;
+--bdr:rgba(0,0,0,0.09);--bdr2:rgba(0,0,0,0.16);--bdr3:rgba(0,0,0,0.22);
+--gold:#CFB991;--gold-dk:#3E2200;--gold-lt:#f5ecd8;
+--accent:#2062a4;--err:#c0392b;--err-bg:#fdf0ee;
+--input-bg:#fafaf9;
+}
+.dark{
+--bg0:#111113;--bg1:#18181a;--bg2:#222224;--bg3:#2a2a2c;
+--txt0:#f2f1ee;--txt1:#9a9890;--txt2:#5c5b55;--txt3:#3a3a38;
+--bdr:rgba(255,255,255,0.08);--bdr2:rgba(255,255,255,0.14);--bdr3:rgba(255,255,255,0.2);
+--gold:#CFB991;--gold-dk:#4a2c00;--gold-lt:#1e1200;
+--accent:#6aaee8;--err:#e05c4a;--err-bg:#2a1010;
+--input-bg:#1a1a1c;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:var(--txt0);min-height:100vh;display:flex;flex-direction:column;transition:background .25s,color .25s;}
+.pih-icon{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.pih-icon svg{width:100%;height:100%;}
+
+/* ── Layout ── */
+.auth-layout{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:100vh;}
+@media(max-width:768px){.auth-layout{grid-template-columns:1fr;}.auth-aside{display:none;}}
+
+/* ── Aside (left panel) ── */
+.auth-aside{background:linear-gradient(160deg,var(--gold-dk) 0%,#5c3a00 50%,#2a1800 100%);display:flex;flex-direction:column;padding:2.5rem;position:relative;overflow:hidden;}
+.dark .auth-aside{background:linear-gradient(160deg,#1e1000 0%,#2e1800 50%,#1a0e00 100%);}
+.aside-glow{position:absolute;top:-20%;right:-20%;width:400px;height:400px;background:radial-gradient(ellipse,rgba(207,185,145,0.18) 0%,transparent 70%);pointer-events:none;}
+.aside-glow2{position:absolute;bottom:-10%;left:-10%;width:300px;height:300px;background:radial-gradient(ellipse,rgba(207,185,145,0.1) 0%,transparent 70%);pointer-events:none;}
+.aside-logo{display:flex;align-items:center;gap:9px;margin-bottom:auto;}
+.aside-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:700;padding:3px 9px;border-radius:5px;letter-spacing:0.6px;}
+.aside-name{font-size:15px;font-weight:600;color:var(--gold);}
+.aside-body{position:relative;margin-bottom:auto;}
+.aside-body h2{font-size:clamp(1.5rem,2.5vw,2rem);font-weight:700;letter-spacing:-0.02em;color:var(--gold);line-height:1.2;margin-bottom:.75rem;}
+.aside-body p{font-size:14px;color:rgba(207,185,145,0.65);line-height:1.65;max-width:320px;}
+.aside-features{display:flex;flex-direction:column;gap:10px;position:relative;}
+.aside-feat{display:flex;align-items:center;gap:12px;font-size:13px;color:rgba(207,185,145,0.75);}
+.aside-feat-icon{width:32px;height:32px;border-radius:8px;background:rgba(207,185,145,0.12);border:0.5px solid rgba(207,185,145,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--gold);}
+.aside-feat-icon .pih-icon{width:15px;height:15px;}
+
+/* ── Main form panel ── */
+.auth-main{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem 2rem;position:relative;}
+.auth-topbar{position:absolute;top:1.25rem;right:1.5rem;display:flex;gap:8px;align-items:center;}
+.theme-btn{width:34px;height:34px;border-radius:8px;border:0.5px solid var(--bdr2);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt0);transition:all .15s;}
+.theme-btn:hover{background:var(--bg3);}
+.theme-btn .pih-icon{width:16px;height:16px;}
+.back-btn{font-size:13px;color:var(--txt1);padding:7px 13px;border-radius:8px;border:0.5px solid var(--bdr);background:transparent;cursor:pointer;font-family:inherit;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.back-btn:hover{background:var(--bg2);color:var(--txt0);}
+.back-btn .pih-icon{width:14px;height:14px;}
+
+/* ── Card ── */
+.auth-card{width:100%;max-width:400px;}
+.auth-hdr{margin-bottom:1.75rem;}
+.auth-hdr-logo{display:flex;align-items:center;gap:8px;margin-bottom:1.25rem;}
+.auth-logo-badge{background:var(--gold);color:var(--gold-dk);font-size:10px;font-weight:700;padding:3px 9px;border-radius:5px;letter-spacing:0.6px;}
+.auth-hdr h1{font-size:1.5rem;font-weight:700;letter-spacing:-0.02em;color:var(--txt0);margin-bottom:5px;}
+.auth-hdr p{font-size:13px;color:var(--txt1);}
+
+/* ── Social buttons ── */
+.social-btns{display:flex;flex-direction:column;gap:9px;margin-bottom:1.25rem;}
+.social-btn{width:100%;padding:10px 16px;border-radius:10px;border:0.5px solid var(--bdr2);background:var(--bg0);color:var(--txt0);font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .15s;}
+.social-btn:hover{background:var(--bg2);border-color:var(--bdr3);}
+.social-btn .pih-icon{width:18px;height:18px;flex-shrink:0;}
+.social-icon-google{color:#ea4335;}
+.social-icon-microsoft{color:#00adef;}
+.social-icon-github{color:var(--txt0);}
+
+/* ── Divider ── */
+.divider{display:flex;align-items:center;gap:10px;margin-bottom:1.25rem;}
+.divider-line{flex:1;height:0.5px;background:var(--bdr2);}
+.divider-lbl{font-size:11px;color:var(--txt2);white-space:nowrap;}
+
+/* ── Form ── */
+.form-group{margin-bottom:1rem;}
+.form-label{display:block;font-size:12px;font-weight:500;color:var(--txt1);margin-bottom:6px;}
+.form-input{width:100%;padding:10px 13px;border-radius:9px;border:0.5px solid var(--bdr2);background:var(--input-bg);color:var(--txt0);font-size:14px;font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s;-webkit-appearance:none;}
+.form-input::placeholder{color:var(--txt3);}
+.form-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(207,185,145,0.15);}
+.form-input.error{border-color:var(--err);box-shadow:0 0 0 3px rgba(192,57,43,0.1);}
+.form-err{font-size:11px;color:var(--err);margin-top:5px;display:none;}
+.form-err.visible{display:block;}
+.form-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.form-row .form-label{margin-bottom:0;}
+.forgot-link{font-size:12px;color:var(--accent);text-decoration:none;transition:opacity .15s;}
+.forgot-link:hover{opacity:.75;}
+
+/* ── Password toggle ── */
+.input-wrap{position:relative;}
+.input-wrap .form-input{padding-right:42px;}
+.pw-toggle{position:absolute;right:0;top:0;height:100%;padding:0 13px;background:none;border:none;cursor:pointer;color:var(--txt2);display:flex;align-items:center;transition:color .15s;}
+.pw-toggle:hover{color:var(--txt0);}
+.pw-toggle .pih-icon{width:16px;height:16px;}
+
+/* ── Remember me ── */
+.check-row{display:flex;align-items:center;gap:9px;margin-bottom:1.25rem;}
+.check-box{width:17px;height:17px;border-radius:5px;border:0.5px solid var(--bdr2);background:var(--input-bg);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;}
+.check-box.checked{background:var(--gold-dk);border-color:var(--gold-dk);}
+.check-box .pih-icon{width:10px;height:10px;color:var(--gold);opacity:0;transition:opacity .15s;}
+.check-box.checked .pih-icon{opacity:1;}
+.check-lbl{font-size:12px;color:var(--txt1);cursor:pointer;user-select:none;}
+
+/* ── Error banner ── */
+.err-banner{background:var(--err-bg);border:0.5px solid rgba(192,57,43,0.25);border-radius:9px;padding:10px 14px;margin-bottom:1.1rem;font-size:13px;color:var(--err);display:none;align-items:center;gap:9px;}
+.err-banner.visible{display:flex;}
+.err-banner .pih-icon{width:16px;height:16px;flex-shrink:0;}
+
+/* ── Submit ── */
+.submit-btn{width:100%;padding:11px;border-radius:10px;border:none;background:var(--gold-dk);color:var(--gold);font-size:14px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;margin-bottom:1.25rem;}
+.submit-btn:hover{filter:brightness(1.15);transform:translateY(-1px);box-shadow:0 4px 14px rgba(62,34,0,0.3);}
+.dark .submit-btn:hover{box-shadow:0 4px 14px rgba(0,0,0,0.5);}
+.submit-btn:active{transform:translateY(0);}
+.submit-btn .pih-icon{width:16px;height:16px;}
+.submit-btn.loading{opacity:.7;cursor:not-allowed;transform:none;}
+
+/* ── Spinner ── */
+@keyframes spin{to{transform:rotate(360deg);}}
+.spinner{width:16px;height:16px;border:2px solid rgba(207,185,145,0.3);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;display:none;}
+.submit-btn.loading .spinner{display:block;}
+.submit-btn.loading .btn-lbl{display:none;}
+
+/* ── Switch tab ── */
+.switch-row{text-align:center;font-size:13px;color:var(--txt1);}
+.switch-link{color:var(--accent);text-decoration:none;font-weight:500;cursor:pointer;background:none;border:none;font-size:13px;font-family:inherit;padding:0;transition:opacity .15s;}
+.switch-link:hover{opacity:.75;}
+
+/* ── Tabs ── */
+.auth-tabs{display:flex;background:var(--bg2);border-radius:10px;padding:3px;gap:3px;margin-bottom:1.5rem;}
+.auth-tab{flex:1;padding:8px;border-radius:8px;border:none;background:transparent;font-size:13px;font-weight:500;color:var(--txt1);cursor:pointer;font-family:inherit;transition:all .15s;}
+.auth-tab.active{background:var(--bg0);color:var(--txt0);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.dark .auth-tab.active{box-shadow:0 1px 3px rgba(0,0,0,.3);}
+
+/* ── Terms ── */
+.terms-note{font-size:11px;color:var(--txt2);text-align:center;line-height:1.5;margin-top:.75rem;}
+.terms-note a{color:var(--txt2);text-decoration:underline;text-underline-offset:2px;}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="auth-layout">
+
+  <!-- Left aside -->
+  <aside class="auth-aside">
+    <div class="aside-glow"></div>
+    <div class="aside-glow2"></div>
+    <div class="aside-logo">
+      <div class="aside-badge">PIH</div>
+      <span class="aside-name">Purdue Indy Hub</span>
+    </div>
+    <div class="aside-body">
+      <h2>Everything campus,<br>in one place.</h2>
+      <p>Sign in to access your schedule, dining, live transit, events, and your AI campus assistant.</p>
+    </div>
+    <div class="aside-features">
+      <div class="aside-feat">
+        <div class="aside-feat-icon"><span data-icon="schedule" data-size="15"></span></div>
+        Smart class schedule & free-time insights
+      </div>
+      <div class="aside-feat">
+        <div class="aside-feat-icon"><span data-icon="bus" data-size="15"></span></div>
+        Live bus countdowns for every route
+      </div>
+      <div class="aside-feat">
+        <div class="aside-feat-icon"><span data-icon="dining" data-size="15"></span></div>
+        Real-time dining menus & hours
+      </div>
+      <div class="aside-feat">
+        <div class="aside-feat-icon"><span data-icon="sparkles" data-size="15"></span></div>
+        AI campus assistant, always available
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right form panel -->
+  <main class="auth-main">
+    <div class="auth-topbar">
+      <a class="back-btn" href="landing.html"><span data-icon="arrowUpRight" data-size="14" style="transform:rotate(225deg);display:inline-flex;"></span>Back</a>
+      <button class="theme-btn" onclick="toggleTheme()"><span id="theme-icon" data-icon="sun" data-size="16"></span></button>
+    </div>
+
+    <div class="auth-card">
+      <!-- Header -->
+      <div class="auth-hdr">
+        <div class="auth-hdr-logo">
+          <div class="auth-logo-badge">PIH</div>
+        </div>
+        <h1 id="form-title">Welcome back</h1>
+        <p id="form-sub">Sign in to your Purdue Indy Hub account.</p>
+      </div>
+
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-signin" onclick="switchTab('signin')">Sign in</button>
+        <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Create account</button>
+      </div>
+
+      <!-- Error banner -->
+      <div class="err-banner" id="err-banner">
+        <span data-icon="close" data-size="16"></span>
+        <span id="err-msg">Invalid email or password. Please try again.</span>
+      </div>
+
+      <!-- Social sign-in -->
+      <div class="social-btns">
+        <button class="social-btn" onclick="socialAuth('google')">
+          <span class="pih-icon social-icon-google" style="width:18px;height:18px;">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          </span>
+          Continue with Google
+        </button>
+        <button class="social-btn" onclick="socialAuth('microsoft')">
+          <span class="pih-icon social-icon-microsoft" style="width:18px;height:18px;">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.4 2H2v9.4h9.4V2z" fill="#F25022"/><path d="M22 2h-9.4v9.4H22V2z" fill="#7FBA00"/><path d="M11.4 12.6H2V22h9.4v-9.4z" fill="#00A4EF"/><path d="M22 12.6h-9.4V22H22v-9.4z" fill="#FFB900"/></svg>
+          </span>
+          Continue with Microsoft
+        </button>
+        <button class="social-btn" onclick="socialAuth('github')">
+          <span class="pih-icon social-icon-github" style="width:18px;height:18px;">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          </span>
+          Continue with GitHub
+        </button>
+      </div>
+
+      <div class="divider">
+        <div class="divider-line"></div>
+        <span class="divider-lbl">or continue with email</span>
+        <div class="divider-line"></div>
+      </div>
+
+      <!-- Email/Password form -->
+      <form id="auth-form" onsubmit="handleSubmit(event)">
+        <!-- Name field (signup only) -->
+        <div class="form-group" id="name-group" style="display:none;">
+          <label class="form-label" for="name">Full name</label>
+          <input class="form-input" type="text" id="name" placeholder="Jordan Smith" autocomplete="name">
+          <div class="form-err" id="name-err">Please enter your name.</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email address</label>
+          <input class="form-input" type="email" id="email" placeholder="you@purdue.edu" autocomplete="email">
+          <div class="form-err" id="email-err">Please enter a valid email.</div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-row">
+            <label class="form-label" for="password">Password</label>
+            <a class="forgot-link" id="forgot-link" href="#" onclick="forgotPassword(event)">Forgot password?</a>
+          </div>
+          <div class="input-wrap">
+            <input class="form-input" type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+            <button type="button" class="pw-toggle" onclick="togglePw()" title="Show/hide password">
+              <span class="pih-icon" id="pw-eye"><span data-icon="eye" data-size="16"></span></span>
+            </button>
+          </div>
+          <div class="form-err" id="pw-err">Password must be at least 8 characters.</div>
+        </div>
+
+        <!-- Confirm password (signup only) -->
+        <div class="form-group" id="confirm-group" style="display:none;">
+          <label class="form-label" for="confirm">Confirm password</label>
+          <div class="input-wrap">
+            <input class="form-input" type="password" id="confirm" placeholder="••••••••" autocomplete="new-password">
+          </div>
+          <div class="form-err" id="confirm-err">Passwords do not match.</div>
+        </div>
+
+        <div class="check-row" id="remember-row">
+          <div class="check-box" id="remember-box" onclick="toggleRemember()">
+            <span class="pih-icon"><span data-icon="check" data-size="10"></span></span>
+          </div>
+          <span class="check-lbl" onclick="toggleRemember()">Remember me for 30 days</span>
+        </div>
+
+        <button class="submit-btn" type="submit" id="submit-btn">
+          <div class="spinner"></div>
+          <span class="btn-lbl" id="btn-lbl"><span data-icon="home" data-size="16"></span>&nbsp;Sign in</span>
+        </button>
+      </form>
+
+      <div class="switch-row">
+        <span id="switch-text">Don't have an account?</span>
+        <button class="switch-link" id="switch-btn" onclick="switchTab('signup')">&nbsp;Sign up free</button>
+      </div>
+
+      <div class="terms-note" id="terms-note" style="display:none;">
+        By creating an account you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+      </div>
+    </div>
+  </main>
+
+</div>
+</div>
+
+<script>
+// ── Theme ──
+let dark = localStorage.getItem('pih-dark') === '1';
+if (dark) document.getElementById('app').className = 'dark';
+function updateThemeIcon() {
+  const el = document.getElementById('theme-icon');
+  el.setAttribute('data-icon', dark ? 'moon' : 'sun');
+  if (window.initPIHIcons) initPIHIcons();
+}
+function toggleTheme() {
+  dark = !dark;
+  document.getElementById('app').className = dark ? 'dark' : '';
+  localStorage.setItem('pih-dark', dark ? '1' : '0');
+  updateThemeIcon();
+}
+document.addEventListener('DOMContentLoaded', () => { updateThemeIcon(); });
+
+// ── Tab switching ──
+let currentTab = 'signin';
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-signin').classList.toggle('active', tab === 'signin');
+  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+
+  const isSignup = tab === 'signup';
+  document.getElementById('form-title').textContent = isSignup ? 'Create your account' : 'Welcome back';
+  document.getElementById('form-sub').textContent = isSignup
+    ? 'Join Purdue Indy Hub — it\'s free for all students.'
+    : 'Sign in to your Purdue Indy Hub account.';
+  document.getElementById('name-group').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('confirm-group').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('remember-row').style.display = isSignup ? 'none' : 'flex';
+  document.getElementById('forgot-link').style.display = isSignup ? 'none' : 'inline';
+  document.getElementById('terms-note').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('btn-lbl').innerHTML = isSignup
+    ? '<span data-icon="sparkles" data-size="16"></span>&nbsp;Create account'
+    : '<span data-icon="home" data-size="16"></span>&nbsp;Sign in';
+  document.getElementById('switch-text').textContent = isSignup ? 'Already have an account?' : "Don't have an account?";
+  document.getElementById('switch-btn').textContent = isSignup ? ' Sign in' : ' Sign up free';
+  document.getElementById('switch-btn').onclick = () => switchTab(isSignup ? 'signin' : 'signup');
+  document.getElementById('password').setAttribute('autocomplete', isSignup ? 'new-password' : 'current-password');
+  clearErrors();
+  if (window.initPIHIcons) initPIHIcons();
+}
+
+// ── Password visibility ──
+let pwVisible = false;
+function togglePw() {
+  pwVisible = !pwVisible;
+  document.getElementById('password').type = pwVisible ? 'text' : 'password';
+  const eye = document.getElementById('pw-eye');
+  eye.innerHTML = `<span data-icon="${pwVisible ? 'eyeOff' : 'eye'}" data-size="16"></span>`;
+  if (window.initPIHIcons) initPIHIcons();
+}
+
+// ── Remember me ──
+let remember = false;
+function toggleRemember() {
+  remember = !remember;
+  document.getElementById('remember-box').classList.toggle('checked', remember);
+}
+
+// ── Errors ──
+function clearErrors() {
+  document.getElementById('err-banner').classList.remove('visible');
+  ['name','email','password','confirm'].forEach(id => {
+    const inp = document.getElementById(id);
+    if (inp) inp.classList.remove('error');
+    const err = document.getElementById(id + '-err');
+    if (err) err.classList.remove('visible');
+  });
+}
+function showFieldErr(id, msg) {
+  const inp = document.getElementById(id);
+  const err = document.getElementById(id + '-err');
+  if (inp) inp.classList.add('error');
+  if (err) { err.textContent = msg; err.classList.add('visible'); }
+}
+function showBanner(msg) {
+  document.getElementById('err-msg').textContent = msg;
+  document.getElementById('err-banner').classList.add('visible');
+}
+
+// ── Form submission ──
+function handleSubmit(e) {
+  e.preventDefault();
+  clearErrors();
+  let valid = true;
+
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  if (currentTab === 'signup') {
+    const name = document.getElementById('name').value.trim();
+    const confirm = document.getElementById('confirm').value;
+    if (!name) { showFieldErr('name', 'Please enter your name.'); valid = false; }
+    if (!email || !email.includes('@')) { showFieldErr('email', 'Please enter a valid email.'); valid = false; }
+    if (password.length < 8) { showFieldErr('password', 'Password must be at least 8 characters.'); valid = false; }
+    if (password !== confirm) { showFieldErr('confirm', 'Passwords do not match.'); valid = false; }
+  } else {
+    if (!email || !email.includes('@')) { showFieldErr('email', 'Please enter a valid email.'); valid = false; }
+    if (!password) { showFieldErr('password', 'Please enter your password.'); valid = false; }
+  }
+
+  if (!valid) return;
+
+  // Show loading state
+  const btn = document.getElementById('submit-btn');
+  btn.classList.add('loading');
+
+  // ── BetterAuth integration point ──
+  // Replace this block with actual BetterAuth API calls:
+  //
+  // Sign in:
+  //   fetch('/api/auth/sign-in/email', {
+  //     method: 'POST',
+  //     headers: { 'Content-Type': 'application/json' },
+  //     body: JSON.stringify({ email, password, rememberMe: remember })
+  //   })
+  //
+  // Sign up:
+  //   fetch('/api/auth/sign-up/email', {
+  //     method: 'POST',
+  //     headers: { 'Content-Type': 'application/json' },
+  //     body: JSON.stringify({ name, email, password })
+  //   })
+  //
+  // On success: window.location.href = '/';
+  // On error:   showBanner(error.message);
+
+  // Demo: simulate async auth then redirect
+  setTimeout(() => {
+    btn.classList.remove('loading');
+    if (email === 'fail@test.com') {
+      showBanner('Invalid email or password. Please try again.');
+    } else {
+      window.location.href = 'index.html';
+    }
+  }, 1200);
+}
+
+// ── Social auth ──
+function socialAuth(provider) {
+  // BetterAuth social: window.location.href = `/api/auth/${provider}`;
+  const btn = document.querySelector(`.social-btn:nth-child(${provider === 'google' ? 1 : provider === 'microsoft' ? 2 : 3})`);
+  if (btn) { btn.style.opacity = '0.6'; btn.style.pointerEvents = 'none'; }
+  setTimeout(() => { window.location.href = 'index.html'; }, 900);
+}
+
+// ── Forgot password ──
+function forgotPassword(e) {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  if (!email) {
+    showFieldErr('email', 'Enter your email first, then click forgot password.');
+    return;
+  }
+  // BetterAuth: fetch('/api/auth/reset-password', { method:'POST', body: JSON.stringify({ email }) })
+  alert(`Password reset link sent to ${email}. Check your inbox.`);
+}
+</script>
+</body>
+</html>
