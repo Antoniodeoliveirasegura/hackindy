@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="browser-auth.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Transit · Purdue Indy Hub</title>
@@ -234,6 +235,7 @@ function doAI(){
 
 if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').innerHTML='<i data-lucide="moon"></i>';}
 lucide.createIcons();
+window.PIHAuth.requireAuth().catch(console.error);
 </script>
 </body>
 </html>

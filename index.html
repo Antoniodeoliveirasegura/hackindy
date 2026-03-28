@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Home · Purdue Indy Hub</title>
 <script src="icons.js"></script>
+<script src="browser-auth.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -180,10 +181,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <div class="main">
   <div class="greeting-row">
     <div>
-      <h1>Good morning, Jordan <span data-icon="wave" data-size="24"></span></h1>
+      <h1><span id="greeting-text">Good morning</span>, <span id="user-first-name">Antonio</span> <span data-icon="wave" data-size="24"></span></h1>
       <p>Here's what's happening on campus today.</p>
     </div>
-    <div class="date-chip"><span data-icon="calendar" data-size="13"></span>Friday, March 27, 2026</div>
+    <div class="date-chip"><span data-icon="calendar" data-size="13"></span><span id="current-date-text"></span></div>
   </div>
 
   <div class="qa-row">
@@ -309,7 +310,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
       <button class="ai-close" onclick="toggleAI()"><span data-icon="close" data-size="14"></span></button>
     </div>
     <div class="ai-msgs" id="ai-msgs">
-      <div class="ai-msg a">Hey Jordan! Ask me anything — schedule, dining, buses, or buildings.</div>
+      <div class="ai-msg a" id="assistant-welcome">Hey Antonio! Ask me anything — schedule, dining, buses, or buildings.</div>
     </div>
     <div class="ai-row">
       <input class="ai-inp" id="ai-inp" placeholder="Ask about campus..." onkeydown="if(event.key==='Enter')doAI()">
@@ -323,6 +324,37 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg1);color:
 <script>
 let dark = localStorage.getItem('pih-dark') === '1';
 let aiOpen = false;
+
+function getGreetingText() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function getCurrentDateText() {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+function hydrateUserContext(session) {
+  const firstName = window.PIHAuth.getFirstName(session?.user);
+  const greetingEl = document.getElementById('greeting-text');
+  const nameEl = document.getElementById('user-first-name');
+  const dateEl = document.getElementById('current-date-text');
+  const welcomeEl = document.getElementById('assistant-welcome');
+
+  if (greetingEl) greetingEl.textContent = getGreetingText();
+  if (nameEl) nameEl.textContent = firstName;
+  if (dateEl) dateEl.textContent = getCurrentDateText();
+  if (welcomeEl) {
+    welcomeEl.textContent = `Hey ${firstName}! Ask me anything — schedule, dining, buses, or buildings.`;
+  }
+}
 
 function updateThemeIcon() {
   const iconEl = document.getElementById('theme-icon');
@@ -395,6 +427,9 @@ if (dark) {
 }
 document.addEventListener('DOMContentLoaded', () => {
   updateThemeIcon();
+  window.PIHAuth.requireAuth()
+    .then(hydrateUserContext)
+    .catch(console.error);
 });
 </script>
 </body>

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Purdue Indy Hub — Your Campus, Connected</title>
 <script src="icons.js"></script>
+<script src="browser-auth.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -163,8 +164,8 @@ footer{background:var(--bg0);border-top:0.5px solid var(--bdr);padding:2rem;text
   </div>
   <div class="nav-right">
     <button class="theme-btn" onclick="toggleTheme()"><span id="theme-icon" data-icon="sun" data-size="16"></span></button>
-    <a class="btn-ghost" href="login.html">Sign in</a>
-    <a class="btn-gold" href="login.html"><span data-icon="sparkles" data-size="14"></span>Get started</a>
+    <a class="btn-ghost" id="landing-signin" href="login.html">Sign in</a>
+    <a class="btn-gold" id="landing-primary" href="login.html"><span data-icon="sparkles" data-size="14"></span>Get started</a>
   </div>
 </nav>
 
@@ -175,7 +176,7 @@ footer{background:var(--bg0);border-top:0.5px solid var(--bdr);padding:2rem;text
   <h1>Your campus,<br><span>all in one place.</span></h1>
   <p>Schedules, dining, transit, events, and an AI campus assistant — everything you need to navigate student life at Purdue Indy.</p>
   <div class="hero-actions">
-    <a class="btn-primary" href="login.html"><span data-icon="home" data-size="16"></span>Get started free</a>
+    <a class="btn-primary" id="cta-hero-primary" href="login.html"><span data-icon="home" data-size="16"></span>Get started free</a>
     <a class="btn-outline" href="#features"><span data-icon="arrowUpRight" data-size="16"></span>See features</a>
   </div>
   <div class="hero-stat-row">
@@ -319,8 +320,8 @@ footer{background:var(--bg0);border-top:0.5px solid var(--bdr);padding:2rem;text
   <h2>Join Purdue Indy Hub today</h2>
   <p>Free for all Purdue Indianapolis students. Sign in with your university account.</p>
   <div class="hero-actions" style="margin-bottom:0;">
-    <a class="btn-primary" href="login.html"><span data-icon="home" data-size="16"></span>Sign up free</a>
-    <a class="btn-outline" href="login.html">Sign in</a>
+    <a class="btn-primary" id="cta-footer-primary" href="login.html"><span data-icon="home" data-size="16"></span>Sign up free</a>
+    <a class="btn-outline" id="cta-secondary" href="login.html">Sign in</a>
   </div>
 </section>
 
@@ -347,7 +348,28 @@ function toggleTheme() {
   localStorage.setItem('pih-dark', dark ? '1' : '0');
   updateThemeIcon();
 }
-document.addEventListener('DOMContentLoaded', () => { updateThemeIcon(); });
+document.addEventListener('DOMContentLoaded', async () => {
+  updateThemeIcon();
+  try {
+    const session = await window.PIHAuth.getSession(true);
+    window.PIHAuth.updateLandingLinks(session);
+    const heroPrimary = document.getElementById('cta-hero-primary');
+    const footerPrimary = document.getElementById('cta-footer-primary');
+    if (session?.user) {
+      if (heroPrimary) {
+        heroPrimary.innerHTML = '<span data-icon="home" data-size="16"></span>Open dashboard';
+        heroPrimary.href = 'index.html';
+      }
+      if (footerPrimary) {
+        footerPrimary.innerHTML = '<span data-icon="home" data-size="16"></span>Open dashboard';
+        footerPrimary.href = 'index.html';
+      }
+      if (window.initPIHIcons) initPIHIcons();
+    }
+  } catch (error) {
+    console.error(error);
+  }
+});
 </script>
 </body>
 </html>

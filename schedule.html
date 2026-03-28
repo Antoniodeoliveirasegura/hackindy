@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script src="browser-auth.js"></script>
 <title>Schedule · Purdue Indy Hub</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -258,6 +259,7 @@ function doAI(){
 
 if(dark){document.getElementById('app').className='dark';document.getElementById('tbtn').innerHTML='<i data-lucide="moon"></i>';}
 buildGrid();
+window.PIHAuth.requireAuth().catch(console.error);
 </script>
 </body>
 </html>
