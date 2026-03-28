@@ -1273,6 +1273,43 @@ app.get('/', (_req, res) => {
   res.redirect(clientAppUrl)
 })
 
+// TransLoc API proxy endpoints (to avoid CORS issues)
+const TRANSLOC_API = 'https://iuindianapolis.transloc.com/Services/JSONPRelay.svc'
+const TRANSLOC_API_KEY = '8882812681'
+
+app.get('/api/transit/vehicles', async (_req, res) => {
+  try {
+    const response = await fetch(`${TRANSLOC_API}/GetMapVehiclePoints?apiKey=${TRANSLOC_API_KEY}&isPublicMap=true`)
+    const data = await response.json()
+    res.json(data)
+  } catch (error) {
+    console.error('TransLoc vehicles error:', error)
+    res.status(500).json({ error: 'Failed to fetch vehicle data' })
+  }
+})
+
+app.get('/api/transit/stops', async (_req, res) => {
+  try {
+    const response = await fetch(`${TRANSLOC_API}/GetStops?apiKey=${TRANSLOC_API_KEY}`)
+    const data = await response.json()
+    res.json(data)
+  } catch (error) {
+    console.error('TransLoc stops error:', error)
+    res.status(500).json({ error: 'Failed to fetch stops data' })
+  }
+})
+
+app.get('/api/transit/routes', async (_req, res) => {
+  try {
+    const response = await fetch(`${TRANSLOC_API}/GetRoutes?apiKey=${TRANSLOC_API_KEY}`)
+    const data = await response.json()
+    res.json(data)
+  } catch (error) {
+    console.error('TransLoc routes error:', error)
+    res.status(500).json({ error: 'Failed to fetch routes data' })
+  }
+})
+
 app.listen(port, host, () => {
   console.log(`HackIndy backend listening on ${publicBaseUrl}`)
   console.log(`Purdue link mode: ${purdueAuthMode}`)
