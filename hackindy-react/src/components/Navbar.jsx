@@ -8,7 +8,8 @@ const navItems = [
   { path: '/dashboard', label: 'Home', icon: 'home' },
   { path: '/map', label: 'Map', icon: 'mapPin' },
   { path: '/schedule', label: 'Schedule', icon: 'schedule' },
-  { path: '/events', label: 'Events', icon: 'calendar' },
+  { path: '/assignments', label: 'Tasks', icon: 'document' },
+  { path: '/events', label: 'Events', icon: 'users' },
   { path: '/services', label: 'More', icon: 'grid' },
 ]
 

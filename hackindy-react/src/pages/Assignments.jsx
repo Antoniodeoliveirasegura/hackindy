@@ -5,26 +5,68 @@ import { authRequest } from '../lib/authApi'
 import Icon from '../components/Icons'
 
 const categoryConfig = {
+  exam: { 
+    label: 'Exams',
+    bg: 'bg-red-50 dark:bg-red-900/20', 
+    text: 'text-red-700 dark:text-red-400', 
+    border: 'border-red-200 dark:border-red-800',
+    icon: 'alert'
+  },
+  assignment: { 
+    label: 'Assignments',
+    bg: 'bg-blue-50 dark:bg-blue-900/20', 
+    text: 'text-blue-700 dark:text-blue-400', 
+    border: 'border-blue-200 dark:border-blue-800',
+    icon: 'edit'
+  },
+  lab: { 
+    label: 'Labs',
+    bg: 'bg-green-50 dark:bg-green-900/20', 
+    text: 'text-green-700 dark:text-green-400', 
+    border: 'border-green-200 dark:border-green-800',
+    icon: 'beaker'
+  },
+  project: { 
+    label: 'Projects',
+    bg: 'bg-purple-50 dark:bg-purple-900/20', 
+    text: 'text-purple-700 dark:text-purple-400', 
+    border: 'border-purple-200 dark:border-purple-800',
+    icon: 'folder'
+  },
+  quiz: { 
+    label: 'Quizzes',
+    bg: 'bg-orange-50 dark:bg-orange-900/20', 
+    text: 'text-orange-700 dark:text-orange-400', 
+    border: 'border-orange-200 dark:border-orange-800',
+    icon: 'document'
+  },
   campus_event: { 
-    label: 'Campus Event',
+    label: 'Campus Events',
     bg: 'bg-pink-50 dark:bg-pink-900/20', 
     text: 'text-pink-700 dark:text-pink-400', 
     border: 'border-pink-200 dark:border-pink-800',
-    icon: 'users'
-  },
-  event: { 
-    label: 'Event',
-    bg: 'bg-indigo-50 dark:bg-indigo-900/20', 
-    text: 'text-indigo-700 dark:text-indigo-400', 
-    border: 'border-indigo-200 dark:border-indigo-800',
     icon: 'calendar'
   },
+  resource: { 
+    label: 'Resources',
+    bg: 'bg-gray-50 dark:bg-gray-800/50', 
+    text: 'text-gray-600 dark:text-gray-400', 
+    border: 'border-gray-200 dark:border-gray-700',
+    icon: 'document'
+  },
   deadline: { 
-    label: 'Deadline',
+    label: 'Deadlines',
     bg: 'bg-yellow-50 dark:bg-yellow-900/20', 
     text: 'text-yellow-700 dark:text-yellow-400', 
     border: 'border-yellow-200 dark:border-yellow-800',
     icon: 'clock'
+  },
+  event: { 
+    label: 'Other',
+    bg: 'bg-[var(--color-bg-2)]', 
+    text: 'text-[var(--color-txt-1)]', 
+    border: 'border-[var(--color-border)]',
+    icon: 'calendar'
   },
 }
 
@@ -44,9 +86,7 @@ function formatDate(dateString) {
 }
 
 function formatTime(dateString) {
-  const date = new Date(dateString)
-  if (date.getHours() === 0 && date.getMinutes() === 0) return 'All day'
-  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return new Date(dateString).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
 }
 
 function getRelativeTime(dateString) {
@@ -63,38 +103,17 @@ function getRelativeTime(dateString) {
   return `${Math.ceil(diffDays / 7)} weeks`
 }
 
-function isPast(dateString) {
+function isPastDue(dateString) {
   return new Date(dateString) < new Date()
 }
 
-function linkifyText(text) {
-  if (!text) return null
-  
-  const urlRegex = /(https?:\/\/[^\s<]+)/g
-  const parts = text.split(urlRegex)
-  
-  return parts.map((part, i) => {
-    if (urlRegex.test(part)) {
-      urlRegex.lastIndex = 0
-      return (
-        <a 
-          key={i} 
-          href={part} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-[var(--color-accent)] hover:underline break-all"
-        >
-          {part.length > 60 ? part.slice(0, 60) + '...' : part}
-        </a>
-      )
-    }
-    return <span key={i}>{part}</span>
-  })
-}
+// Categories that belong on the Events page, not Tasks
+const eventCategories = ['campus_event', 'event', 'deadline']
 
-export default function Events() {
+export default function Assignments() {
   const { onboarding } = useAuth()
   const [items, setItems] = useState([])
+  const [categories, setCategories] = useState([])
   const [selectedCategories, setSelectedCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [showPast, setShowPast] = useState(false)
@@ -107,24 +126,31 @@ export default function Events() {
   async function loadData() {
     setLoading(true)
     try {
-      const res = await authRequest('/api/me/calendar?categories=campus_event,event,deadline&limit=500')
-      setItems(res.items || [])
+      const [calRes, catRes] = await Promise.all([
+        authRequest('/api/me/calendar?limit=500'),
+        authRequest('/api/me/calendar/categories'),
+      ])
+      setItems(calRes.items || [])
+      setCategories(catRes.categories || [])
     } catch (error) {
-      console.error('Failed to load events:', error)
+      console.error('Failed to load assignments:', error)
     } finally {
       setLoading(false)
     }
   }
 
   const filteredItems = useMemo(() => {
-    let filtered = items
+    // Filter out class and event-type categories (those go to Events page)
+    let filtered = items.filter(item => 
+      item.category !== 'class' && !eventCategories.includes(item.category)
+    )
     
     if (selectedCategories.length > 0) {
       filtered = filtered.filter(item => selectedCategories.includes(item.category))
     }
     
     if (!showPast) {
-      filtered = filtered.filter(item => !isPast(item.startTime))
+      filtered = filtered.filter(item => !isPastDue(item.startTime))
     }
     
     return filtered.sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
@@ -140,18 +166,6 @@ export default function Events() {
     return groups
   }, [filteredItems])
 
-  const categoryCounts = useMemo(() => {
-    const counts = {}
-    for (const item of items) {
-      counts[item.category] = (counts[item.category] || 0) + 1
-    }
-    return Object.entries(counts).map(([id, count]) => ({
-      id,
-      label: categoryConfig[id]?.label || id,
-      count
-    }))
-  }, [items])
-
   const toggleCategory = (catId) => {
     setSelectedCategories(prev => 
       prev.includes(catId) 
@@ -166,9 +180,9 @@ export default function Events() {
     <div className="max-w-[1000px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 opacity-100">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Campus Events</h1>
+          <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Assignments & Events</h1>
           <p className="text-[14px] text-[var(--color-txt-2)] mt-1">
-            {filteredItems.length} upcoming events from your calendar
+            {filteredItems.length} upcoming items from Brightspace
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -179,7 +193,7 @@ export default function Events() {
               onChange={(e) => setShowPast(e.target.checked)}
               className="w-4 h-4 rounded border-[var(--color-border-2)]"
             />
-            Show past events
+            Show past items
           </label>
           <button onClick={loadData} className="btn btn-secondary text-[13px] px-4 py-2">
             <Icon name="refresh" size={14} />
@@ -196,7 +210,7 @@ export default function Events() {
                 Connect your Brightspace calendar
               </div>
               <p className="text-[13px] text-[var(--color-txt-2)] mt-1 max-w-[640px]">
-                Import campus events, career fairs, workshops, and more from Brightspace.
+                Import your assignments, exams, and due dates from Brightspace to see them here.
               </p>
             </div>
             <Link to="/setup" className="btn btn-primary text-[13px] px-5 py-2.5 w-fit">
@@ -207,15 +221,16 @@ export default function Events() {
         </div>
       )}
 
-      {categoryCounts.length > 0 && (
+      {categories.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-6 animate-fade-in-up stagger-1">
           <button
             onClick={() => setSelectedCategories([])}
             className={`pill whitespace-nowrap ${selectedCategories.length === 0 ? 'pill-active' : ''}`}
           >
-            All ({items.length})
+            All ({items.filter(i => i.category !== 'class' && !eventCategories.includes(i.category)).length})
           </button>
-          {categoryCounts.map(cat => {
+          {categories.filter(c => c.id !== 'class' && !eventCategories.includes(c.id)).map(cat => {
+            const config = categoryConfig[cat.id] || categoryConfig.event
             const isActive = selectedCategories.includes(cat.id)
             return (
               <button
@@ -232,18 +247,18 @@ export default function Events() {
 
       {loading ? (
         <div className="card p-8 text-center text-[var(--color-txt-2)]">
-          Loading events...
+          Loading assignments...
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="card p-8 text-center">
           <Icon name="calendar" size={32} className="mx-auto text-[var(--color-txt-3)] mb-3" />
-          <div className="text-[var(--color-txt-1)] font-medium">No events found</div>
+          <div className="text-[var(--color-txt-1)] font-medium">No items found</div>
           <p className="text-[13px] text-[var(--color-txt-2)] mt-1">
             {hasNoSources 
-              ? 'Connect your Brightspace calendar to see campus events.'
+              ? 'Connect your Brightspace calendar to see assignments and events.'
               : selectedCategories.length > 0 
-                ? 'Try selecting different categories or showing past events.'
-                : 'No upcoming campus events in your calendar.'}
+                ? 'Try selecting different categories or showing past items.'
+                : 'No upcoming assignments or events.'}
           </p>
         </div>
       ) : (
@@ -258,7 +273,7 @@ export default function Events() {
                   {dateItems.map(item => {
                     const config = categoryConfig[item.category] || categoryConfig.event
                     const isSelected = selectedItem?.id === item.id
-                    const past = isPast(item.startTime)
+                    const past = isPastDue(item.startTime)
                     
                     return (
                       <button
@@ -269,9 +284,7 @@ export default function Events() {
                         } ${past ? 'opacity-60' : ''}`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center shrink-0`}>
-                            <Icon name={config.icon} size={18} className={config.text} />
-                          </div>
+                          <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${config.text.replace('text-', 'bg-')}`} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div className="font-medium text-[var(--color-txt-0)] text-[14px] line-clamp-2">
@@ -289,7 +302,7 @@ export default function Events() {
                               {item.location && (
                                 <span className="flex items-center gap-1 truncate">
                                   <Icon name="mapPin" size={12} />
-                                  {item.location.split(' (')[0].slice(0, 30)}
+                                  {item.location.split(' (')[0]}
                                 </span>
                               )}
                             </div>
@@ -307,11 +320,13 @@ export default function Events() {
             {selectedItem ? (
               <div className="card p-5">
                 <div className="flex items-start justify-between gap-3 mb-4">
-                  <span className={`text-[11px] px-2.5 py-1 rounded-full ${
-                    (categoryConfig[selectedItem.category] || categoryConfig.event).bg
-                  } ${(categoryConfig[selectedItem.category] || categoryConfig.event).text}`}>
-                    {(categoryConfig[selectedItem.category] || categoryConfig.event).label}
-                  </span>
+                  <div>
+                    <span className={`text-[11px] px-2.5 py-1 rounded-full ${
+                      (categoryConfig[selectedItem.category] || categoryConfig.event).bg
+                    } ${(categoryConfig[selectedItem.category] || categoryConfig.event).text}`}>
+                      {(categoryConfig[selectedItem.category] || categoryConfig.event).label}
+                    </span>
+                  </div>
                   <button 
                     onClick={() => setSelectedItem(null)}
                     className="text-[var(--color-txt-3)] hover:text-[var(--color-txt-1)]"
@@ -336,8 +351,8 @@ export default function Events() {
                   </div>
                   
                   {selectedItem.location && (
-                    <div className="flex items-start gap-3 text-[13px]">
-                      <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-2)] flex items-center justify-center shrink-0">
+                    <div className="flex items-center gap-3 text-[13px]">
+                      <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-2)] flex items-center justify-center">
                         <Icon name="mapPin" size={15} className="text-[var(--color-txt-2)]" />
                       </div>
                       <div className="text-[var(--color-txt-1)]">{selectedItem.location}</div>
@@ -348,8 +363,10 @@ export default function Events() {
                     <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-2)] flex items-center justify-center">
                       <Icon name="clock" size={15} className="text-[var(--color-txt-2)]" />
                     </div>
-                    <div className={`${isPast(selectedItem.startTime) ? 'text-[var(--color-txt-3)]' : 'text-[var(--color-txt-1)]'}`}>
-                      {isPast(selectedItem.startTime) ? 'Event has passed' : `In ${getRelativeTime(selectedItem.startTime)}`}
+                    <div>
+                      <div className={`${isPastDue(selectedItem.startTime) ? 'text-[var(--color-error)]' : 'text-[var(--color-txt-1)]'}`}>
+                        {isPastDue(selectedItem.startTime) ? 'Past due' : `Due in ${getRelativeTime(selectedItem.startTime)}`}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -357,19 +374,19 @@ export default function Events() {
                 {selectedItem.description && (
                   <div className="pt-4 border-t border-[var(--color-border)]">
                     <div className="text-[12px] font-medium text-[var(--color-txt-3)] uppercase tracking-wider mb-2">
-                      Details
+                      Description
                     </div>
-                    <div className="text-[13px] text-[var(--color-txt-1)] leading-relaxed whitespace-pre-wrap">
-                      {linkifyText(selectedItem.description.slice(0, 800))}
-                      {selectedItem.description.length > 800 && '...'}
-                    </div>
+                    <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed whitespace-pre-wrap">
+                      {selectedItem.description.slice(0, 500)}
+                      {selectedItem.description.length > 500 && '...'}
+                    </p>
                   </div>
                 )}
               </div>
             ) : (
               <div className="card p-5 text-center text-[var(--color-txt-2)]">
-                <Icon name="users" size={24} className="mx-auto mb-2 text-[var(--color-txt-3)]" />
-                <p className="text-[13px]">Select an event to view details</p>
+                <Icon name="document" size={24} className="mx-auto mb-2 text-[var(--color-txt-3)]" />
+                <p className="text-[13px]">Select an item to view details</p>
               </div>
             )}
           </div>

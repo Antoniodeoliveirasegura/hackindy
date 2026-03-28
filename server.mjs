@@ -6,7 +6,6 @@ import express from 'express'
 import session from 'express-session'
 import ical from 'node-ical'
 import { createClient } from '@supabase/supabase-js'
-import { cancelCalendarCapture, getCalendarCaptureJob, startCalendarCapture } from './purdueCalendarAutomation.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -56,13 +55,6 @@ app.use(
     },
   }),
 )
-
-// Supabase email/OAuth may redirect to the API origin (e.g. localhost:3000). Forward query params to the SPA.
-app.get('/auth/callback', (req, res) => {
-  const search = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
-  res.redirect(302, `${clientAppUrl}/auth/callback${search}`)
-})
-
 app.use(express.static(__dirname))
 
 function nowIso() {
@@ -413,24 +405,6 @@ async function getSourceForUser(sourceId, userId) {
   return data
 }
 
-async function deleteSourceForUser(sourceId, userId) {
-  const source = await getSourceForUser(sourceId, userId)
-  if (!source) return null
-
-  const { data, error } = await supabase
-    .from('linked_sources')
-    .delete()
-    .eq('id', sourceId)
-    .eq('user_id', userId)
-    .select('id')
-
-  if (error) throw new Error(error.message)
-  if (!data?.length) {
-    throw new Error('Could not remove this source. Try refreshing the page.')
-  }
-  return source
-}
-
 function validateSourceUrl(sourceUrl) {
   try {
     const parsed = new URL(sourceUrl)
@@ -445,7 +419,70 @@ function validateSourceUrl(sourceUrl) {
 
 function normalizeCategory(sourceType, event) {
   if (sourceType === 'purdue_schedule_ical') return 'class'
-  return /career fair|workshop|showcase|event/i.test(event.summary || '') ? 'event' : 'event'
+  
+  const summary = (event.summary || '').toLowerCase()
+  const rawSummary = event.summary || ''
+  const location = (event.location || '').toLowerCase()
+  
+  // FIRST: Check for resources/available items (solutions, posted materials)
+  // These should NOT be categorized as exams/assignments even if they contain those words
+  if (/- available\b|solution|posted|released/i.test(rawSummary)) {
+    return 'resource'
+  }
+  
+  // Campus events - career fairs, workshops, social events (check before academic items)
+  if (/career fair|workshop|showcase|networking|info session|call out|social|tailgate|bash|celebration|week\b|speaker|panel|mixer|party|resumania|block party/i.test(summary) ||
+      location.includes('ece indy resources') ||
+      location.includes('boiler park')) {
+    return 'campus_event'
+  }
+  
+  // Due items - assignments that are actually due
+  if (/- due\b/i.test(rawSummary)) {
+    // Check if it's a lab
+    if (/\blab\b|\bprelab\b|\bwriteup\b|\bnotebook\b/i.test(summary)) {
+      return 'lab'
+    }
+    // Check if it's a project
+    if (/\bproject\b|\bformal report\b/i.test(summary)) {
+      return 'project'
+    }
+    return 'assignment'
+  }
+  
+  // Exams (only if not a resource/available item - already filtered above)
+  if (/\bexam\b|\bmidterm\b|\bfinal\b|\bpracticum\b/i.test(summary) && !/solution|available/i.test(summary)) {
+    return 'exam'
+  }
+  
+  // Homework and assignments
+  if (/\bhw\d*\b|\bhomework\b|\bassignment\b/i.test(summary) ||
+      /^[PQ]\d+\s*-/i.test(rawSummary)) {
+    return 'assignment'
+  }
+  
+  // Labs and prelabs
+  if (/\blab\b|\bprelab\b|\bwriteup\b|\bnotebook\b/i.test(summary)) {
+    return 'lab'
+  }
+  
+  // Projects
+  if (/\bproject\b|\bformal report\b/i.test(summary)) {
+    return 'project'
+  }
+  
+  // Quizzes
+  if (/\bquiz\b/i.test(summary)) {
+    return 'quiz'
+  }
+  
+  // Deadlines
+  if (/\bdeadline\b|\blast day\b|\bregistration\b/i.test(summary)) {
+    return 'deadline'
+  }
+  
+  // Default to event
+  return 'event'
 }
 
 async function syncSource(source) {
@@ -459,27 +496,38 @@ async function syncSource(source) {
     .delete()
     .eq('source_id', source.id)
 
-  // Insert new items
-  const itemsToInsert = events.map(event => {
-    const uid = String(event.uid || `${source.id}:${event.summary}:${event.start?.toISOString?.() || syncedAt}`)
-    return {
-      id: makeId(),
-      user_id: source.user_id,
-      source_id: source.id,
-      source_type: source.source_type,
-      title: String(event.summary || 'Untitled item'),
-      description: event.description ? String(event.description) : null,
-      start_time: event.start?.toISOString?.() || syncedAt,
-      end_time: event.end?.toISOString?.() || null,
-      location: event.location ? String(event.location) : null,
-      category: normalizeCategory(source.source_type, event),
-      external_uid: uid,
-      all_day: event.datetype === 'date',
-      raw_json: { uid, summary: event.summary, description: event.description, location: event.location },
-      created_at: syncedAt,
-      updated_at: syncedAt
-    }
-  })
+  // Insert new items - filter based on source type
+  const itemsToInsert = events
+    .map(event => {
+      const uid = String(event.uid || `${source.id}:${event.summary}:${event.start?.toISOString?.() || syncedAt}`)
+      const category = normalizeCategory(source.source_type, event)
+      return {
+        id: makeId(),
+        user_id: source.user_id,
+        source_id: source.id,
+        source_type: source.source_type,
+        title: String(event.summary || 'Untitled item'),
+        description: event.description ? String(event.description) : null,
+        start_time: event.start?.toISOString?.() || syncedAt,
+        end_time: event.end?.toISOString?.() || null,
+        location: event.location ? String(event.location) : null,
+        category,
+        external_uid: uid,
+        all_day: event.datetype === 'date',
+        raw_json: { uid, summary: event.summary, description: event.description, location: event.location },
+        created_at: syncedAt,
+        updated_at: syncedAt
+      }
+    })
+    .filter(item => {
+      // For Brightspace or any non-class source, skip 'resource' (solutions/materials available)
+      // Keep everything else including 'event' as the default
+      if (source.source_type === 'brightspace_ical' || source.source_url.includes('brightspace.com')) {
+        // Only skip resources (solutions, materials available)
+        return item.category !== 'resource'
+      }
+      return true
+    })
 
   if (itemsToInsert.length > 0) {
     const { error: insertError } = await supabase
@@ -504,7 +552,7 @@ async function syncSource(source) {
   return { syncedAt, itemCount: events.length }
 }
 
-async function createScheduleSource(userId, { icsUrl, label }) {
+async function createScheduleSource(userId, { icsUrl, label, sourceType = 'purdue_schedule_ical' }) {
   const sourceUrl = validateSourceUrl(icsUrl)
   const timestamp = nowIso()
   const id = makeId()
@@ -514,8 +562,8 @@ async function createScheduleSource(userId, { icsUrl, label }) {
     .insert({
       id,
       user_id: userId,
-      source_type: 'purdue_schedule_ical',
-      label: (label || 'Purdue schedule').trim() || 'Purdue schedule',
+      source_type: sourceType,
+      label: (label || 'Schedule').trim() || 'Schedule',
       source_url: sourceUrl,
       status: 'pending',
       created_at: timestamp,
@@ -528,7 +576,7 @@ async function createScheduleSource(userId, { icsUrl, label }) {
   return data
 }
 
-async function listCalendarItems(userId, { category, limit = 100, order = 'asc' } = {}) {
+async function listCalendarItems(userId, { category, categories, limit = 100, order = 'asc' } = {}) {
   let query = supabase
     .from('calendar_items')
     .select('id, source_id, title, description, start_time, end_time, location, category, external_uid, source_type')
@@ -536,6 +584,8 @@ async function listCalendarItems(userId, { category, limit = 100, order = 'asc' 
 
   if (category) {
     query = query.eq('category', category)
+  } else if (categories && categories.length > 0) {
+    query = query.in('category', categories)
   }
 
   query = query.order('start_time', { ascending: order === 'asc' }).limit(Number(limit) || 100)
@@ -706,6 +756,8 @@ app.post('/api/auth/register-supabase', async (req, res) => {
     const emailRaw = req.body.email
     const password = req.body.password
     const displayName = req.body.name ?? req.body.displayName ?? ''
+    const rememberMe = req.body.rememberMe === true
+    const cookieMaxAge = rememberMe ? 1000 * 60 * 60 * 24 * 30 : undefined
     const normalizedEmail = normalizeEmail(emailRaw)
     if (!normalizedEmail || !normalizedEmail.includes('@')) {
       return res.status(400).json({ error: { message: 'Please enter a valid email address.', status: 400 } })
@@ -766,6 +818,7 @@ app.post('/api/auth/register-supabase', async (req, res) => {
       if (err) {
         return res.status(500).json({ error: { message: 'Could not create a session.', status: 500 } })
       }
+      req.session.cookie.maxAge = cookieMaxAge
       req.session.userId = row.id
       req.session.save(async () => {
         res.status(201).json({ session: await buildSessionPayload(row) })
@@ -799,11 +852,68 @@ app.post('/api/auth/sign-up', async (req, res) => {
 
 app.post('/api/auth/sign-in', async (req, res) => {
   try {
+    const normalizedEmail = normalizeEmail(req.body.email)
+    const password = req.body.password
+    const rememberMe = req.body.rememberMe === true
+    
+    // Set cookie maxAge based on rememberMe
+    // rememberMe: 30 days, otherwise: session cookie (expires when browser closes)
+    const cookieMaxAge = rememberMe ? 1000 * 60 * 60 * 24 * 30 : undefined
+    
+    // First try to authenticate via Supabase Auth
+    const { data: supabaseData, error: supabaseError } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    })
+    
+    if (!supabaseError && supabaseData?.user) {
+      // Supabase auth succeeded - get or create user in our table
+      let user = await getUserByEmail(normalizedEmail)
+      
+      if (!user) {
+        // User exists in Supabase Auth but not in our users table - create them
+        const timestamp = nowIso()
+        const { data: newUser, error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: supabaseData.user.id,
+            email: normalizedEmail,
+            password_hash: '',
+            display_name: deriveDisplayName(normalizedEmail, supabaseData.user.user_metadata?.full_name),
+            auth_provider: 'email',
+            created_at: timestamp,
+            updated_at: timestamp,
+          })
+          .select()
+          .single()
+        
+        if (insertError) {
+          console.error('sign-in: failed to create user record:', insertError)
+          return res.status(500).json({ error: { message: 'Could not complete sign in.', status: 500 } })
+        }
+        user = newUser
+      }
+      
+      req.session.regenerate(async (err) => {
+        if (err) {
+          return res.status(500).json({ error: { message: 'Could not create a session.', status: 500 } })
+        }
+        req.session.cookie.maxAge = cookieMaxAge
+        req.session.userId = user.id
+        req.session.save(async () => {
+          res.json({ session: await buildSessionPayload(user) })
+        })
+      })
+      return
+    }
+    
+    // Fall back to local authentication (for users created before Supabase)
     const user = await authenticateLocalUser({ email: req.body.email, password: req.body.password })
     req.session.regenerate(async (err) => {
       if (err) {
         return res.status(500).json({ error: { message: 'Could not create a session.', status: 500 } })
       }
+      req.session.cookie.maxAge = cookieMaxAge
       req.session.userId = user.id
       req.session.save(async () => {
         res.json({ session: await buildSessionPayload(user) })
@@ -963,38 +1073,6 @@ app.get('/api/me/sources', requireAuth, async (req, res) => {
   res.json({ sources: await listSourcesForUser(req.currentUser.id) })
 })
 
-async function removeLinkedSourceRoute(req, res) {
-  try {
-    const deleted = await deleteSourceForUser(req.params.sourceId, req.currentUser.id)
-    if (!deleted) {
-      return res.status(404).json({ error: { message: 'Source not found.', status: 404 } })
-    }
-    res.json({ ok: true })
-  } catch (error) {
-    res.status(400).json({ error: { message: error.message || 'Could not remove this source.', status: 400 } })
-  }
-}
-
-app.post('/api/me/sources/:sourceId/remove', requireAuth, removeLinkedSourceRoute)
-app.delete('/api/me/sources/:sourceId', requireAuth, removeLinkedSourceRoute)
-
-app.post('/api/purdue/calendar-link/start', requireAuth, requirePurdueLinked, async (req, res) => {
-  try {
-    const job = await startCalendarCapture(req.currentUser.id)
-    res.status(202).json({ job })
-  } catch (error) {
-    res.status(500).json({ error: { message: error.message || 'Could not start Purdue timetable automation.', status: 500 } })
-  }
-})
-
-app.get('/api/purdue/calendar-link/status', requireAuth, requirePurdueLinked, async (req, res) => {
-  res.json({ job: getCalendarCaptureJob(req.currentUser.id) })
-})
-
-app.post('/api/purdue/calendar-link/cancel', requireAuth, requirePurdueLinked, async (req, res) => {
-  res.json({ job: await cancelCalendarCapture(req.currentUser.id) })
-})
-
 app.post('/api/sources/purdue/schedule', requireAuth, requirePurdueLinked, async (req, res) => {
   try {
     const source = await createScheduleSource(req.currentUser.id, { icsUrl: req.body.icsUrl, label: req.body.label })
@@ -1002,6 +1080,24 @@ app.post('/api/sources/purdue/schedule', requireAuth, requirePurdueLinked, async
     res.status(201).json({ source: await getSourceForUser(source.id, req.currentUser.id), sync })
   } catch (error) {
     res.status(400).json({ error: { message: error.message || 'Could not connect the Purdue schedule source.', status: 400 } })
+  }
+})
+
+app.post('/api/sources/brightspace/schedule', requireAuth, async (req, res) => {
+  try {
+    const { icsUrl, label } = req.body
+    if (!icsUrl || !icsUrl.includes('brightspace.com')) {
+      return res.status(400).json({ error: { message: 'Please provide a valid Brightspace calendar URL.', status: 400 } })
+    }
+    const source = await createScheduleSource(req.currentUser.id, { 
+      icsUrl, 
+      label: label || 'Brightspace Calendar',
+      sourceType: 'brightspace_ical'
+    })
+    const sync = await syncSource(source)
+    res.status(201).json({ source: await getSourceForUser(source.id, req.currentUser.id), sync })
+  } catch (error) {
+    res.status(400).json({ error: { message: error.message || 'Could not connect the Brightspace calendar.', status: 400 } })
   }
 })
 
@@ -1018,10 +1114,74 @@ app.post('/api/sync/:sourceId', requireAuth, async (req, res) => {
   }
 })
 
+app.delete('/api/sources/:sourceId', requireAuth, async (req, res) => {
+  const source = await getSourceForUser(req.params.sourceId, req.currentUser.id)
+  if (!source) {
+    return res.status(404).json({ error: { message: 'Source not found.', status: 404 } })
+  }
+  try {
+    // Delete all calendar items for this source
+    await supabase
+      .from('calendar_items')
+      .delete()
+      .eq('source_id', source.id)
+    
+    // Delete the source itself
+    await supabase
+      .from('linked_sources')
+      .delete()
+      .eq('id', source.id)
+    
+    res.json({ ok: true, message: 'Source and all associated items deleted.' })
+  } catch (error) {
+    res.status(400).json({ error: { message: error.message || 'Could not delete source.', status: 400 } })
+  }
+})
+
 app.get('/api/me/calendar', requireAuth, async (req, res) => {
   const category = typeof req.query.category === 'string' ? req.query.category : null
+  const categories = typeof req.query.categories === 'string' ? req.query.categories.split(',').filter(Boolean) : null
   const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100
-  res.json({ items: await listCalendarItems(req.currentUser.id, { category, limit, order: 'asc' }) })
+  res.json({ items: await listCalendarItems(req.currentUser.id, { category, categories, limit, order: 'asc' }) })
+})
+
+app.get('/api/me/calendar/categories', requireAuth, async (req, res) => {
+  const { data, error } = await supabase
+    .from('calendar_items')
+    .select('category')
+    .eq('user_id', req.currentUser.id)
+
+  if (error) {
+    return res.json({ categories: [] })
+  }
+
+  const counts = {}
+  for (const row of data) {
+    counts[row.category] = (counts[row.category] || 0) + 1
+  }
+
+  const categoryLabels = {
+    class: 'Classes',
+    exam: 'Exams',
+    assignment: 'Assignments',
+    lab: 'Labs',
+    project: 'Projects',
+    quiz: 'Quizzes',
+    campus_event: 'Campus Events',
+    resource: 'Resources',
+    deadline: 'Deadlines',
+    event: 'Other Events'
+  }
+
+  const categories = Object.entries(counts)
+    .map(([key, count]) => ({
+      id: key,
+      label: categoryLabels[key] || key,
+      count
+    }))
+    .sort((a, b) => b.count - a.count)
+
+  res.json({ categories })
 })
 
 app.get('/api/me/classes', requireAuth, async (req, res) => {

@@ -9,6 +9,7 @@ import AuthCallback from './pages/AuthCallback'
 import Home from './pages/Home'
 import Map from './pages/Map'
 import Schedule from './pages/Schedule'
+import Assignments from './pages/Assignments'
 import Events from './pages/Events'
 import Dining from './pages/Dining'
 import Transit from './pages/Transit'
@@ -64,6 +65,14 @@ export default function App() {
                 element={
                   <RequireAuth>
                     <Schedule />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/assignments"
+                element={
+                  <RequireAuth>
+                    <Assignments />
                   </RequireAuth>
                 }
               />

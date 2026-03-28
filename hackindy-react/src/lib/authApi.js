@@ -1,7 +1,7 @@
-export async function registerSupabaseUser(email, password, name) {
+export async function registerSupabaseUser(email, password, name, rememberMe = false) {
   return authRequest('/api/auth/register-supabase', {
     method: 'POST',
-    body: JSON.stringify({ email, password, name }),
+    body: JSON.stringify({ email, password, name, rememberMe }),
   })
 }
 

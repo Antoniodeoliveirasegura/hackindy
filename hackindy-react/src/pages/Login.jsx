@@ -25,6 +25,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [pwVisible, setPwVisible] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [banner, setBanner] = useState('')
   const [successBanner, setSuccessBanner] = useState('')
@@ -103,7 +104,7 @@ export default function Login() {
     setSubmitting(true)
     try {
       if (tab === 'signup') {
-        await registerSupabaseUser(email.trim(), password, name.trim())
+        await registerSupabaseUser(email.trim(), password, name.trim(), rememberMe)
         try {
           await signInWithEmail(email.trim(), password)
         } catch {
@@ -112,7 +113,28 @@ export default function Login() {
         await refreshSession()
         navigate(parseNextPath(window.location.search), { replace: true })
       } else {
-        await signInWithEmail(email.trim(), password)
+        // Try Supabase Auth first
+        let supabaseSuccess = false
+        try {
+          await signInWithEmail(email.trim(), password)
+          supabaseSuccess = true
+        } catch (supabaseError) {
+          // If Supabase fails (user doesn't exist there), try backend local auth
+          console.log('Supabase auth failed, trying backend:', supabaseError.message)
+        }
+        
+        // Call backend to create session (with rememberMe flag)
+        const response = await fetch('/api/auth/sign-in', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ email: email.trim(), password, rememberMe }),
+        })
+        const data = await response.json()
+        if (!response.ok && !supabaseSuccess) {
+          throw new Error(data.error?.message || 'Invalid email or password.')
+        }
+        
         await refreshSession()
         navigate(parseNextPath(window.location.search), { replace: true })
       }
@@ -247,6 +269,23 @@ export default function Login() {
                   {fieldErr.confirm && <p className="text-[11px] text-[var(--color-error)] mt-1">{fieldErr.confirm}</p>}
                 </div>
               )}
+
+              <div className="flex items-center justify-between mb-5">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="w-4 h-4 rounded border-[var(--color-border-2)] accent-[var(--color-gold)]"
+                  />
+                  <span className="text-[13px] text-[var(--color-txt-1)]">Remember me</span>
+                </label>
+                {!isSignup && (
+                  <button type="button" className="text-[13px] text-[var(--color-gold)] hover:underline">
+                    Forgot password?
+                  </button>
+                )}
+              </div>
 
               <button type="submit" disabled={submitting} className="w-full btn btn-primary text-[14px] px-5 py-3 justify-center disabled:opacity-60">
                 <Icon name={isSignup ? 'sparkles' : 'mail'} size={16} />
