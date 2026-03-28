@@ -1,13 +1,11 @@
 import 'dotenv/config'
 import crypto from 'node:crypto'
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 import express from 'express'
 import session from 'express-session'
-import Database from 'better-sqlite3'
 import ical from 'node-ical'
+import { createClient } from '@supabase/supabase-js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -22,12 +20,24 @@ const clientAppUrl = (process.env.CLIENT_APP_URL || 'http://localhost:5173').rep
 const purdueAuthMode = (process.env.PURDUE_AUTH_MODE || 'mock').toLowerCase()
 const defaultNextPath = '/setup'
 
-const dataDir = process.env.AUTH_DATA_DIR || path.join(os.tmpdir(), 'hackindy-app')
-const dbPath = path.join(dataDir, 'app-v2.sqlite')
-fs.mkdirSync(dataDir, { recursive: true })
-const db = new Database(dbPath)
-db.pragma('journal_mode = WAL')
-initSchema()
+// Supabase configuration
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error('ERROR: Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables')
+  console.error('Please set these in your .env file:')
+  console.error('  SUPABASE_URL=https://your-project.supabase.co')
+  console.error('  SUPABASE_SERVICE_ROLE_KEY=your-service-role-key')
+  process.exit(1)
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
+  }
+})
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -46,58 +56,6 @@ app.use(
   }),
 )
 app.use(express.static(__dirname))
-
-function initSchema() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      display_name TEXT NOT NULL,
-      auth_provider TEXT NOT NULL DEFAULT 'local',
-      purdue_email TEXT UNIQUE,
-      purdue_username TEXT,
-      purdue_linked_at TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS linked_sources (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      source_type TEXT NOT NULL,
-      label TEXT NOT NULL,
-      source_url TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      last_synced_at TEXT,
-      last_error TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS calendar_items (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      source_id TEXT NOT NULL,
-      source_type TEXT NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT,
-      start_time TEXT NOT NULL,
-      end_time TEXT,
-      location TEXT,
-      category TEXT NOT NULL,
-      external_uid TEXT NOT NULL,
-      all_day INTEGER NOT NULL DEFAULT 0,
-      raw_json TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      UNIQUE(source_id, external_uid),
-      FOREIGN KEY(user_id) REFERENCES users(id),
-      FOREIGN KEY(source_id) REFERENCES linked_sources(id)
-    );
-  `)
-}
 
 function nowIso() {
   return new Date().toISOString()
@@ -155,16 +113,28 @@ function verifyPassword(password, storedHash) {
   return crypto.timingSafeEqual(Buffer.from(actualHash, 'hex'), Buffer.from(expectedHash, 'hex'))
 }
 
-function getUserById(userId) {
+async function getUserById(userId) {
   if (!userId) return null
-  return db.prepare('SELECT * FROM users WHERE id = ?').get(userId) || null
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .single()
+  if (error || !data) return null
+  return data
 }
 
-function getUserByEmail(email) {
-  return db.prepare('SELECT * FROM users WHERE email = ?').get(normalizeEmail(email)) || null
+async function getUserByEmail(email) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', normalizeEmail(email))
+    .single()
+  if (error || !data) return null
+  return data
 }
 
-function createLocalUser({ email, password, displayName }) {
+async function createLocalUser({ email, password, displayName }) {
   const normalizedEmail = normalizeEmail(email)
   if (!normalizedEmail || !normalizedEmail.includes('@')) {
     throw new Error('Please enter a valid email address.')
@@ -172,30 +142,43 @@ function createLocalUser({ email, password, displayName }) {
   if (!password || password.length < 8) {
     throw new Error('Password must be at least 8 characters.')
   }
-  if (getUserByEmail(normalizedEmail)) {
+  
+  const existing = await getUserByEmail(normalizedEmail)
+  if (existing) {
     throw new Error('An account with that email already exists.')
   }
 
   const timestamp = nowIso()
   const id = makeId()
-  db.prepare(`
-    INSERT INTO users (id, email, password_hash, display_name, auth_provider, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 'local', ?, ?)
-  `).run(id, normalizedEmail, hashPassword(password), deriveDisplayName(normalizedEmail, displayName), timestamp, timestamp)
+  
+  const { data, error } = await supabase
+    .from('users')
+    .insert({
+      id,
+      email: normalizedEmail,
+      password_hash: hashPassword(password),
+      display_name: deriveDisplayName(normalizedEmail, displayName),
+      auth_provider: 'local',
+      created_at: timestamp,
+      updated_at: timestamp
+    })
+    .select()
+    .single()
 
-  return getUserById(id)
+  if (error) throw new Error(error.message)
+  return data
 }
 
-function authenticateLocalUser({ email, password }) {
-  const user = getUserByEmail(email)
+async function authenticateLocalUser({ email, password }) {
+  const user = await getUserByEmail(email)
   if (!user || !verifyPassword(password, user.password_hash)) {
     throw new Error('Invalid email or password.')
   }
   return user
 }
 
-function updateLocalUserProfile(userId, { email, displayName, currentPassword, newPassword }) {
-  const user = getUserById(userId)
+async function updateLocalUserProfile(userId, { email, displayName, currentPassword, newPassword }) {
+  const user = await getUserById(userId)
   if (!user) throw new Error('User not found.')
 
   const normalizedEmail = normalizeEmail(email || user.email)
@@ -203,7 +186,7 @@ function updateLocalUserProfile(userId, { email, displayName, currentPassword, n
     throw new Error('Please enter a valid email address.')
   }
 
-  const existingUser = getUserByEmail(normalizedEmail)
+  const existingUser = await getUserByEmail(normalizedEmail)
   if (existingUser && existingUser.id !== userId) {
     throw new Error('That email address is already in use.')
   }
@@ -222,13 +205,21 @@ function updateLocalUserProfile(userId, { email, displayName, currentPassword, n
 
   const nextDisplayName = deriveDisplayName(normalizedEmail, displayName || user.display_name)
   const timestamp = nowIso()
-  db.prepare(`
-    UPDATE users
-    SET email = ?, display_name = ?, password_hash = ?, updated_at = ?
-    WHERE id = ?
-  `).run(normalizedEmail, nextDisplayName, passwordHash, timestamp, userId)
+  
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      email: normalizedEmail,
+      display_name: nextDisplayName,
+      password_hash: passwordHash,
+      updated_at: timestamp
+    })
+    .eq('id', userId)
+    .select()
+    .single()
 
-  return getUserById(userId)
+  if (error) throw new Error(error.message)
+  return data
 }
 
 function getAcademicTerm(dateValue) {
@@ -269,10 +260,10 @@ function getPreferredClassTerm(items) {
 
   const groups = new Map()
   for (const item of items) {
-    const term = getAcademicTerm(item.startTime)
+    const term = getAcademicTerm(item.start_time)
     if (!term) continue
-    const start = new Date(item.startTime)
-    const end = new Date(item.endTime || item.startTime)
+    const start = new Date(item.start_time)
+    const end = new Date(item.end_time || item.start_time)
     const current = groups.get(term.key) || {
       key: term.key,
       label: term.label,
@@ -307,34 +298,45 @@ function getPreferredClassTerm(items) {
 function orderClassItemsForDisplay(items) {
   const now = new Date()
   const upcoming = items
-    .filter((item) => new Date(item.endTime || item.startTime) >= now)
-    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+    .filter((item) => new Date(item.end_time || item.start_time) >= now)
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
 
   if (upcoming.length) return upcoming
 
-  return [...items].sort((a, b) => new Date(b.startTime) - new Date(a.startTime))
+  return [...items].sort((a, b) => new Date(b.start_time) - new Date(a.start_time))
 }
 
-function getUserSummary(userId) {
-  const user = getUserById(userId)
-  const linkedSourceCount = db.prepare('SELECT COUNT(*) AS count FROM linked_sources WHERE user_id = ?').get(userId).count
-  const classCount = db.prepare("SELECT COUNT(*) AS count FROM calendar_items WHERE user_id = ? AND category = 'class'").get(userId).count
+async function getUserSummary(userId) {
+  const user = await getUserById(userId)
+  
+  const { count: linkedSourceCount } = await supabase
+    .from('linked_sources')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+
+  const { count: classCount } = await supabase
+    .from('calendar_items')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('category', 'class')
+
   const hasPurdueLinked = Boolean(user?.purdue_email)
   return {
-    linkedSourceCount,
-    classCount,
+    linkedSourceCount: linkedSourceCount || 0,
+    classCount: classCount || 0,
     hasPurdueLinked,
     needsPurdueConnection: !hasPurdueLinked,
-    needsScheduleSource: hasPurdueLinked && linkedSourceCount === 0,
+    needsScheduleSource: hasPurdueLinked && (linkedSourceCount || 0) === 0,
   }
 }
 
-function getCurrentUser(req) {
-  return getUserById(req.session.userId)
+async function getCurrentUser(req) {
+  return await getUserById(req.session.userId)
 }
 
-function buildSessionPayload(user) {
+async function buildSessionPayload(user) {
   if (!user) return null
+  const summary = await getUserSummary(user.id)
   return {
     user: {
       id: user.id,
@@ -345,12 +347,12 @@ function buildSessionPayload(user) {
       purdueUsername: user.purdue_username,
       hasPurdueLinked: Boolean(user.purdue_email),
     },
-    onboarding: getUserSummary(user.id),
+    onboarding: summary,
   }
 }
 
-function requireAuth(req, res, next) {
-  const user = getCurrentUser(req)
+async function requireAuth(req, res, next) {
+  const user = await getCurrentUser(req)
   if (!user) {
     return res.status(401).json({ error: { message: 'You must sign in to access this resource.', status: 401 } })
   }
@@ -370,19 +372,37 @@ function requirePurdueLinked(req, res, next) {
   next()
 }
 
-function listSourcesForUser(userId) {
-  return db.prepare(`
-    SELECT id, source_type AS sourceType, label, source_url AS sourceUrl, status,
-           last_synced_at AS lastSyncedAt, last_error AS lastError,
-           created_at AS createdAt, updated_at AS updatedAt
-    FROM linked_sources
-    WHERE user_id = ?
-    ORDER BY created_at DESC
-  `).all(userId)
+async function listSourcesForUser(userId) {
+  const { data, error } = await supabase
+    .from('linked_sources')
+    .select('id, source_type, label, source_url, status, last_synced_at, last_error, created_at, updated_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+  return data.map(row => ({
+    id: row.id,
+    sourceType: row.source_type,
+    label: row.label,
+    sourceUrl: row.source_url,
+    status: row.status,
+    lastSyncedAt: row.last_synced_at,
+    lastError: row.last_error,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  }))
 }
 
-function getSourceForUser(sourceId, userId) {
-  return db.prepare('SELECT * FROM linked_sources WHERE id = ? AND user_id = ?').get(sourceId, userId) || null
+async function getSourceForUser(sourceId, userId) {
+  const { data, error } = await supabase
+    .from('linked_sources')
+    .select('*')
+    .eq('id', sourceId)
+    .eq('user_id', userId)
+    .single()
+
+  if (error || !data) return null
+  return data
 }
 
 function validateSourceUrl(sourceUrl) {
@@ -406,87 +426,113 @@ async function syncSource(source) {
   const eventsByKey = await ical.async.fromURL(source.source_url)
   const events = Object.values(eventsByKey).filter((item) => item?.type === 'VEVENT')
   const syncedAt = nowIso()
-  const deleteStmt = db.prepare('DELETE FROM calendar_items WHERE source_id = ?')
-  const insertStmt = db.prepare(`
-    INSERT INTO calendar_items (
-      id, user_id, source_id, source_type, title, description, start_time, end_time,
-      location, category, external_uid, all_day, raw_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
 
-  const tx = db.transaction(() => {
-    deleteStmt.run(source.id)
-    for (const event of events) {
-      const uid = String(event.uid || `${source.id}:${event.summary}:${event.start?.toISOString?.() || syncedAt}`)
-      insertStmt.run(
-        makeId(),
-        source.user_id,
-        source.id,
-        source.source_type,
-        String(event.summary || 'Untitled item'),
-        event.description ? String(event.description) : null,
-        event.start?.toISOString?.() || syncedAt,
-        event.end?.toISOString?.() || null,
-        event.location ? String(event.location) : null,
-        normalizeCategory(source.source_type, event),
-        uid,
-        event.datetype === 'date' ? 1 : 0,
-        JSON.stringify({ uid, summary: event.summary, description: event.description, location: event.location }),
-        syncedAt,
-        syncedAt,
-      )
+  // Delete existing items for this source
+  await supabase
+    .from('calendar_items')
+    .delete()
+    .eq('source_id', source.id)
+
+  // Insert new items
+  const itemsToInsert = events.map(event => {
+    const uid = String(event.uid || `${source.id}:${event.summary}:${event.start?.toISOString?.() || syncedAt}`)
+    return {
+      id: makeId(),
+      user_id: source.user_id,
+      source_id: source.id,
+      source_type: source.source_type,
+      title: String(event.summary || 'Untitled item'),
+      description: event.description ? String(event.description) : null,
+      start_time: event.start?.toISOString?.() || syncedAt,
+      end_time: event.end?.toISOString?.() || null,
+      location: event.location ? String(event.location) : null,
+      category: normalizeCategory(source.source_type, event),
+      external_uid: uid,
+      all_day: event.datetype === 'date',
+      raw_json: { uid, summary: event.summary, description: event.description, location: event.location },
+      created_at: syncedAt,
+      updated_at: syncedAt
     }
-    db.prepare(`
-      UPDATE linked_sources
-      SET status = 'ready', last_synced_at = ?, last_error = NULL, updated_at = ?
-      WHERE id = ?
-    `).run(syncedAt, syncedAt, source.id)
   })
 
-  try {
-    tx()
-    return { syncedAt, itemCount: events.length }
-  } catch (error) {
-    db.prepare(`
-      UPDATE linked_sources
-      SET status = 'error', last_error = ?, updated_at = ?
-      WHERE id = ?
-    `).run(error.message, syncedAt, source.id)
-    throw error
+  if (itemsToInsert.length > 0) {
+    const { error: insertError } = await supabase
+      .from('calendar_items')
+      .insert(itemsToInsert)
+
+    if (insertError) {
+      await supabase
+        .from('linked_sources')
+        .update({ status: 'error', last_error: insertError.message, updated_at: syncedAt })
+        .eq('id', source.id)
+      throw new Error(insertError.message)
+    }
   }
+
+  // Update source status
+  await supabase
+    .from('linked_sources')
+    .update({ status: 'ready', last_synced_at: syncedAt, last_error: null, updated_at: syncedAt })
+    .eq('id', source.id)
+
+  return { syncedAt, itemCount: events.length }
 }
 
-function createScheduleSource(userId, { icsUrl, label }) {
+async function createScheduleSource(userId, { icsUrl, label }) {
   const sourceUrl = validateSourceUrl(icsUrl)
   const timestamp = nowIso()
   const id = makeId()
-  db.prepare(`
-    INSERT INTO linked_sources (id, user_id, source_type, label, source_url, status, created_at, updated_at)
-    VALUES (?, ?, 'purdue_schedule_ical', ?, ?, 'pending', ?, ?)
-  `).run(id, userId, (label || 'Purdue schedule').trim() || 'Purdue schedule', sourceUrl, timestamp, timestamp)
-  return getSourceForUser(id, userId)
+
+  const { data, error } = await supabase
+    .from('linked_sources')
+    .insert({
+      id,
+      user_id: userId,
+      source_type: 'purdue_schedule_ical',
+      label: (label || 'Purdue schedule').trim() || 'Purdue schedule',
+      source_url: sourceUrl,
+      status: 'pending',
+      created_at: timestamp,
+      updated_at: timestamp
+    })
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data
 }
 
-function listCalendarItems(userId, { category, limit = 100, order = 'asc' } = {}) {
-  const params = [userId]
-  let sql = `
-    SELECT id, source_id AS sourceId, title, description, start_time AS startTime,
-           end_time AS endTime, location, category, external_uid AS externalUid,
-           source_type AS sourceType
-    FROM calendar_items
-    WHERE user_id = ?
-  `
+async function listCalendarItems(userId, { category, limit = 100, order = 'asc' } = {}) {
+  let query = supabase
+    .from('calendar_items')
+    .select('id, source_id, title, description, start_time, end_time, location, category, external_uid, source_type')
+    .eq('user_id', userId)
+
   if (category) {
-    sql += ' AND category = ?'
-    params.push(category)
+    query = query.eq('category', category)
   }
-  sql += ` ORDER BY start_time ${order === 'desc' ? 'DESC' : 'ASC'} LIMIT ?`
-  params.push(Number(limit) || 100)
-  return db.prepare(sql).all(...params)
+
+  query = query.order('start_time', { ascending: order === 'asc' }).limit(Number(limit) || 100)
+
+  const { data, error } = await query
+
+  if (error) return []
+  return data.map(row => ({
+    id: row.id,
+    sourceId: row.source_id,
+    title: row.title,
+    description: row.description,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    location: row.location,
+    category: row.category,
+    externalUid: row.external_uid,
+    sourceType: row.source_type
+  }))
 }
 
-function getClassItemsForUser(userId, { limit = 20, term = 'auto', mode = 'display' } = {}) {
-  const allItems = listCalendarItems(userId, { category: 'class', limit: 5000, order: 'asc' })
+async function getClassItemsForUser(userId, { limit = 20, term = 'auto', mode = 'display' } = {}) {
+  const allItems = await listCalendarItems(userId, { category: 'class', limit: 5000, order: 'asc' })
   if (!allItems.length) {
     return {
       items: [],
@@ -498,13 +544,21 @@ function getClassItemsForUser(userId, { limit = 20, term = 'auto', mode = 'displ
     }
   }
 
-  const preferredTerm = term === 'all' ? null : (term && term !== 'auto' ? parseTermKey(term) : getPreferredClassTerm(allItems))
+  // Convert camelCase to snake_case for term processing
+  const itemsForTermProcessing = allItems.map(item => ({
+    ...item,
+    start_time: item.startTime,
+    end_time: item.endTime
+  }))
+
+  const preferredTerm = term === 'all' ? null : (term && term !== 'auto' ? parseTermKey(term) : getPreferredClassTerm(itemsForTermProcessing))
   const termItems = preferredTerm
     ? allItems.filter((item) => getAcademicTerm(item.startTime)?.key === preferredTerm.key)
     : allItems
 
   const orderedItems = mode === 'display'
-    ? orderClassItemsForDisplay(termItems)
+    ? orderClassItemsForDisplay(termItems.map(item => ({ ...item, start_time: item.startTime, end_time: item.endTime })))
+        .map(item => ({ ...item, startTime: item.start_time, endTime: item.end_time }))
     : [...termItems].sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
 
   return {
@@ -517,26 +571,40 @@ function getClassItemsForUser(userId, { limit = 20, term = 'auto', mode = 'displ
   }
 }
 
-function linkPurdueIdentity(userId, { email }) {
+async function linkPurdueIdentity(userId, { email }) {
   const normalizedEmail = normalizeEmail(email)
   if (!normalizedEmail || !normalizedEmail.endsWith('@purdue.edu')) {
     throw new Error('Please use a valid @purdue.edu account.')
   }
 
-  const existing = db.prepare('SELECT id FROM users WHERE purdue_email = ? AND id != ?').get(normalizedEmail, userId)
+  const { data: existing } = await supabase
+    .from('users')
+    .select('id')
+    .eq('purdue_email', normalizedEmail)
+    .neq('id', userId)
+    .single()
+
   if (existing) {
     throw new Error('That Purdue account is already linked to another user.')
   }
 
   const username = normalizedEmail.split('@')[0]
   const timestamp = nowIso()
-  db.prepare(`
-    UPDATE users
-    SET purdue_email = ?, purdue_username = ?, purdue_linked_at = ?, updated_at = ?
-    WHERE id = ?
-  `).run(normalizedEmail, username, timestamp, timestamp, userId)
 
-  return getUserById(userId)
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      purdue_email: normalizedEmail,
+      purdue_username: username,
+      purdue_linked_at: timestamp,
+      updated_at: timestamp
+    })
+    .eq('id', userId)
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+  return data
 }
 
 async function validateCasTicket(ticket, nextPath) {
@@ -601,26 +669,26 @@ app.get('/api/auth-config', (_req, res) => {
   })
 })
 
-app.get('/api/session', (req, res) => {
-  const user = getCurrentUser(req)
-  const sessionPayload = buildSessionPayload(user)
+app.get('/api/session', async (req, res) => {
+  const user = await getCurrentUser(req)
+  const sessionPayload = await buildSessionPayload(user)
   res.json({ authenticated: Boolean(sessionPayload), session: sessionPayload })
 })
 
-app.post('/api/auth/sign-up', (req, res) => {
+app.post('/api/auth/sign-up', async (req, res) => {
   try {
-    const user = createLocalUser({
+    const user = await createLocalUser({
       email: req.body.email,
       password: req.body.password,
       displayName: req.body.name,
     })
-    req.session.regenerate((err) => {
+    req.session.regenerate(async (err) => {
       if (err) {
         return res.status(500).json({ error: { message: 'Could not create a session.', status: 500 } })
       }
       req.session.userId = user.id
-      req.session.save(() => {
-        res.status(201).json({ session: buildSessionPayload(user) })
+      req.session.save(async () => {
+        res.status(201).json({ session: await buildSessionPayload(user) })
       })
     })
   } catch (error) {
@@ -628,16 +696,16 @@ app.post('/api/auth/sign-up', (req, res) => {
   }
 })
 
-app.post('/api/auth/sign-in', (req, res) => {
+app.post('/api/auth/sign-in', async (req, res) => {
   try {
-    const user = authenticateLocalUser({ email: req.body.email, password: req.body.password })
-    req.session.regenerate((err) => {
+    const user = await authenticateLocalUser({ email: req.body.email, password: req.body.password })
+    req.session.regenerate(async (err) => {
       if (err) {
         return res.status(500).json({ error: { message: 'Could not create a session.', status: 500 } })
       }
       req.session.userId = user.id
-      req.session.save(() => {
-        res.json({ session: buildSessionPayload(user) })
+      req.session.save(async () => {
+        res.json({ session: await buildSessionPayload(user) })
       })
     })
   } catch (error) {
@@ -650,6 +718,74 @@ app.post('/api/sign-out', (req, res) => {
     res.clearCookie('pih.sid')
     res.json({ ok: true })
   })
+})
+
+app.post('/api/auth/supabase-sync', async (req, res) => {
+  try {
+    const { supabaseUserId, email, name, avatarUrl, provider, accessToken } = req.body
+    
+    if (!supabaseUserId || !email) {
+      return res.status(400).json({ error: { message: 'Missing required fields', status: 400 } })
+    }
+
+    const normalizedEmail = normalizeEmail(email)
+    
+    let user = await getUserByEmail(normalizedEmail)
+    
+    if (!user) {
+      const timestamp = nowIso()
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          id: supabaseUserId,
+          email: normalizedEmail,
+          password_hash: '',
+          display_name: deriveDisplayName(normalizedEmail, name),
+          auth_provider: provider || 'supabase',
+          avatar_url: avatarUrl || null,
+          created_at: timestamp,
+          updated_at: timestamp
+        })
+        .select()
+        .single()
+
+      if (error) {
+        if (error.code === '23505') {
+          user = await getUserByEmail(normalizedEmail)
+        } else {
+          throw new Error(error.message)
+        }
+      } else {
+        user = data
+      }
+    } else {
+      const { data, error } = await supabase
+        .from('users')
+        .update({
+          display_name: name || user.display_name,
+          avatar_url: avatarUrl || user.avatar_url,
+          auth_provider: user.auth_provider === 'local' ? user.auth_provider : (provider || user.auth_provider),
+          updated_at: nowIso()
+        })
+        .eq('id', user.id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Failed to update user:', error)
+      } else {
+        user = data
+      }
+    }
+
+    req.session.userId = user.id
+    
+    const session = await buildSession(user.id)
+    res.json({ session })
+  } catch (error) {
+    console.error('Supabase sync error:', error)
+    res.status(500).json({ error: { message: error.message || 'Could not sync user.', status: 500 } })
+  }
 })
 
 app.get('/auth/purdue/connect', requireAuth, (req, res) => {
@@ -667,13 +803,13 @@ app.get('/auth/purdue/connect', requireAuth, (req, res) => {
   res.type('html').send(renderMockPurdueLinkPage(nextPath, '', req.currentUser.purdue_email))
 })
 
-app.post('/auth/purdue/dev/link', requireAuth, (req, res) => {
+app.post('/auth/purdue/dev/link', requireAuth, async (req, res) => {
   const nextPath = sanitizeNext(req.body.next)
   if (purdueAuthMode === 'cas') {
     return res.status(404).send('Mock Purdue linking is disabled while CAS mode is active.')
   }
   try {
-    linkPurdueIdentity(req.currentUser.id, {
+    await linkPurdueIdentity(req.currentUser.id, {
       email: req.body.email,
     })
     res.redirect(`${clientAppUrl}${nextPath}`)
@@ -690,7 +826,7 @@ app.get('/auth/purdue/callback', requireAuth, async (req, res) => {
   }
   try {
     const identity = await validateCasTicket(String(ticket), nextPath)
-    linkPurdueIdentity(req.currentUser.id, identity)
+    await linkPurdueIdentity(req.currentUser.id, identity)
     res.redirect(`${clientAppUrl}${nextPath}`)
   } catch (error) {
     console.error(error)
@@ -698,68 +834,70 @@ app.get('/auth/purdue/callback', requireAuth, async (req, res) => {
   }
 })
 
-app.get('/api/me/profile', requireAuth, (req, res) => {
-  res.json({ user: buildSessionPayload(req.currentUser).user })
+app.get('/api/me/profile', requireAuth, async (req, res) => {
+  const payload = await buildSessionPayload(req.currentUser)
+  res.json({ user: payload.user })
 })
 
-app.patch('/api/me/profile', requireAuth, (req, res) => {
+app.patch('/api/me/profile', requireAuth, async (req, res) => {
   try {
-    const user = updateLocalUserProfile(req.currentUser.id, {
+    const user = await updateLocalUserProfile(req.currentUser.id, {
       email: req.body.email,
       displayName: req.body.name,
       currentPassword: req.body.currentPassword,
       newPassword: req.body.newPassword,
     })
-    res.json({ user: buildSessionPayload(user).user })
+    const payload = await buildSessionPayload(user)
+    res.json({ user: payload.user })
   } catch (error) {
     res.status(400).json({ error: { message: error.message || 'Could not update profile.', status: 400 } })
   }
 })
 
-app.get('/api/me/sources', requireAuth, (req, res) => {
-  res.json({ sources: listSourcesForUser(req.currentUser.id) })
+app.get('/api/me/sources', requireAuth, async (req, res) => {
+  res.json({ sources: await listSourcesForUser(req.currentUser.id) })
 })
 
 app.post('/api/sources/purdue/schedule', requireAuth, requirePurdueLinked, async (req, res) => {
   try {
-    const source = createScheduleSource(req.currentUser.id, { icsUrl: req.body.icsUrl, label: req.body.label })
+    const source = await createScheduleSource(req.currentUser.id, { icsUrl: req.body.icsUrl, label: req.body.label })
     const sync = await syncSource(source)
-    res.status(201).json({ source: getSourceForUser(source.id, req.currentUser.id), sync })
+    res.status(201).json({ source: await getSourceForUser(source.id, req.currentUser.id), sync })
   } catch (error) {
     res.status(400).json({ error: { message: error.message || 'Could not connect the Purdue schedule source.', status: 400 } })
   }
 })
 
 app.post('/api/sync/:sourceId', requireAuth, async (req, res) => {
-  const source = getSourceForUser(req.params.sourceId, req.currentUser.id)
+  const source = await getSourceForUser(req.params.sourceId, req.currentUser.id)
   if (!source) {
     return res.status(404).json({ error: { message: 'Source not found.', status: 404 } })
   }
   try {
     const sync = await syncSource(source)
-    res.json({ source: getSourceForUser(source.id, req.currentUser.id), sync })
+    res.json({ source: await getSourceForUser(source.id, req.currentUser.id), sync })
   } catch (error) {
     res.status(400).json({ error: { message: error.message || 'Could not sync source.', status: 400 } })
   }
 })
 
-app.get('/api/me/calendar', requireAuth, (req, res) => {
+app.get('/api/me/calendar', requireAuth, async (req, res) => {
   const category = typeof req.query.category === 'string' ? req.query.category : null
   const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100
-  res.json({ items: listCalendarItems(req.currentUser.id, { category, limit, order: 'asc' }) })
+  res.json({ items: await listCalendarItems(req.currentUser.id, { category, limit, order: 'asc' }) })
 })
 
-app.get('/api/me/classes', requireAuth, (req, res) => {
+app.get('/api/me/classes', requireAuth, async (req, res) => {
   const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 20
   const term = typeof req.query.term === 'string' ? req.query.term : 'auto'
   const mode = typeof req.query.mode === 'string' ? req.query.mode : 'display'
-  const data = getClassItemsForUser(req.currentUser.id, { limit, term, mode })
+  const data = await getClassItemsForUser(req.currentUser.id, { limit, term, mode })
   res.json(data)
 })
 
-app.get('/api/me/events', requireAuth, (req, res) => {
+app.get('/api/me/events', requireAuth, async (req, res) => {
   const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 20
-  res.json({ items: listCalendarItems(req.currentUser.id, { category: 'event', limit, order: 'asc' }) })
+  res.json({ items: await listCalendarItems(req.currentUser.id, { category: 'event', limit, order: 'asc' }) })
 })
 
 app.get('/', (_req, res) => {
@@ -769,4 +907,5 @@ app.get('/', (_req, res) => {
 app.listen(port, host, () => {
   console.log(`HackIndy backend listening on ${publicBaseUrl}`)
   console.log(`Purdue link mode: ${purdueAuthMode}`)
+  console.log(`Database: Supabase`)
 })

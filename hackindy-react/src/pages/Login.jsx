@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
-import { authRequest, parseNextPath } from '../lib/authApi'
+import { parseNextPath } from '../lib/authApi'
+import { signInWithEmail, signUpWithEmail } from '../lib/supabase'
 import Icon from '../components/Icons'
 
 const asideFeatures = [
-  ['user', 'Create a normal app account first'],
+  ['user', 'Create an account with your email'],
   ['graduation', 'Link Purdue separately inside setup'],
-  ['calendar', 'Only import class data from sources you explicitly connect'],
-  ['sparkles', 'Keep auth separate from protected Purdue systems'],
+  ['calendar', 'Import class data from sources you connect'],
+  ['sparkles', 'Secure authentication powered by Supabase'],
 ]
 
 export default function Login() {
@@ -26,10 +27,17 @@ export default function Login() {
   const [pwVisible, setPwVisible] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [banner, setBanner] = useState('')
+  const [successBanner, setSuccessBanner] = useState('')
   const [fieldErr, setFieldErr] = useState({})
 
   useEffect(() => {
     const error = searchParams.get('error')
+    const message = searchParams.get('message')
+    
+    if (message) {
+      setSuccessBanner(message)
+    }
+    
     if (!error) return
     const messages = {
       'cas-config': 'Purdue linking is not configured yet on the backend.',
@@ -48,6 +56,7 @@ export default function Login() {
 
   function clearErrors() {
     setBanner('')
+    setSuccessBanner('')
     setFieldErr({})
   }
 
@@ -93,17 +102,17 @@ export default function Login() {
 
     setSubmitting(true)
     try {
-      const endpoint = tab === 'signup' ? '/api/auth/sign-up' : '/api/auth/sign-in'
-      const body = tab === 'signup'
-        ? { name: name.trim(), email: email.trim(), password }
-        : { email: email.trim(), password }
-
-      await authRequest(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(body),
-      })
-      await refreshSession()
-      navigate(parseNextPath(window.location.search), { replace: true })
+      if (tab === 'signup') {
+        await signUpWithEmail(email.trim(), password, {
+          full_name: name.trim(),
+        })
+        await refreshSession()
+        navigate(parseNextPath(window.location.search), { replace: true })
+      } else {
+        await signInWithEmail(email.trim(), password)
+        await refreshSession()
+        navigate(parseNextPath(window.location.search), { replace: true })
+      }
     } catch (error) {
       setBanner(error.message || 'Authentication failed. Please try again.')
     } finally {
@@ -135,12 +144,12 @@ export default function Login() {
           </div>
           <div className="relative my-auto max-w-[360px]">
             <h2 className="text-[clamp(1.5rem,2.5vw,2rem)] font-bold tracking-tight text-[var(--color-gold)] leading-tight mb-3">
-              Sign in normally,
+              Your campus hub,
               <br />
-              then connect Purdue.
+              all in one place.
             </h2>
             <p className="text-sm text-[var(--color-gold)]/65 leading-relaxed">
-              Your app account manages preferences and sessions. Purdue becomes a linked identity and a source for schedule data only after you explicitly connect it inside onboarding.
+              Sign up with your email and link your Purdue account later during setup to access your schedule and campus services.
             </p>
           </div>
           <div className="relative flex flex-col gap-2.5 mt-auto">
@@ -175,11 +184,11 @@ export default function Login() {
                 {isSignup ? 'Create your account' : 'Welcome back'}
               </h1>
               <p className="text-[13px] text-[var(--color-txt-1)]">
-                {isSignup ? 'Create your app account first. Purdue linking happens during setup.' : 'Sign in to your app account to continue.'}
+                {isSignup ? 'Create your account to get started.' : 'Sign in to continue to Purdue Indy Hub.'}
               </p>
             </div>
 
-            <div className="flex bg-[var(--color-bg-2)] rounded-[10px] p-1 gap-1 mb-6">
+            <div className="flex bg-[var(--color-bg-2)] rounded-[10px] p-1 gap-1 mb-5">
               <button type="button" onClick={() => { setTab('signin'); clearErrors() }} className={`flex-1 py-2 rounded-lg text-[13px] font-medium border-0 cursor-pointer transition-all ${!isSignup ? 'bg-[var(--color-surface)] text-[var(--color-txt-0)] shadow-sm' : 'bg-transparent text-[var(--color-txt-1)]'}`}>
                 Sign in
               </button>
@@ -195,11 +204,18 @@ export default function Login() {
               </div>
             )}
 
+            {successBanner && (
+              <div className="flex items-start gap-2.5 bg-[var(--color-success)]/10 border border-[var(--color-success)]/25 rounded-lg px-3.5 py-2.5 mb-4 text-[13px] text-[var(--color-success)]">
+                <Icon name="check" size={16} className="shrink-0 mt-0.5" />
+                <span>{successBanner}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="card p-6">
               {isSignup && (
                 <div className="mb-4">
                   <label htmlFor="name" className="block text-[12px] font-medium text-[var(--color-txt-1)] mb-1.5">Full name</label>
-                  <input id="name" className={`${inputBase} ${fieldErr.name ? 'border-[var(--color-error)]' : ''}`} value={name} onChange={(ev) => setName(ev.target.value)} placeholder="Antonio Segura" autoComplete="name" />
+                  <input id="name" className={`${inputBase} ${fieldErr.name ? 'border-[var(--color-error)]' : ''}`} value={name} onChange={(ev) => setName(ev.target.value)} placeholder="Your Name" autoComplete="name" />
                   {fieldErr.name && <p className="text-[11px] text-[var(--color-error)] mt-1">{fieldErr.name}</p>}
                 </div>
               )}
@@ -230,7 +246,7 @@ export default function Login() {
               )}
 
               <button type="submit" disabled={submitting} className="w-full btn btn-primary text-[14px] px-5 py-3 justify-center disabled:opacity-60">
-                <Icon name={isSignup ? 'sparkles' : 'home'} size={16} />
+                <Icon name={isSignup ? 'sparkles' : 'mail'} size={16} />
                 {submitting ? 'Please wait…' : isSignup ? 'Create account' : 'Sign in'}
               </button>
             </form>
