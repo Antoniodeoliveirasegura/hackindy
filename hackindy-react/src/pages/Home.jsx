@@ -189,11 +189,8 @@ function getHomeClassItems(items) {
   }
 
   const nonExamItems = (items || []).filter((item) => !isLikelyExamItem(item))
-  if (nonExamItems.length) {
-    return nonExamItems
-  }
-
-  return items || []
+  // Always prefer non-exam items; only fall back to full list if every item is exam-like
+  return nonExamItems.length ? nonExamItems : (items || [])
 }
 
 function deriveScheduleState(items, now) {
@@ -205,8 +202,9 @@ function deriveScheduleState(items, now) {
     }))
     .sort((a, b) => a.startDate - b.startDate)
 
-  const currentClass = normalized.find((item) => item.startDate <= now && item.endDate > now) || null
-  const nextClass = normalized.find((item) => item.startDate > now) || null
+  const currentClass = normalized.find((item) => item.startDate <= now && item.endDate > now && !isLikelyExamItem(item)) || null
+  const futureItems = normalized.filter((item) => item.startDate > now)
+  const nextClass = futureItems.find((item) => !isLikelyExamItem(item)) || futureItems[0] || null
 
   const displayClass = currentClass || nextClass
   let freeMinutes = 0
@@ -231,7 +229,7 @@ function deriveScheduleState(items, now) {
     freeMinutes = getMinutesBetween(nextClass.startDate, now)
     freeLabel = `Free before ${nextClass.title}`
     statusLabel = `In ${formatDuration(freeMinutes)}`
-    cardLabel = 'Next Class'
+    cardLabel = isLikelyExamItem(nextClass) ? 'Next Exam' : 'Next Class'
     cardMeta = `${new Date(nextClass.startTime).toLocaleDateString(undefined, { weekday: 'long' })} · ${formatTimeRange(nextClass.startTime, nextClass.endTime)}`
   }
 
