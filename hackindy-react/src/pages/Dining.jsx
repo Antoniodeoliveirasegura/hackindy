@@ -136,32 +136,36 @@ export default function Dining() {
   const [live, setLive] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
 
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/dining')
+  function loadMenu(force = false) {
+    if (force) setRefreshing(true)
+    else setLoading(true)
+    setLoadError('')
+    fetch(`/api/dining${force ? '?refresh=1' : ''}`)
       .then((r) => r.json())
       .then((data) => {
-        if (cancelled) return
         if (data?.ok && Array.isArray(data.locations)) setLive(data)
         else setLoadError('Live menus are temporarily unavailable.')
       })
-      .catch(() => {
-        if (!cancelled) setLoadError('Could not reach the dining server.')
-      })
+      .catch(() => setLoadError('Could not reach the dining server.'))
       .finally(() => {
-        if (!cancelled) setLoading(false)
+        setLoading(false)
+        setRefreshing(false)
       })
-    return () => {
-      cancelled = true
-    }
+  }
+
+  useEffect(() => {
+    loadMenu()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const locations = useMemo(() => {
+    if (loading) return []
     const api = (live?.locations || []).map(nutrisliceToLocation)
     return [...api, ...STATIC_LOCATIONS]
-  }, [live])
+  }, [live, loading])
 
   useEffect(() => {
     if (!locations.length) return
@@ -183,19 +187,31 @@ export default function Dining() {
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Campus Dining</h1>
-          <p className="text-[14px] text-[var(--color-txt-2)] mt-1">Tower & Campus Center menus from Nutrislice (cached ~12h)</p>
+          <p className="text-[14px] text-[var(--color-txt-2)] mt-1">
+            {live?.date ? `Menu for ${live.date}` : "Today's menu"}
+            {live?.cached ? ' · cached' : ''}
+          </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2.5 shadow-sm">
-            <Icon name="clock" size={14} className="text-[var(--color-txt-3)]" />
-            {selected ? headerBlurb : loading ? 'Loading…' : '—'}
-          </div>
-          {live?.fetchedAt && (
-            <span className="text-[11px] text-[var(--color-txt-3)]">
-              Menu date {live.date}
-              {live.cached ? ' · served from cache' : ''}
-            </span>
+        <div className="flex items-center gap-2">
+          {selected && !loading && (
+            <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2.5 shadow-sm">
+              <Icon name="clock" size={14} className="text-[var(--color-txt-3)]" />
+              {headerBlurb}
+            </div>
           )}
+          <button
+            type="button"
+            onClick={() => loadMenu(true)}
+            disabled={refreshing || loading}
+            title="Force-refresh menu"
+            className="flex items-center justify-center w-10 h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm hover:bg-[var(--color-bg-3)] transition-colors disabled:opacity-40"
+          >
+            <Icon
+              name="refresh"
+              size={14}
+              className={`text-[var(--color-txt-2)] ${refreshing ? 'animate-spin' : ''}`}
+            />
+          </button>
         </div>
       </div>
 
@@ -205,6 +221,35 @@ export default function Dining() {
         </div>
       )}
 
+      {loading ? (
+        /* ── Skeleton ── */
+        <div className="animate-pulse">
+          <div className="flex gap-2 mb-6">
+            <div className="h-11 w-36 rounded-xl bg-[var(--color-stat)]" />
+            <div className="h-11 w-32 rounded-xl bg-[var(--color-stat)]" />
+          </div>
+          <div className="card p-6 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="space-y-2">
+                <div className="h-5 w-40 rounded-lg bg-[var(--color-stat)]" />
+                <div className="h-3.5 w-52 rounded-lg bg-[var(--color-stat)]" />
+              </div>
+              <div className="h-9 w-28 rounded-xl bg-[var(--color-stat)]" />
+            </div>
+            <div className="grid md:grid-cols-3 gap-6">
+              {[0, 1, 2].map((col) => (
+                <div key={col} className="space-y-2">
+                  <div className="h-3 w-20 rounded bg-[var(--color-stat)] mb-3" />
+                  {[0, 1, 2, 3].map((row) => (
+                    <div key={row} className="h-9 rounded-xl bg-[var(--color-stat)]" />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
       <div className="flex gap-2 mb-6 overflow-x-auto pb-1 -mx-1 px-1 animate-fade-in-up stagger-1">
         {locations.map((loc) => {
           const isSelected = selected && loc.id === selected.id
@@ -309,6 +354,8 @@ export default function Dining() {
           ))}
         </div>
       </div>
+        </>
+      )}
     </div>
   )
 }
