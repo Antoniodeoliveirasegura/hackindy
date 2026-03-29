@@ -638,3 +638,36 @@ body {
   animation: shimmer 1.5s infinite;
   border-radius: 8px;
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PURDUE GOLD MAP (DARK MODE) - ARCHITECTURAL EDITION
+═══════════════════════════════════════════════════════════════════════════ */
+
+.dark-purdue-map .leaflet-tile-pane {
+  /* Shifted hue-rotate to -15deg for a true gold/yellow glow rather than red */
+  filter: sepia(100%) hue-rotate(-15deg) saturate(450%) brightness(0.9) contrast(120%) invert(5%);
+}
+
+/* Style for the permanent building abbreviation labels */
+.building-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #FFD700 !important; /* Brighter Gold */
+  font-weight: 900 !important;
+  font-size: 10px !important;
+  text-shadow: 2px 2px 3px rgba(0,0,0,1);
+  pointer-events: none;
+}
+
+/* Style for the new building outlines */
+.building-outline {
+  pointer-events: none;
+  filter: drop-shadow(0 0 2px rgba(212, 168, 75, 0.5));
+}
+
+.dark-purdue-map .leaflet-marker-pane,
+.dark-purdue-map .leaflet-popup-pane {
+  filter: none !important;
+}
