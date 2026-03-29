@@ -3,12 +3,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
 import Icon from '../components/Icons'
+import {
+  routes as transitRoutes,
+  TRANLOC_ROUTE_ALIASES,
+  UNKNOWN_ROUTE,
+  canonicalFromMap,
+  buildTranslocRouteIdMap,
+  nearestStopForVehicle,
+} from '../lib/transitShared'
 
-const quickActions = [
+const quickActionTemplates = [
   { path: '/map', label: 'Campus Map', sub: 'Find any building', icon: 'mapPin', color: 'map' },
   { path: '/dining', label: 'Dining', sub: 'See what\'s open', icon: 'dining', color: 'dining' },
   { path: '/transit', label: 'Transit', sub: 'Live bus times', icon: 'bus', color: 'bus' },
-  { path: '/events', label: 'Events', sub: '3 happening today', icon: 'calendar', color: 'events' },
+  { path: '/events', label: 'Events', sub: '', icon: 'calendar', color: 'events' },
 ]
 
 const fallbackSuggestions = [
@@ -17,17 +25,58 @@ const fallbackSuggestions = [
   { icon: 'dining', text: 'Lunch at Tower Dining', time: 'Opens 11 AM' },
 ]
 
-const events = [
-  { title: 'Hackathon Kickoff Workshop', time: '10:00 AM', location: 'ET 108', type: 'e', badge: 'Engineering' },
-  { title: 'Spring Career Fair', time: '12:00 PM', location: 'Campus Center', type: 'c', badge: 'Career' },
-  { title: 'Student Org Showcase', time: '3:00 PM', location: 'IUPUI Commons', type: 's', badge: 'Social' },
-]
+const CALENDAR_EVENT_CATEGORIES = 'campus_event,event,deadline'
 
-const busSchedule = [
-  { time: '12:38 PM', route: 'Union → ET → Campus Ctr', mins: 8 },
-  { time: '1:08 PM', route: 'Union → ET → Campus Ctr', mins: 38 },
-  { time: '1:38 PM', route: 'Union → ET → Campus Ctr', mins: 68 },
-]
+const homeEventCategory = {
+  campus_event: {
+    label: 'Campus Event',
+    badge: 'bg-pink-50 dark:bg-pink-900/20 text-pink-700 dark:text-pink-400',
+    dot: 'bg-pink-500',
+  },
+  event: {
+    label: 'Event',
+    badge: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400',
+    dot: 'bg-indigo-500',
+  },
+  deadline: {
+    label: 'Deadline',
+    badge: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400',
+    dot: 'bg-yellow-500',
+  },
+}
+
+function isSameLocalDay(isoOrDate, now) {
+  return new Date(isoOrDate).toDateString() === now.toDateString()
+}
+
+/** Event still has time left today (not fully ended). All-day (midnight start) stays for the whole local day. */
+function isStillRelevantToday(item, now) {
+  const start = new Date(item.startTime)
+  const end = item.endTime ? new Date(item.endTime) : null
+  const likelyAllDay = start.getHours() === 0 && start.getMinutes() === 0
+  if (likelyAllDay && isSameLocalDay(item.startTime, now)) {
+    if (end) return end > now
+    return true
+  }
+  if (end) return end > now
+  return start >= now
+}
+
+function filterTodayRelevantEvents(items, now) {
+  return (items || [])
+    .filter((item) => isSameLocalDay(item.startTime, now) && isStillRelevantToday(item, now))
+    .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+}
+
+function formatDashboardEventTime(startTime, endTime) {
+  const start = new Date(startTime)
+  if (start.getHours() === 0 && start.getMinutes() === 0) return 'All day'
+  const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  if (!endTime) return startLabel
+  const end = new Date(endTime)
+  const endLabel = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return `${startLabel} – ${endLabel}`
+}
 
 const boardPosts = [
   { title: 'Anyone know if ET 215 has outlets near the windows?', user: 'Anonymous', votes: 14, replies: 5, hot: true },
@@ -35,7 +84,7 @@ const boardPosts = [
   { title: 'Is the Career Fair open to freshmen?', user: 'Anonymous', votes: 8, replies: 3, hot: false },
 ]
 
-const menuItems = {
+const fallbackMenuPreview = {
   entrees: ['Grilled Chicken', 'Pasta Marinara', 'Black Bean Burger', 'Mac & Cheese'],
   sides: ['Caesar Salad', 'Roasted Veggies', 'Garlic Bread'],
 }
@@ -45,18 +94,6 @@ const colorMap = {
   dining: 'bg-[var(--color-dining-bg)] text-[var(--color-dining-color)]',
   bus: 'bg-[var(--color-bus-bg)] text-[var(--color-bus-title)]',
   events: 'bg-[var(--color-events-bg)] text-[var(--color-events-color)]',
-}
-
-const badgeColors = {
-  e: 'bg-[var(--color-map-bg)] text-[var(--color-map-color)]',
-  c: 'bg-[var(--color-dining-bg)] text-[var(--color-dining-color)]',
-  s: 'bg-[var(--color-events-bg)] text-[var(--color-events-color)]',
-}
-
-const dotColors = {
-  e: 'bg-[var(--color-map-color)]',
-  c: 'bg-[var(--color-dining-color)]',
-  s: 'bg-[var(--color-events-color)]',
 }
 
 function getGreeting(now) {
@@ -210,6 +247,11 @@ function deriveScheduleState(items, now) {
   }
 }
 
+function formatNearDistance(meters) {
+  if (meters < 1000) return `${Math.round(meters)}m`
+  return `${(meters / 1000).toFixed(1)} km`
+}
+
 function buildSuggestions(freeMinutes) {
   if (freeMinutes >= 90) {
     return [
@@ -241,6 +283,46 @@ export default function Home() {
   const [now, setNow] = useState(() => new Date())
   const [classes, setClasses] = useState([])
   const [classLoadError, setClassLoadError] = useState('')
+  const [calendarItems, setCalendarItems] = useState([])
+  const [calendarLoadError, setCalendarLoadError] = useState('')
+  const [calendarLoading, setCalendarLoading] = useState(true)
+
+  const [transitVehicles, setTransitVehicles] = useState([])
+  const [transitStops, setTransitStops] = useState([])
+  const [transitRouteMap, setTransitRouteMap] = useState(() => ({ ...TRANLOC_ROUTE_ALIASES }))
+  const [transitLoading, setTransitLoading] = useState(true)
+  const [transitError, setTransitError] = useState('')
+  const [transitUpdated, setTransitUpdated] = useState(null)
+
+  const [diningPreview, setDiningPreview] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/dining')
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled || !data?.ok || !Array.isArray(data.locations)) return
+        const tower = data.locations.find((l) => l.slug === 'tower-dining') || data.locations[0]
+        if (!tower) return
+        const entrees = (tower.entrees || []).slice(0, 4)
+        const sides = (tower.sides || []).slice(0, 3)
+        if (entrees.length + sides.length === 0 && Array.isArray(tower.menu_items) && tower.menu_items.length) {
+          const names = tower.menu_items.map((m) => m.name).filter(Boolean)
+          setDiningPreview({
+            entrees: names.slice(0, 4),
+            sides: names.slice(4, 7),
+          })
+          return
+        }
+        setDiningPreview({ entrees, sides })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const menuSnapshot = diningPreview || fallbackMenuPreview
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 60000)
@@ -250,20 +332,84 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      try {
-        const response = await authRequest('/api/me/classes?limit=200&mode=display')
-        if (cancelled) return
-        setClasses(response.items || [])
+      setCalendarLoading(true)
+      const [classesResult, calResult] = await Promise.allSettled([
+        authRequest('/api/me/classes?limit=200&mode=display'),
+        authRequest(`/api/me/calendar?categories=${CALENDAR_EVENT_CATEGORIES}&limit=200`),
+      ])
+      if (cancelled) return
+      if (classesResult.status === 'fulfilled') {
+        setClasses(classesResult.value.items || [])
         setClassLoadError('')
-      } catch (error) {
-        if (!cancelled) {
-          setClasses([])
-          setClassLoadError(error.message || 'Could not load classes.')
-        }
+      } else {
+        setClasses([])
+        setClassLoadError(classesResult.reason?.message || 'Could not load classes.')
       }
+      if (calResult.status === 'fulfilled') {
+        setCalendarItems(calResult.value.items || [])
+        setCalendarLoadError('')
+      } else {
+        setCalendarItems([])
+        setCalendarLoadError(calResult.reason?.message || 'Could not load events.')
+      }
+      setCalendarLoading(false)
     })()
     return () => {
       cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadStopsAndRoutes() {
+      try {
+        const [sRes, rRes] = await Promise.all([fetch('/api/transit/stops'), fetch('/api/transit/routes')])
+        const stopsData = sRes.ok ? await sRes.json() : []
+        const routesData = rRes.ok ? await rRes.json() : null
+        if (cancelled) return
+        setTransitStops(Array.isArray(stopsData) ? stopsData : [])
+        if (Array.isArray(routesData)) {
+          setTransitRouteMap(buildTranslocRouteIdMap(routesData))
+        }
+      } catch {
+        if (!cancelled) setTransitStops([])
+      }
+    }
+
+    async function loadVehicles() {
+      try {
+        const res = await fetch('/api/transit/vehicles')
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok || (data && typeof data === 'object' && !Array.isArray(data) && data.error)) {
+          setTransitError(typeof data?.error === 'string' ? data.error : 'Could not load live buses.')
+          setTransitVehicles([])
+        } else {
+          setTransitError('')
+          setTransitVehicles(Array.isArray(data) ? data : [])
+        }
+        setTransitUpdated(new Date())
+      } catch (e) {
+        if (!cancelled) {
+          setTransitError(e?.message || 'Could not load live buses.')
+          setTransitVehicles([])
+        }
+      }
+    }
+
+    ;(async () => {
+      setTransitLoading(true)
+      setTransitError('')
+      await loadStopsAndRoutes()
+      await loadVehicles()
+      if (!cancelled) setTransitLoading(false)
+    })()
+
+    const id = window.setInterval(loadVehicles, 10000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
     }
   }, [])
 
@@ -271,9 +417,64 @@ export default function Home() {
   const scheduleState = useMemo(() => deriveScheduleState(homeClasses, now), [homeClasses, now])
   const suggestions = useMemo(() => buildSuggestions(scheduleState.freeMinutes), [scheduleState.freeMinutes])
 
+  const todayRelevantEvents = useMemo(
+    () => filterTodayRelevantEvents(calendarItems, now),
+    [calendarItems, now],
+  )
+  const todayEventsPreview = useMemo(() => todayRelevantEvents.slice(0, 6), [todayRelevantEvents])
+
+  const eventsQuickSub = useMemo(() => {
+    if (calendarLoading) return 'Loading…'
+    if (todayRelevantEvents.length === 0) return 'None today'
+    if (todayRelevantEvents.length === 1) return '1 today'
+    return `${todayRelevantEvents.length} today`
+  }, [calendarLoading, todayRelevantEvents.length])
+
+  const transitQuickSub = useMemo(() => {
+    if (transitLoading && transitVehicles.length === 0 && !transitError) return 'Loading…'
+    if (transitError && transitVehicles.length === 0) return 'Tap for map'
+    if (transitVehicles.length === 0) return 'No buses live'
+    return `${transitVehicles.length} bus${transitVehicles.length === 1 ? '' : 'es'} live`
+  }, [transitLoading, transitVehicles.length, transitError])
+
+  const transitDashboardRows = useMemo(() => {
+    const mapped = (transitVehicles || []).map((v) => {
+      const canon = canonicalFromMap(transitRouteMap, v.RouteID)
+      const route = transitRoutes.find((r) => r.id === canon) || UNKNOWN_ROUTE
+      const near = nearestStopForVehicle(transitStops, v, transitRouteMap)
+      const speed = Number(v.GroundSpeed) || 0
+      const moving = speed > 0.5
+      return {
+        key: v.VehicleID ?? `${v.Latitude},${v.Longitude},${v.RouteID}`,
+        vehicle: v,
+        route,
+        near,
+        speed,
+        moving,
+      }
+    })
+    mapped.sort((a, b) => {
+      const byRoute = a.route.shortName.localeCompare(b.route.shortName)
+      if (byRoute !== 0) return byRoute
+      return String(a.vehicle.Name || '').localeCompare(String(b.vehicle.Name || ''))
+    })
+    return mapped.slice(0, 5)
+  }, [transitVehicles, transitStops, transitRouteMap])
+
+  const quickActions = useMemo(
+    () =>
+      quickActionTemplates.map((a) => {
+        if (a.path === '/events') return { ...a, sub: eventsQuickSub }
+        if (a.path === '/transit') return { ...a, sub: transitQuickSub }
+        return a
+      }),
+    [eventsQuickSub, transitQuickSub],
+  )
+
   const needsPurdueConnection = onboarding?.needsPurdueConnection
   const needsScheduleSource = onboarding?.needsScheduleSource
   const showSetupBanner = needsPurdueConnection || needsScheduleSource
+  const hasNoCalendarSources = onboarding?.linkedSourceCount === 0
   const displayClass = scheduleState.displayClass
 
   return (
@@ -447,40 +648,140 @@ export default function Home() {
             <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">Today's Events</span>
             <Link to="/events" className="text-[12px] text-[var(--color-accent)] hover:underline">View all</Link>
           </div>
+          {hasNoCalendarSources && (
+            <div className="rounded-xl border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/8 p-4 mb-4">
+              <div className="text-[13px] font-medium text-[var(--color-txt-0)]">Connect your calendar</div>
+              <p className="text-[12px] text-[var(--color-txt-2)] mt-1">
+                Link Brightspace or another source in setup so today&apos;s campus events match your feed.
+              </p>
+              <Link to="/setup" className="inline-flex items-center gap-1.5 text-[12px] text-[var(--color-accent)] font-medium mt-2 hover:underline">
+                <Icon name="calendar" size={14} />
+                Go to setup
+              </Link>
+            </div>
+          )}
+          {calendarLoadError && !calendarLoading && (
+            <p className="text-[12px] text-[var(--color-txt-2)] mb-3">{calendarLoadError}</p>
+          )}
           <div className="space-y-3">
-            {events.map((event, idx) => (
-              <div key={idx} className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)]">
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="text-[14px] font-medium text-[var(--color-txt-0)] leading-snug">{event.title}</div>
-                  <span className={`badge ${badgeColors[event.type]}`}>{event.badge}</span>
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--color-txt-2)]">
-                  <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${dotColors[event.type]}`} />{event.time}</span>
-                  <span className="flex items-center gap-1.5"><Icon name="mapPin" size={12} />{event.location}</span>
-                </div>
+            {calendarLoading ? (
+              <div className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] text-[13px] text-[var(--color-txt-2)]">
+                Loading today&apos;s events…
               </div>
-            ))}
+            ) : todayEventsPreview.length === 0 ? (
+              !hasNoCalendarSources ? (
+                <div className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] text-[13px] text-[var(--color-txt-2)]">
+                  No more events scheduled for the rest of today.
+                </div>
+              ) : null
+            ) : (
+              todayEventsPreview.map((item) => {
+                const cat = homeEventCategory[item.category] || homeEventCategory.event
+                const loc = item.location ? item.location.split(' (')[0] : null
+                return (
+                  <div key={item.id} className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)]">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="text-[14px] font-medium text-[var(--color-txt-0)] leading-snug">{item.title}</div>
+                      <span className={`badge shrink-0 ${cat.badge}`}>{cat.label}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--color-txt-2)]">
+                      <span className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${cat.dot}`} />
+                        {formatDashboardEventTime(item.startTime, item.endTime)}
+                      </span>
+                      {loc && (
+                        <span className="flex items-center gap-1.5 min-w-0">
+                          <Icon name="mapPin" size={12} className="shrink-0" />
+                          <span className="truncate">{loc}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            )}
+            {!calendarLoading && todayRelevantEvents.length > todayEventsPreview.length && (
+              <p className="text-[11px] text-[var(--color-txt-3)] text-center pt-1">
+                +{todayRelevantEvents.length - todayEventsPreview.length} more on the{' '}
+                <Link to="/events" className="text-[var(--color-accent)] hover:underline">
+                  events page
+                </Link>
+              </p>
+            )}
           </div>
         </div>
 
         <div className="card p-5 transition-all duration-700 delay-[500ms] opacity-100 translate-y-0">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">Shuttle Times</span>
-            <Link to="/transit" className="text-[12px] text-[var(--color-accent)] hover:underline">See routes</Link>
+          <div className="flex items-center justify-between mb-4 gap-2">
+            <div>
+              <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">Live shuttles</span>
+              {transitUpdated && !transitLoading && (
+                <div className="text-[10px] text-[var(--color-txt-3)] mt-0.5">
+                  Updated {transitUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                </div>
+              )}
+            </div>
+            <Link to="/transit" className="text-[12px] text-[var(--color-accent)] hover:underline shrink-0">Map & routes</Link>
           </div>
           <div className="space-y-3">
-            {busSchedule.map((bus, idx) => (
-              <div key={idx} className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] flex items-center justify-between gap-4">
-                <div>
-                  <div className="text-[14px] font-medium text-[var(--color-txt-0)]">{bus.route}</div>
-                  <div className="text-[12px] text-[var(--color-txt-2)] mt-1">Departs at {bus.time}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[18px] font-semibold text-[var(--color-txt-0)]">{bus.mins}m</div>
-                  <div className="text-[11px] text-[var(--color-txt-3)]">away</div>
-                </div>
+            {transitLoading && transitVehicles.length === 0 ? (
+              <div className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] text-[13px] text-[var(--color-txt-2)]">
+                Loading live bus positions…
               </div>
-            ))}
+            ) : transitError && transitVehicles.length === 0 ? (
+              <div className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)]">
+                <p className="text-[13px] text-[var(--color-txt-2)]">{transitError}</p>
+                <Link to="/transit" className="text-[12px] text-[var(--color-accent)] font-medium mt-2 inline-block hover:underline">
+                  Open transit
+                </Link>
+              </div>
+            ) : transitDashboardRows.length === 0 ? (
+              <div className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] text-[13px] text-[var(--color-txt-2)]">
+                No buses active right now. Check the transit map for routes and alerts.
+              </div>
+            ) : (
+              transitDashboardRows.map(({ key, vehicle, route, near, speed, moving }) => (
+                <div
+                  key={key}
+                  className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] flex items-center justify-between gap-4"
+                >
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0 mt-1.5"
+                      style={{ backgroundColor: route.color }}
+                      title={route.name}
+                    />
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-medium text-[var(--color-txt-0)]">{route.name}</div>
+                      <div className="text-[12px] text-[var(--color-txt-2)] mt-1">
+                        Bus {vehicle.Name}
+                        {near && (
+                          <>
+                            {' '}
+                            · Near {near.description}
+                            <span className="text-[var(--color-txt-3)]"> ({formatNearDistance(near.meters)})</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-[18px] font-semibold text-[var(--color-txt-0)]">
+                      {moving ? Math.round(speed) : '—'}
+                    </div>
+                    <div className="text-[11px] text-[var(--color-txt-3)]">{moving ? 'mph' : 'stopped'}</div>
+                  </div>
+                </div>
+              ))
+            )}
+            {!transitLoading && transitVehicles.length > transitDashboardRows.length ? (
+              <p className="text-[11px] text-[var(--color-txt-3)] text-center pt-1">
+                +{transitVehicles.length - transitDashboardRows.length} more on{' '}
+                <Link to="/transit" className="text-[var(--color-accent)] hover:underline">
+                  transit
+                </Link>
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -495,7 +796,7 @@ export default function Home() {
             <div>
               <div className="text-[12px] font-medium text-[var(--color-txt-1)] mb-2">Entrees</div>
               <div className="flex flex-wrap gap-2">
-                {menuItems.entrees.map((item) => (
+                {menuSnapshot.entrees.map((item) => (
                   <span key={item} className="badge">{item}</span>
                 ))}
               </div>
@@ -503,7 +804,7 @@ export default function Home() {
             <div>
               <div className="text-[12px] font-medium text-[var(--color-txt-1)] mb-2">Sides</div>
               <div className="flex flex-wrap gap-2">
-                {menuItems.sides.map((item) => (
+                {menuSnapshot.sides.map((item) => (
                   <span key={item} className="badge">{item}</span>
                 ))}
               </div>
