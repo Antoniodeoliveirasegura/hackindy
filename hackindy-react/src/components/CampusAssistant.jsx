@@ -23,8 +23,28 @@ export default function CampusAssistant() {
   ])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [pendingMessage, setPendingMessage] = useState(null)
   const messagesRef = useRef(null)
   const inputRef = useRef(null)
+
+  // Listen for external trigger (e.g. "Ask AI what to do" button on dashboard)
+  useEffect(() => {
+    const handler = (e) => {
+      setOpen(true)
+      if (e.detail?.message) setPendingMessage(e.detail.message)
+    }
+    window.addEventListener('open-campus-assistant', handler)
+    return () => window.removeEventListener('open-campus-assistant', handler)
+  }, [])
+
+  // Fire pending message once the panel is open and messages state is fresh
+  useEffect(() => {
+    if (pendingMessage) {
+      setPendingMessage(null)
+      setTimeout(() => handleSend(pendingMessage), 200)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingMessage])
 
   useEffect(() => {
     if (messagesRef.current) {
@@ -48,6 +68,7 @@ export default function CampusAssistant() {
     try {
       const res = await fetch('/api/assistant', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: nextMessages }),
       })

@@ -296,6 +296,45 @@ export default function Home() {
 
   const [diningPreview, setDiningPreview] = useState(null)
 
+  // ── AI Week Digest ──────────────────────────────────────────────────────────
+  function getWeekKey() {
+    const d = new Date()
+    const day = d.getDay()
+    const monday = new Date(d)
+    monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+    return `ai-week-digest-${monday.toISOString().slice(0, 10)}`
+  }
+  const [weekDigest, setWeekDigest] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(getWeekKey())) ?? null } catch { return null }
+  })
+  const [digestLoading, setDigestLoading] = useState(false)
+
+  const generateDigest = () => {
+    setDigestLoading(true)
+    fetch('/api/assistant', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: 'Give me a short friendly 3-sentence summary of my week ahead — call out key classes, assignments due, and any notable events by day and time. Be specific, not generic.' }],
+      }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (d.reply) {
+          setWeekDigest(d.reply)
+          try { localStorage.setItem(getWeekKey(), JSON.stringify(d.reply)) } catch {}
+        }
+      })
+      .catch(() => {})
+      .finally(() => setDigestLoading(false))
+  }
+
+  useEffect(() => {
+    if (!weekDigest) generateDigest()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     fetch('/api/dining')
@@ -530,6 +569,33 @@ export default function Home() {
         </div>
       )}
 
+      {/* AI Week Digest */}
+      <div className="card p-4 mb-6 transition-all duration-700 delay-75 opacity-100 translate-y-0 border-[var(--color-gold)]/20">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0">
+              <Icon name="sparkles" size={12} className="text-[var(--color-gold-dark)]" />
+            </div>
+            <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">AI · Week Ahead</span>
+          </div>
+          <button
+            onClick={generateDigest}
+            disabled={digestLoading}
+            className="text-[11px] text-[var(--color-accent)] hover:underline disabled:opacity-40 shrink-0"
+          >
+            {digestLoading ? 'Generating…' : 'Refresh'}
+          </button>
+        </div>
+        {digestLoading && !weekDigest ? (
+          <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)]">
+            <div className="w-3.5 h-3.5 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin shrink-0" />
+            Generating your week summary…
+          </div>
+        ) : weekDigest ? (
+          <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed">{weekDigest}</p>
+        ) : null}
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 transition-all duration-700 delay-100 opacity-100 translate-y-0">
         {quickActions.map(({ path, label, sub, icon, color }, idx) => (
           <Link
@@ -628,8 +694,19 @@ export default function Home() {
           </p>
 
           <div className="bg-[var(--color-stat)] rounded-xl p-4">
-            <div className="text-[10px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-3">
-              What you could do
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-[10px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">
+                What you could do
+              </div>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('open-campus-assistant', {
+                  detail: { message: 'What should I do right now? Consider my free time, dining hours, any upcoming events or classes, and give me a specific personalized suggestion.' }
+                }))}
+                className="flex items-center gap-1 text-[11px] text-[var(--color-gold-muted)] hover:text-[var(--color-gold)] transition-colors"
+              >
+                <Icon name="sparkles" size={11} />
+                Ask AI
+              </button>
             </div>
             <div className="space-y-2.5">
               {suggestions.map(({ icon, text, time }, idx) => (

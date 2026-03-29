@@ -15,6 +15,38 @@ export default function Board() {
   const [newBody, setNewBody] = useState('')
   const [isAnon, setIsAnon] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [improving, setImproving] = useState(false)
+
+  const handleImprovePost = async () => {
+    if (!newTitle.trim() || improving) return
+    setImproving(true)
+    try {
+      const res = await fetch('/api/assistant', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{
+            role: 'user',
+            content: `Improve this campus board post to be clearer and more likely to get helpful responses. Keep the same question intent. Return ONLY the improved title on the first line, then a blank line, then the improved body (or nothing if no body needed). No explanations.\n\nTitle: ${newTitle}\nBody: ${newBody}`,
+          }],
+        }),
+      })
+      const data = await res.json()
+      if (data.reply) {
+        const lines = data.reply.trim().split('\n')
+        const title = lines[0].replace(/^(Title:\s*|#+\s*)/i, '').trim()
+        const bodyLines = lines.slice(1).filter((l, i) => i > 0 || l.trim())
+        const body = bodyLines.join('\n').replace(/^(Body:\s*)/i, '').trim()
+        if (title) setNewTitle(title)
+        if (body) setNewBody(body)
+      }
+    } catch (err) {
+      console.error('Improve post error', err)
+    } finally {
+      setImproving(false)
+    }
+  }
   const mounted = true
 
   const currentUserName = getDisplayName()
@@ -148,7 +180,7 @@ export default function Board() {
             placeholder="Add more context (optional)..."
             className="input w-full text-[14px] px-4 py-3 resize-y min-h-[100px] mb-4"
           />
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <label className="flex items-center gap-2.5 text-[13px] text-[var(--color-txt-1)] cursor-pointer select-none">
               <div
                 className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isAnon ? 'bg-[var(--color-gold)] border-[var(--color-gold)]' : 'border-[var(--color-border-2)] bg-transparent'}`}
@@ -164,13 +196,24 @@ export default function Board() {
               />
               Post anonymously
             </label>
-            <button
-              onClick={handleSubmitPost}
-              disabled={!newTitle.trim() || submitting}
-              className="btn btn-primary text-[13px] px-5 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {submitting ? 'Posting…' : 'Post question'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleImprovePost}
+                disabled={!newTitle.trim() || improving}
+                className="btn btn-secondary text-[13px] px-4 py-2.5 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                title="Let AI rewrite your post to be clearer"
+              >
+                <Icon name="sparkles" size={13} />
+                {improving ? 'Improving…' : 'Improve'}
+              </button>
+              <button
+                onClick={handleSubmitPost}
+                disabled={!newTitle.trim() || submitting}
+                className="btn btn-primary text-[13px] px-5 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Posting…' : 'Post question'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
