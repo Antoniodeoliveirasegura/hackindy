@@ -1549,7 +1549,7 @@ app.post('/api/assistant', async (req, res) => {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
-        generationConfig: { maxOutputTokens: 1500, temperature: 0.65 },
+        generationConfig: { maxOutputTokens: 2500, temperature: 0.65 },
       }),
     })
 
@@ -1656,9 +1656,7 @@ app.get('/api/board/posts', requireAuth, async (req, res) => {
 
   let query = supabase
     .from('board_posts')
-    .select(
-      'id, title, body, is_anon, pinned, upvote_count, reply_count, tags, created_at, user_id, users!board_posts_user_id_fkey ( display_name )',
-    )
+    .select('id, title, body, is_anon, pinned, upvote_count, reply_count, tags, created_at, user_id')
   if (sort === 'popular') {
     query = query
       .order('pinned', { ascending: false })
@@ -1677,12 +1675,25 @@ app.get('/api/board/posts', requireAuth, async (req, res) => {
   if (postIds.length > 0) {
     const { data: rd } = await supabase
       .from('board_replies')
-      .select(
-        'id, post_id, body, is_anon, created_at, user_id, users!board_replies_user_id_fkey ( display_name )',
-      )
+      .select('id, post_id, body, is_anon, created_at, user_id')
       .in('post_id', postIds)
       .order('created_at', { ascending: true })
     repliesData = rd || []
+  }
+
+  // Batch-fetch display names for all non-anonymous user IDs
+  const allUserIds = new Set()
+  for (const p of postsData) { if (!p.is_anon) allUserIds.add(p.user_id) }
+  for (const r of repliesData) { if (!r.is_anon) allUserIds.add(r.user_id) }
+  const nameMap = {}
+  if (allUserIds.size > 0) {
+    const { data: usersData } = await supabase
+      .from('users')
+      .select('id, display_name')
+      .in('id', [...allUserIds])
+    if (usersData) {
+      for (const u of usersData) nameMap[u.id] = u.display_name
+    }
   }
 
   let upvotedIds = new Set()
@@ -1701,7 +1712,7 @@ app.get('/api/board/posts', requireAuth, async (req, res) => {
     repliesByPost[reply.post_id].push({
       id: reply.id,
       body: reply.body,
-      user: reply.is_anon ? 'Anonymous' : (reply.users?.display_name || 'Student'),
+      user: reply.is_anon ? 'Anonymous' : (nameMap[reply.user_id] || 'Student'),
       time: reply.created_at,
     })
   }
@@ -1712,7 +1723,7 @@ app.get('/api/board/posts', requireAuth, async (req, res) => {
     title: p.title,
     body: p.body,
     anon: p.is_anon,
-    user: p.is_anon ? 'Anonymous' : (p.users?.display_name || 'Student'),
+    user: p.is_anon ? 'Anonymous' : (nameMap[p.user_id] || 'Student'),
     upvotes: p.upvote_count,
     pinned: p.pinned,
     hot: !p.pinned && p.upvote_count >= 10,

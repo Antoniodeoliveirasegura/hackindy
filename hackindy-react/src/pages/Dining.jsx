@@ -1,36 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Icon from '../components/Icons'
 
-const STATIC_LOCATIONS = [
-  {
-    id: 'library-cafe',
-    name: 'Library Café',
-    source: 'static',
-    status: 'open',
-    hours: 'Closes 10:00 PM',
-    meal: 'Coffee & Snacks',
-    rating: 4.7,
-    stations: [
-      { name: 'Entrées', items: [{ name: 'Bagels' }, { name: 'Muffins' }, { name: 'Breakfast Sandwiches' }] },
-      { name: 'Sides', items: [{ name: 'Yogurt Parfait' }, { name: 'Fruit Cup' }] },
-      { name: 'Desserts', items: [{ name: 'Pastries' }, { name: 'Cookies' }] },
-    ],
-  },
-  {
-    id: 'late-night-grill',
-    name: 'Late Night Grill',
-    source: 'static',
-    status: 'closed',
-    hours: 'Opens 9:00 PM',
-    meal: 'Late Night',
-    rating: 4.0,
-    stations: [
-      { name: 'Grill', items: [{ name: 'Burgers' }, { name: 'Wings' }, { name: 'Loaded Fries' }, { name: 'Quesadillas' }] },
-      { name: 'Sides', items: [{ name: 'Mozzarella Sticks' }, { name: 'Nachos' }] },
-      { name: 'Desserts', items: [{ name: 'Milkshakes' }, { name: 'Churros' }] },
-    ],
-  },
-]
+const STATIC_LOCATIONS = []
 
 const GENERIC_HOURS = [
   { meal: 'Breakfast', time: '7:00 – 10:30 AM', icon: 'coffee' },

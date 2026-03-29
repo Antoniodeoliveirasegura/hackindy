@@ -1,4 +1,38 @@
 /**
+ * Strip HTML tags and decode common entities, returning plain text.
+ */
+export function stripHtml(html) {
+  if (!html) return ''
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+/**
+ * Clean AI-generated text: strip markdown formatting Gemini sometimes adds.
+ */
+export function cleanAiText(text) {
+  if (!text) return ''
+  return text
+    .replace(/^#+\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/^[\s]*[-*]\s+/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+/**
  * Turn raw text with http(s) URLs into React nodes with clickable, wrapping links.
  */
 export function linkifyText(text, { maxDisplayLength = 80 } = {}) {

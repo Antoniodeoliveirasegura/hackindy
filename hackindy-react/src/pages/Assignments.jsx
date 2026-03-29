@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
-import { linkifyText } from '../lib/linkifyText'
+import { linkifyText, stripHtml, cleanAiText } from '../lib/linkifyText'
 import Icon from '../components/Icons'
 
 const categoryConfig = {
@@ -141,8 +141,8 @@ export default function Assignments() {
   const generateInsights = (mode) => {
     setInsightsLoading(true)
     const prompt = mode === 'study'
-      ? 'Look at my free time between classes this week and my upcoming assignments. Create a short study plan: which assignment to work on, when (specific day and time slot), and for how long. Keep it actionable — max 5 items. No markdown headers.'
-      : 'Rank my upcoming assignments by urgency. Flag any due within 48 hours or where multiple deadlines cluster on the same day. One line per item, most urgent first. Prefix each with a priority: [!] urgent, [~] soon, [ok] comfortable. No markdown headers.'
+      ? 'Look at my free time between classes this week and my upcoming assignments. Create a short study plan: which assignment to work on, when (day and time), and for how long. Max 5 items. Plain text only, no markdown, no asterisks, no bold, no headers. Complete every sentence.'
+      : 'Rank my upcoming assignments by urgency. Most urgent first. One line per item with format: [!] or [~] or [ok] then the assignment name and when it is due. Plain text only, no markdown, no asterisks, no bold, no headers. Complete every line.'
     fetch('/api/assistant', {
       method: 'POST',
       credentials: 'include',
@@ -152,12 +152,13 @@ export default function Assignments() {
       .then((r) => r.json())
       .then((d) => {
         if (d.reply) {
+          const clean = cleanAiText(d.reply)
           if (mode === 'study') {
-            setStudyPlan(d.reply)
-            try { localStorage.setItem(getInsightsCacheKey('study'), JSON.stringify(d.reply)) } catch {}
+            setStudyPlan(clean)
+            try { localStorage.setItem(getInsightsCacheKey('study'), JSON.stringify(clean)) } catch {}
           } else {
-            setInsightsText(d.reply)
-            try { localStorage.setItem(getInsightsCacheKey('priority'), JSON.stringify(d.reply)) } catch {}
+            setInsightsText(clean)
+            try { localStorage.setItem(getInsightsCacheKey('priority'), JSON.stringify(clean)) } catch {}
           }
         }
       })
@@ -499,7 +500,7 @@ export default function Assignments() {
                     </div>
                     <div className="text-[13px] text-[var(--color-txt-1)] leading-relaxed min-w-0 max-w-full break-words [overflow-wrap:anywhere]">
                       {(() => {
-                        const full = selectedItem.description
+                        const full = stripHtml(selectedItem.description)
                         const truncated = full.length > 800
                         const chunk = truncated ? full.slice(0, 800) : full
                         return (
