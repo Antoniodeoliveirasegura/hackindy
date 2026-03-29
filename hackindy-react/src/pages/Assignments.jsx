@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
+import { linkifyText } from '../lib/linkifyText'
 import Icon from '../components/Icons'
 
 const categoryConfig = {
@@ -315,9 +316,9 @@ export default function Assignments() {
             ))}
           </div>
 
-          <div className="lg:sticky lg:top-24 h-fit animate-fade-in-up stagger-3">
+          <div className="lg:sticky lg:top-24 h-fit min-w-0 animate-fade-in-up stagger-3">
             {selectedItem ? (
-              <div className="card p-5">
+              <div className="card p-5 min-w-0 overflow-hidden">
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div>
                     <span className={`text-[11px] px-2.5 py-1 rounded-full ${
@@ -350,11 +351,26 @@ export default function Assignments() {
                   </div>
                   
                   {selectedItem.location && (
-                    <div className="flex items-center gap-3 text-[13px]">
-                      <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-2)] flex items-center justify-center">
+                    <div className="flex items-start gap-3 text-[13px] min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-2)] flex items-center justify-center shrink-0">
                         <Icon name="mapPin" size={15} className="text-[var(--color-txt-2)]" />
                       </div>
-                      <div className="text-[var(--color-txt-1)]">{selectedItem.location}</div>
+                      <div className="text-[var(--color-txt-1)] min-w-0 break-words [overflow-wrap:anywhere]">
+                        {/^https?:\/\//i.test(selectedItem.location.trim()) ? (
+                          <a
+                            href={selectedItem.location.trim()}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--color-accent)] hover:underline break-all"
+                          >
+                            {selectedItem.location.trim().length > 72
+                              ? `${selectedItem.location.trim().slice(0, 72)}…`
+                              : selectedItem.location.trim()}
+                          </a>
+                        ) : (
+                          selectedItem.location
+                        )}
+                      </div>
                     </div>
                   )}
                   
@@ -371,14 +387,23 @@ export default function Assignments() {
                 </div>
                 
                 {selectedItem.description && (
-                  <div className="pt-4 border-t border-[var(--color-border)]">
+                  <div className="pt-4 border-t border-[var(--color-border)] min-w-0">
                     <div className="text-[12px] font-medium text-[var(--color-txt-3)] uppercase tracking-wider mb-2">
                       Description
                     </div>
-                    <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed whitespace-pre-wrap">
-                      {selectedItem.description.slice(0, 500)}
-                      {selectedItem.description.length > 500 && '...'}
-                    </p>
+                    <div className="text-[13px] text-[var(--color-txt-1)] leading-relaxed min-w-0 max-w-full break-words [overflow-wrap:anywhere]">
+                      {(() => {
+                        const full = selectedItem.description
+                        const truncated = full.length > 800
+                        const chunk = truncated ? full.slice(0, 800) : full
+                        return (
+                          <>
+                            {linkifyText(chunk, { maxDisplayLength: 96 })}
+                            {truncated ? '…' : ''}
+                          </>
+                        )
+                      })()}
+                    </div>
                   </div>
                 )}
               </div>
