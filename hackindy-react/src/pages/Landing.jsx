@@ -7,38 +7,56 @@ const featCards = [
   {
     icon: 'schedule',
     title: 'Smart Schedule',
-    desc: 'See your classes, track free time, and get AI-powered suggestions on what to do before your next lecture.',
+    desc: 'See your classes, track free time, and get AI suggestions on what to do between lectures.',
     wrap: 'bg-[var(--color-cls-bg)] text-[var(--color-map-color)]',
   },
   {
     icon: 'dining',
-    title: 'Live Dining',
-    desc: 'Check which dining halls are open right now, browse today\'s menu, and never wonder what\'s for lunch again.',
+    title: 'Live Dining + AI Picks',
+    desc: 'Browse live menus, check hours, and ask AI "What should I eat?" for a personalized recommendation.',
     wrap: 'bg-[var(--color-dining-bg)] text-[var(--color-dining-color)]',
   },
   {
     icon: 'bus',
-    title: 'Real-time Transit',
-    desc: 'Live countdowns for every campus bus route, with departure times, stops, and route maps in one place.',
+    title: 'Transit & Bus ETA',
+    desc: 'Live bus tracking with plain-language ETA: "3 stops from you, about 6 minutes." Uses your location.',
     wrap: 'bg-[var(--color-bus-bg)] text-[var(--color-bus-title)]',
   },
   {
     icon: 'calendar',
-    title: 'Events Hub',
-    desc: 'Discover workshops, career fairs, club meetings, and social events happening across campus today and this week.',
+    title: 'Events + AI Picks',
+    desc: 'Discover campus events and let AI recommend which ones fit your schedule and free time.',
     wrap: 'bg-[var(--color-events-bg)] text-[var(--color-events-color)]',
+  },
+  {
+    icon: 'document',
+    title: 'Assignments & Study Planner',
+    desc: 'Track every deadline from Brightspace. AI ranks them by urgency and builds a study plan around your free time.',
+    wrap: 'bg-blue-100 dark:bg-blue-900/25 text-blue-600 dark:text-blue-400',
+  },
+  {
+    icon: 'message',
+    title: 'Campus Board',
+    desc: 'Ask questions, share tips, and upvote answers. AI auto-tags posts and summarizes long threads.',
+    wrap: 'bg-purple-100 dark:bg-purple-900/25 text-purple-600 dark:text-purple-400',
   },
   {
     icon: 'mapPin',
     title: 'Interactive Map',
-    desc: 'Find any building, parking lot, or campus resource instantly. Get walking directions from your current location.',
+    desc: 'Find any building, parking lot, or campus resource instantly with an interactive campus map.',
     wrap: 'bg-[var(--color-accent-bg)] text-[var(--color-accent)]',
   },
   {
     icon: 'sparkles',
     title: 'AI Campus Assistant',
-    desc: 'Ask anything — where\'s my class, what\'s on the menu, what time is the next bus. Get instant answers powered by AI.',
+    desc: 'Ask anything in natural language — classes, menus, bus times, deadlines. Instant answers powered by Gemini.',
     wrap: 'bg-[var(--color-gold)]/25 text-[var(--color-gold-dark)]',
+  },
+  {
+    icon: 'bell',
+    title: 'Smart Alerts & Weekly Digest',
+    desc: 'Get a Monday briefing of your week ahead and real-time heads-up when deadlines, classes, or dining are close.',
+    wrap: 'bg-orange-100 dark:bg-orange-900/25 text-orange-600 dark:text-orange-400',
   },
 ]
 
@@ -48,9 +66,11 @@ const integrations = [
   ['bus', 'IndyGo Transit'],
   ['calendar', 'Campus Events Feed'],
   ['mapPin', 'Campus Map Data'],
-  ['sparkles', 'Claude AI'],
+  ['sparkles', 'Google Gemini AI'],
   ['book', 'University Library'],
   ['home', 'Student Portal'],
+  ['document', 'Assignment Tracker'],
+  ['message', 'Community Board'],
 ]
 
 export default function Landing() {
@@ -145,7 +165,7 @@ export default function Landing() {
           </span>
         </h1>
         <p className="relative text-[1.05rem] text-[var(--color-txt-1)] max-w-[520px] leading-relaxed mb-9">
-          Schedules, dining, transit, events, and an AI campus assistant — everything you need to navigate student life at Purdue Indy.
+          Schedules, dining, transit, events, assignments, a campus board, and AI-powered insights — everything you need to navigate student life at Purdue Indy.
         </p>
         <div className="relative flex flex-wrap gap-3 justify-center mb-12">
           {!loading && user ? (
@@ -175,9 +195,9 @@ export default function Landing() {
         </div>
         <div className="relative flex flex-wrap gap-8 sm:gap-10 justify-center">
           {[
-            ['8+', 'Campus features'],
-            ['Live', 'Bus tracking'],
-            ['AI', 'Campus assistant'],
+            ['12+', 'Campus features'],
+            ['Live', 'Bus & dining data'],
+            ['AI', 'Powered by Gemini'],
             ['Free', 'For all students'],
           ].map(([n, l]) => (
             <div key={l} className="text-center">
@@ -258,7 +278,7 @@ export default function Landing() {
               One hub for campus life
             </h2>
             <p className="text-[15px] text-[var(--color-txt-1)] max-w-[540px] mx-auto leading-relaxed">
-              No more juggling five different apps. Purdue Indy Hub brings it all together in a clean, fast interface.
+              No more juggling a dozen different apps. Purdue Indy Hub brings it all together in a clean, fast interface.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
