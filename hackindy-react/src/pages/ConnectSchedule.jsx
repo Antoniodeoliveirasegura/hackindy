@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
@@ -32,9 +32,6 @@ export default function ConnectSchedule() {
   const [sourceType, setSourceType] = useState('brightspace')
   const [sources, setSources] = useState([])
   const [saving, setSaving] = useState(false)
-  const [autoDetecting, setAutoDetecting] = useState(false)
-  const [automationJob, setAutomationJob] = useState(null)
-  const handledAutomationId = useRef(null)
 
   const [banner, setBanner] = useState('')
   const [bannerType, setBannerType] = useState('info')
@@ -147,71 +144,6 @@ export default function ConnectSchedule() {
     }
   }
 
-  async function handleAutoDetect() {
-    setBanner('')
-    setBannerType('info')
-    handledAutomationId.current = null
-    try {
-      const response = await authRequest('/api/purdue/calendar-link/start', { method: 'POST' })
-      setAutomationJob(response.job || null)
-      setAutoDetecting(true)
-    } catch (error) {
-      setBannerType('error')
-      setBanner(error.message || 'Could not start Purdue timetable automation.')
-    }
-  }
-
-  async function handleCancelAutoDetect() {
-    try {
-      await authRequest('/api/purdue/calendar-link/cancel', { method: 'POST' })
-      setAutomationJob(null)
-      setAutoDetecting(false)
-      setBannerType('info')
-      setBanner('Automatic Purdue timetable detection cancelled.')
-    } catch (error) {
-      setBannerType('error')
-      setBanner(error.message || 'Could not cancel Purdue timetable automation.')
-    }
-  }
-
-  useEffect(() => {
-    if (!autoDetecting) return undefined
-    let cancelled = false
-    const poll = window.setInterval(async () => {
-      try {
-        const response = await authRequest('/api/purdue/calendar-link/status')
-        if (cancelled) return
-        const job = response.job || null
-        setAutomationJob(job)
-        if (!job) { setAutoDetecting(false); window.clearInterval(poll); return }
-        if (job.status === 'ready' && job.icsUrl && handledAutomationId.current !== job.id) {
-          handledAutomationId.current = job.id
-          setIcsUrl(job.icsUrl)
-          setBannerType('info')
-          setBanner('Purdue iCalendar URL captured. Connecting…')
-          await connectSource(job.icsUrl)
-          setAutomationJob(job)
-          setAutoDetecting(false)
-          window.clearInterval(poll)
-          return
-        }
-        if (['error', 'cancelled'].includes(job.status)) {
-          setAutoDetecting(false)
-          setBannerType(job.status === 'error' ? 'error' : 'info')
-          setBanner(job.error || job.message || 'Automatic Purdue timetable detection stopped.')
-          window.clearInterval(poll)
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setAutoDetecting(false)
-          setBannerType('error')
-          setBanner(error.message || 'Could not poll Purdue timetable automation.')
-          window.clearInterval(poll)
-        }
-      }
-    }, 2000)
-    return () => { cancelled = true; window.clearInterval(poll) }
-  }, [autoDetecting, connectSource])
 
   // ── Helpers ──
 
@@ -416,41 +348,6 @@ export default function ConnectSchedule() {
             </button>
           </div>
         </div>
-
-        {/* Auto-detect (purdue only) */}
-        {sourceType === 'purdue' && (
-          <div className="mb-5 p-4 rounded-xl bg-[var(--color-bg-2)] border border-[var(--color-border)]">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <div className="text-[14px] font-medium text-[var(--color-txt-0)]">
-                  Detect schedule automatically
-                </div>
-                <p className="text-[12px] text-[var(--color-txt-2)] mt-1">
-                  Opens a browser, waits for Purdue login and Duo, then captures the iCalendar URL.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={handleAutoDetect}
-                  disabled={autoDetecting || saving}
-                  className="btn btn-secondary text-[12px] px-4 py-2 disabled:opacity-50"
-                >
-                  <Icon name="sparkles" size={14} />
-                  {autoDetecting ? 'Watching Purdue…' : 'Auto-detect URL'}
-                </button>
-                {autoDetecting && (
-                  <button type="button" onClick={handleCancelAutoDetect} className="btn btn-ghost text-[12px] px-4 py-2">
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </div>
-            {automationJob?.message && (
-              <div className="text-[12px] text-[var(--color-txt-2)] mt-3">{automationJob.message}</div>
-            )}
-          </div>
-        )}
 
         {/* URL Input Form */}
         <form onSubmit={handleConnect}>
