@@ -10,9 +10,11 @@ const STATIC_LOCATIONS = [
     hours: 'Closes 10:00 PM',
     meal: 'Coffee & Snacks',
     rating: 4.7,
-    entrees: ['Bagels', 'Muffins', 'Breakfast Sandwiches'],
-    sides: ['Yogurt Parfait', 'Fruit Cup'],
-    desserts: ['Pastries', 'Cookies'],
+    stations: [
+      { name: 'Entrées', items: [{ name: 'Bagels' }, { name: 'Muffins' }, { name: 'Breakfast Sandwiches' }] },
+      { name: 'Sides', items: [{ name: 'Yogurt Parfait' }, { name: 'Fruit Cup' }] },
+      { name: 'Desserts', items: [{ name: 'Pastries' }, { name: 'Cookies' }] },
+    ],
   },
   {
     id: 'late-night-grill',
@@ -22,9 +24,11 @@ const STATIC_LOCATIONS = [
     hours: 'Opens 9:00 PM',
     meal: 'Late Night',
     rating: 4.0,
-    entrees: ['Burgers', 'Wings', 'Loaded Fries', 'Quesadillas'],
-    sides: ['Mozzarella Sticks', 'Nachos'],
-    desserts: ['Milkshakes', 'Churros'],
+    stations: [
+      { name: 'Grill', items: [{ name: 'Burgers' }, { name: 'Wings' }, { name: 'Loaded Fries' }, { name: 'Quesadillas' }] },
+      { name: 'Sides', items: [{ name: 'Mozzarella Sticks' }, { name: 'Nachos' }] },
+      { name: 'Desserts', items: [{ name: 'Milkshakes' }, { name: 'Churros' }] },
+    ],
   },
 ]
 
@@ -34,46 +38,7 @@ const GENERIC_HOURS = [
   { meal: 'Dinner', time: '4:30 – 8:00 PM', icon: 'moon' },
 ]
 
-function stringsToRows(arr) {
-  return (arr || []).map((name) => (typeof name === 'string' ? { name } : name))
-}
-
-function splitFlatMenu(menuItems) {
-  if (!menuItems?.length) {
-    return { entrees: [], sides: [], desserts: [] }
-  }
-  const names = menuItems.map((m) => m.name).filter(Boolean)
-  const n = names.length
-  const third = Math.max(1, Math.ceil(n / 3))
-  return {
-    entrees: names.slice(0, third),
-    sides: names.slice(third, third * 2),
-    desserts: names.slice(third * 2),
-  }
-}
-
 function nutrisliceToLocation(loc) {
-  const hasBuckets =
-    (loc.entrees?.length || 0) + (loc.sides?.length || 0) + (loc.desserts?.length || 0) > 0
-  const flat = splitFlatMenu(loc.menu_items)
-  const entrees = hasBuckets ? loc.entrees : flat.entrees
-  const sides = hasBuckets ? loc.sides : flat.sides
-  const desserts = hasBuckets ? loc.desserts : flat.desserts
-
-  const rowMap = new Map((loc.menu_items || []).map((m) => [m.name, m]))
-
-  function enrich(names) {
-    return stringsToRows(names).map((row) => {
-      const full = rowMap.get(row.name)
-      if (!full) return row
-      return {
-        name: full.name,
-        calories: full.calories,
-        icons: full.icons,
-      }
-    })
-  }
-
   return {
     id: loc.slug,
     slug: loc.slug,
@@ -83,51 +48,71 @@ function nutrisliceToLocation(loc) {
     hours: loc.hours,
     meal: loc.meal,
     rating: null,
-    entrees: enrich(entrees),
-    sides: enrich(sides),
-    desserts: enrich(desserts),
+    stations: loc.stations || [],
     warnings: loc.warnings,
   }
 }
 
-function MenuColumn({ title, icon, iconWrapClass, iconClass, rows }) {
+const STATION_ICONS = ['dining', 'grid', 'star', 'coffee', 'moon', 'book', 'building', 'users', 'navigation', 'bus']
+const STATION_CAP = 10
+
+function StationCard({ station, index }) {
+  const [expanded, setExpanded] = useState(false)
+  const overflow = station.items.length > STATION_CAP
+  const visible = expanded ? station.items : station.items.slice(0, STATION_CAP)
+
   return (
-    <div>
-      <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-3 flex items-center gap-2">
-        <div className={`w-6 h-6 rounded-lg ${iconWrapClass} flex items-center justify-center`}>
-          <Icon name={icon} size={12} className={iconClass || 'text-[var(--color-dining-color)]'} />
+    <div className="card p-5 flex flex-col">
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className="w-6 h-6 rounded-lg bg-[var(--color-dining-bg)] flex items-center justify-center flex-shrink-0">
+          <Icon
+            name={STATION_ICONS[index % STATION_ICONS.length]}
+            size={12}
+            className="text-[var(--color-dining-color)]"
+          />
         </div>
-        {title}
+        <span className="text-[11px] font-semibold text-[var(--color-txt-0)] uppercase tracking-wide leading-tight">
+          {station.name}
+        </span>
       </div>
-      <div className="space-y-2">
-        {rows.length === 0 ? (
-          <div className="text-[12px] text-[var(--color-txt-3)] px-4 py-2.5">No items listed for today.</div>
-        ) : (
-          rows.map((row, idx) => (
-            <div
-              key={`${row.name}-${idx}`}
-              className="text-[13px] bg-[var(--color-stat)] hover:bg-[var(--color-bg-3)] rounded-xl px-4 py-2.5 text-[var(--color-txt-0)] transition-colors cursor-default"
-            >
-              <div className="font-medium">{row.name}</div>
-              {(row.calories != null || (row.icons && row.icons.length > 0)) && (
-                <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                  {row.calories != null && (
-                    <span className="text-[10px] font-medium text-[var(--color-txt-3)]">{row.calories} cal</span>
-                  )}
-                  {(row.icons || []).slice(0, 6).map((ic) => (
-                    <span
-                      key={ic}
-                      className="text-[10px] px-1.5 py-0.5 rounded-md bg-[var(--color-bg-2)] text-[var(--color-txt-2)]"
-                    >
-                      {ic}
-                    </span>
-                  ))}
-                </div>
+      <div className="space-y-1.5">
+        {visible.map((item, idx) => (
+          <div
+            key={`${item.name}-${idx}`}
+            className="text-[13px] bg-[var(--color-stat)] hover:bg-[var(--color-bg-3)] rounded-xl px-3 py-2 transition-colors cursor-default"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[var(--color-txt-0)] leading-snug">{item.name}</span>
+              {item.calories != null && (
+                <span className="text-[11px] text-[var(--color-txt-3)] whitespace-nowrap flex-shrink-0">
+                  {item.calories} cal
+                </span>
               )}
             </div>
-          ))
-        )}
+            {item.icons && item.icons.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {item.icons.slice(0, 4).map((ic) => (
+                  <span
+                    key={ic}
+                    className="text-[10px] px-1.5 py-0.5 rounded-md bg-[var(--color-bg-2)] text-[var(--color-txt-2)]"
+                  >
+                    {ic}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
+      {overflow && (
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="mt-3 text-[12px] text-[var(--color-txt-3)] hover:text-[var(--color-txt-1)] transition-colors text-left"
+        >
+          {expanded ? '↑ Show less' : `+ ${station.items.length - STATION_CAP} more`}
+        </button>
+      )}
     </div>
   )
 }
@@ -277,59 +262,53 @@ export default function Dining() {
       </div>
 
       {selected && (
-        <div className="card p-6 mb-6 animate-fade-in-up stagger-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-semibold text-[var(--color-txt-0)]">{selected.name}</h2>
-                {selected.rating != null && (
-                  <div className="flex items-center gap-1 text-[12px] text-[var(--color-gold-muted)]">
-                    <Icon name="star" size={12} className="fill-current" />
-                    {selected.rating}
-                  </div>
+        <div className="mb-6 animate-fade-in-up stagger-2">
+          {/* Location header */}
+          <div className="card p-5 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-semibold text-[var(--color-txt-0)]">{selected.name}</h2>
+                  {selected.rating != null && (
+                    <div className="flex items-center gap-1 text-[12px] text-[var(--color-gold-muted)]">
+                      <Icon name="star" size={12} className="fill-current" />
+                      {selected.rating}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className={`status-dot ${selected.status === 'open' ? 'status-open' : 'status-closed'}`} />
+                  <span className="text-[13px] text-[var(--color-txt-2)]">
+                    {selected.status === 'open' ? 'Open now' : 'Closed'} · {selected.hours}
+                  </span>
+                </div>
+                {selected.source === 'static' && (
+                  <p className="text-[12px] text-[var(--color-txt-3)] mt-1.5">Demo menu — not live data.</p>
                 )}
               </div>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className={`status-dot ${selected.status === 'open' ? 'status-open' : 'status-closed'}`} />
-                <span className="text-[13px] text-[var(--color-txt-2)]">
-                  {selected.status === 'open' ? 'Open now' : 'Closed'} · {selected.meal} · {selected.hours}
-                </span>
-              </div>
-              {selected.source === 'static' && (
-                <p className="text-[12px] text-[var(--color-txt-3)] mt-2">Demo menu — not from Nutrislice.</p>
-              )}
-              {selected.warnings && selected.warnings.length > 0 && (
-                <p className="text-[12px] text-[var(--color-txt-3)] mt-2">Some menu requests were skipped ({selected.warnings.length}).</p>
-              )}
+              <button type="button" className="btn btn-primary text-[12px] px-4 py-2.5 w-fit">
+                <Icon name="mapPin" size={14} />
+                Get Directions
+              </button>
             </div>
-            <button type="button" className="btn btn-primary text-[12px] px-4 py-2.5 w-fit">
-              <Icon name="mapPin" size={14} />
-              Get Directions
-            </button>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            <MenuColumn
-              title="Entrées"
-              icon="dining"
-              iconWrapClass="bg-[var(--color-dining-bg)]"
-              rows={selected.entrees}
-            />
-            <MenuColumn
-              title="Sides & Salads"
-              icon="grid"
-              iconWrapClass="bg-[var(--color-map-bg)]"
-              iconClass="text-[var(--color-map-color)]"
-              rows={selected.sides}
-            />
-            <MenuColumn
-              title="Desserts"
-              icon="star"
-              iconWrapClass="bg-[var(--color-events-bg)]"
-              iconClass="text-[var(--color-events-color)]"
-              rows={selected.desserts}
-            />
-          </div>
+          {/* Station grid */}
+          {selected.stations.length === 0 ? (
+            <div className="card p-10 flex flex-col items-center gap-3 text-center">
+              <div className="w-10 h-10 rounded-xl bg-[var(--color-stat)] flex items-center justify-center">
+                <Icon name="dining" size={18} className="text-[var(--color-txt-3)]" />
+              </div>
+              <p className="text-[14px] font-medium text-[var(--color-txt-0)]">No menu posted yet</p>
+              <p className="text-[13px] text-[var(--color-txt-2)]">Check back closer to meal time.</p>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {selected.stations.map((station, i) => (
+                <StationCard key={station.name} station={station} index={i} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
