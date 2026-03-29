@@ -1,113 +1,112 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { authRequest } from '../lib/authApi'
 import Icon from '../components/Icons'
-
-const initialPosts = [
-  { id: 1, title: 'Anyone know if ET 215 has outlets near the windows?', body: 'Trying to find a good spot to charge my laptop during class. The ones by the door are always taken.', anon: true, user: 'Anonymous', upvotes: 14, pinned: false, time: '2h ago', hot: true, replies: [
-    { user: 'Anonymous', body: 'Yes! There are a few power strips along the south wall near the windows. Get there early though.', time: '1h ago' },
-    { user: 'jake_cs', body: 'Also the front row has outlets under the desks.', time: '45m ago' },
-  ]},
-  { id: 2, title: 'Best place to study during finals week?', body: 'Looking for somewhere quiet with good wifi and outlets. Library gets packed early.', anon: false, user: 'sarah_k', upvotes: 31, pinned: false, time: '5h ago', hot: true, replies: [
-    { user: 'Anonymous', body: 'Try the 3rd floor of the Campus Center after 8pm — much quieter.', time: '4h ago' },
-    { user: 'TA_Mike', body: 'The ASC has private study rooms you can book online. Highly recommend.', time: '3h ago' },
-    { user: 'sarah_k', body: "Thanks! Didn't know about the ASC rooms.", time: '2h ago' },
-  ]},
-  { id: 3, title: 'Is the Career Fair open to freshmen?', body: "I'm a first-year CS student — not sure if I should bother going or if it's mainly for upperclassmen.", anon: true, user: 'Anonymous', upvotes: 8, pinned: false, time: '6h ago', hot: false, replies: [
-    { user: 'career_office', body: 'Absolutely! All class years are welcome. Freshmen are encouraged to come, introduce themselves, and start building connections early.', time: '5h ago' },
-  ]},
-  { id: 4, title: 'Reminder: free tutoring at ASC this week', body: 'The Academic Success Center is offering extended hours this week Mon–Fri until 8pm. All subjects covered.', anon: false, user: 'ASC_Staff', upvotes: 22, pinned: true, time: '1d ago', hot: false, replies: [] },
-  { id: 5, title: 'Where can I print on campus for free?', body: '', anon: true, user: 'Anonymous', upvotes: 5, pinned: false, time: '1d ago', hot: false, replies: [
-    { user: 'lib_help', body: "The University Library gives you 25 free pages per day with your student ID. After that it's 10¢/page.", time: '22h ago' },
-  ]},
-]
 
 export default function Board() {
   const { getDisplayName } = useAuth()
-  const [posts, setPosts] = useState(initialPosts)
+  const [posts, setPosts] = useState([])
   const [sort, setSort] = useState('recent')
-  const [voted, setVoted] = useState(new Set())
+  const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(new Set())
   const [repliesOpen, setRepliesOpen] = useState(new Set())
   const [showForm, setShowForm] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newBody, setNewBody] = useState('')
   const [isAnon, setIsAnon] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const mounted = true
 
   const currentUserName = getDisplayName()
+
+  // ── Fetch posts ────────────────────────────────────────────────────────────
+  const fetchPosts = useCallback(async () => {
+    try {
+      setLoading(true)
+      const data = await authRequest(`/api/board/posts?sort=${sort}`)
+      setPosts((data.posts || []).map(p => ({
+        ...p,
+        time: formatRelative(p.time),
+        replies: (p.replies || []).map(r => ({ ...r, time: formatRelative(r.time) })),
+      })))
+    } catch (err) {
+      console.error('Board fetch error', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [sort])
+
+  useEffect(() => { fetchPosts() }, [fetchPosts])
+
+  // ── Upvote ─────────────────────────────────────────────────────────────────
+  const handleUpvote = async (id) => {
+    // Optimistic update
+    setPosts(prev => prev.map(p =>
+      p.id === id
+        ? { ...p, upvotes: p.upvotedByMe ? p.upvotes - 1 : p.upvotes + 1, upvotedByMe: !p.upvotedByMe }
+        : p
+    ))
+    try {
+      const data = await authRequest(`/api/board/posts/${id}/upvote`, { method: 'POST' })
+      setPosts(prev => prev.map(p =>
+        p.id === id ? { ...p, upvotes: data.upvotes, upvotedByMe: data.upvotedByMe } : p
+      ))
+    } catch {
+      // Revert
+      setPosts(prev => prev.map(p =>
+        p.id === id
+          ? { ...p, upvotes: p.upvotedByMe ? p.upvotes - 1 : p.upvotes + 1, upvotedByMe: !p.upvotedByMe }
+          : p
+      ))
+    }
+  }
+
+  const toggleExpand  = (id) => setExpanded(prev => toggle(prev, id))
+  const toggleReplies = (id) => setRepliesOpen(prev => toggle(prev, id))
+
+  // ── Submit post ────────────────────────────────────────────────────────────
+  const handleSubmitPost = async () => {
+    if (!newTitle.trim() || submitting) return
+    setSubmitting(true)
+    try {
+      const data = await authRequest('/api/board/posts', {
+        method: 'POST',
+        body: JSON.stringify({ title: newTitle, body: newBody, anon: isAnon }),
+      })
+      setPosts(prev => [{ ...data.post, time: 'Just now' }, ...prev])
+      setNewTitle('')
+      setNewBody('')
+      setShowForm(false)
+    } catch (err) {
+      console.error('Post submit error', err)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // ── Submit reply ───────────────────────────────────────────────────────────
+  const handleSubmitReply = async (postId, text) => {
+    if (!text.trim()) return
+    try {
+      const data = await authRequest(`/api/board/posts/${postId}/reply`, {
+        method: 'POST',
+        body: JSON.stringify({ body: text, anon: false }),
+      })
+      setPosts(prev => prev.map(p =>
+        p.id === postId
+          ? { ...p, replies: [...p.replies, { ...data.reply, time: 'Just now' }] }
+          : p
+      ))
+    } catch (err) {
+      console.error('Reply submit error', err)
+    }
+  }
 
   const sortedPosts = [...posts].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1
     if (!a.pinned && b.pinned) return 1
     return sort === 'popular' ? b.upvotes - a.upvotes : 0
   })
-
-  const handleUpvote = (id) => {
-    setPosts(posts.map(p => {
-      if (p.id === id) {
-        const wasVoted = voted.has(id)
-        return { ...p, upvotes: wasVoted ? p.upvotes - 1 : p.upvotes + 1 }
-      }
-      return p
-    }))
-    setVoted(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const toggleExpand = (id) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const toggleReplies = (id) => {
-    setRepliesOpen(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const handleSubmitPost = () => {
-    if (!newTitle.trim()) return
-    const newPost = {
-      id: Date.now(),
-      title: newTitle,
-      body: newBody,
-      anon: isAnon,
-      user: isAnon ? 'Anonymous' : currentUserName,
-      upvotes: 0,
-      pinned: false,
-      hot: false,
-      time: 'Just now',
-      replies: []
-    }
-    setPosts([newPost, ...posts])
-    setNewTitle('')
-    setNewBody('')
-    setShowForm(false)
-  }
-
-  const handleSubmitReply = (postId, text) => {
-    if (!text.trim()) return
-    setPosts(posts.map(p => {
-      if (p.id === postId) {
-        return {
-          ...p,
-          replies: [...p.replies, { user: currentUserName, body: text, time: 'Just now' }]
-        }
-      }
-      return p
-    }))
-  }
 
   return (
     <div className={`max-w-[800px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
@@ -119,7 +118,7 @@ export default function Board() {
             Ask questions, share tips, and connect with other students
           </p>
         </div>
-        <button 
+        <button
           onClick={() => setShowForm(!showForm)}
           className="btn btn-primary text-[13px] px-4 py-2.5 w-fit"
         >
@@ -151,23 +150,26 @@ export default function Board() {
           />
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2.5 text-[13px] text-[var(--color-txt-1)] cursor-pointer select-none">
-              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isAnon ? 'bg-[var(--color-gold)] border-[var(--color-gold)]' : 'border-[var(--color-border-2)] bg-transparent'}`}>
+              <div
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${isAnon ? 'bg-[var(--color-gold)] border-[var(--color-gold)]' : 'border-[var(--color-border-2)] bg-transparent'}`}
+                onClick={() => setIsAnon(v => !v)}
+              >
                 {isAnon && <Icon name="check" size={12} className="text-[var(--color-gold-dark)]" strokeWidth={3} />}
               </div>
-              <input 
-                type="checkbox" 
-                checked={isAnon} 
+              <input
+                type="checkbox"
+                checked={isAnon}
                 onChange={(e) => setIsAnon(e.target.checked)}
                 className="sr-only"
               />
               Post anonymously
             </label>
-            <button 
+            <button
               onClick={handleSubmitPost}
-              disabled={!newTitle.trim()}
+              disabled={!newTitle.trim() || submitting}
               className="btn btn-primary text-[13px] px-5 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Post question
+              {submitting ? 'Posting…' : 'Post question'}
             </button>
           </div>
         </div>
@@ -189,108 +191,126 @@ export default function Board() {
         <span className="text-[12px] text-[var(--color-txt-3)]">{posts.length} posts</span>
       </div>
 
+      {/* Loading */}
+      {loading && (
+        <div className="card p-12 text-center animate-fade-in-up stagger-2">
+          <div className="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-[13px] text-[var(--color-txt-2)]">Loading posts…</p>
+        </div>
+      )}
+
       {/* Posts */}
-      <div className="space-y-3">
-        {sortedPosts.map((post, idx) => (
-          <div 
-            key={post.id}
-            className={`card p-5 transition-all duration-300 animate-fade-in-up
-              ${post.pinned ? 'ring-2 ring-[var(--color-gold)]/30 ring-offset-2 ring-offset-[var(--color-bg-1)]' : ''}`}
-            style={{ animationDelay: `${idx * 0.05}s` }}
-          >
-            <div className="flex gap-3">
-              {/* Upvote button */}
-              <button
-                onClick={() => handleUpvote(post.id)}
-                className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl transition-all hover:scale-105
-                  ${voted.has(post.id) 
-                    ? 'bg-[var(--color-gold)]/10 text-[var(--color-gold-muted)]' 
-                    : 'bg-[var(--color-stat)] text-[var(--color-txt-2)] hover:bg-[var(--color-bg-3)]'
-                  }`}
-              >
-                <Icon name="chevronUp" size={16} strokeWidth={2.5} />
-                <span className="text-[12px] font-semibold">{post.upvotes}</span>
-              </button>
-
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start gap-2 mb-1">
-                  {post.pinned && (
-                    <span className="badge bg-[var(--color-gold)] text-[var(--color-gold-dark)] text-[9px]">
-                      <Icon name="pin" size={8} />
-                      Pinned
-                    </span>
-                  )}
-                  {post.hot && !post.pinned && (
-                    <span className="badge bg-[var(--color-events-bg)] text-[var(--color-events-color)] text-[9px]">
-                      HOT
-                    </span>
-                  )}
-                </div>
-                
-                <div 
-                  onClick={() => toggleExpand(post.id)}
-                  className="text-[15px] font-medium text-[var(--color-txt-0)] cursor-pointer hover:text-[var(--color-accent)] transition-colors leading-snug"
+      {!loading && (
+        <div className="space-y-3">
+          {sortedPosts.map((post, idx) => (
+            <div
+              key={post.id}
+              className={`card p-5 transition-all duration-300 animate-fade-in-up
+                ${post.pinned ? 'ring-2 ring-[var(--color-gold)]/30 ring-offset-2 ring-offset-[var(--color-bg-1)]' : ''}`}
+              style={{ animationDelay: `${idx * 0.05}s` }}
+            >
+              <div className="flex gap-3">
+                {/* Upvote button */}
+                <button
+                  onClick={() => handleUpvote(post.id)}
+                  className={`flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl transition-all hover:scale-105
+                    ${post.upvotedByMe
+                      ? 'bg-[var(--color-gold)]/10 text-[var(--color-gold-muted)]'
+                      : 'bg-[var(--color-stat)] text-[var(--color-txt-2)] hover:bg-[var(--color-bg-3)]'
+                    }`}
                 >
-                  {post.title}
-                </div>
-                
-                <div className={`overflow-hidden transition-all duration-300 ${expanded.has(post.id) && post.body ? 'max-h-[200px] mt-2' : 'max-h-0'}`}>
-                  <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed">
-                    {post.body}
-                  </p>
-                </div>
-                
-                <div className="text-[11px] text-[var(--color-txt-3)] mt-2 flex items-center gap-3">
-                  <span className="flex items-center gap-1.5">
-                    <div className="w-5 h-5 rounded-full bg-[var(--color-stat)] flex items-center justify-center text-[9px] font-medium">
-                      {post.user.charAt(0).toUpperCase()}
-                    </div>
-                    {post.user}
-                  </span>
-                  <span>{post.time}</span>
-                  <button
-                    onClick={() => toggleReplies(post.id)}
-                    className="flex items-center gap-1 text-[var(--color-accent)] hover:underline"
-                  >
-                    <Icon name="message" size={11} />
-                    {post.replies.length} {post.replies.length === 1 ? 'reply' : 'replies'}
-                  </button>
-                </div>
+                  <Icon name="chevronUp" size={16} strokeWidth={2.5} />
+                  <span className="text-[12px] font-semibold">{post.upvotes}</span>
+                </button>
 
-                {/* Replies */}
-                <div className={`overflow-hidden transition-all duration-300 ${repliesOpen.has(post.id) ? 'max-h-[600px] mt-4' : 'max-h-0'}`}>
-                  <div className="pt-4 border-t border-[var(--color-border)]">
-                    {post.replies.map((reply, idx) => (
-                      <div key={idx} className="py-3 border-b border-[var(--color-border)] last:border-b-0">
-                        <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed">{reply.body}</p>
-                        <div className="text-[11px] text-[var(--color-txt-3)] mt-2 flex items-center gap-2">
-                          <span className="flex items-center gap-1.5">
-                            <div className="w-4 h-4 rounded-full bg-[var(--color-stat)] flex items-center justify-center text-[8px] font-medium">
-                              {reply.user.charAt(0).toUpperCase()}
-                            </div>
-                            {reply.user}
-                          </span>
-                          <span>{reply.time}</span>
-                        </div>
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start gap-2 mb-1">
+                    {post.pinned && (
+                      <span className="badge bg-[var(--color-gold)] text-[var(--color-gold-dark)] text-[9px]">
+                        <Icon name="pin" size={8} />
+                        Pinned
+                      </span>
+                    )}
+                    {post.hot && !post.pinned && (
+                      <span className="badge bg-[var(--color-events-bg)] text-[var(--color-events-color)] text-[9px]">
+                        HOT
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    onClick={() => toggleExpand(post.id)}
+                    className="text-[15px] font-medium text-[var(--color-txt-0)] cursor-pointer hover:text-[var(--color-accent)] transition-colors leading-snug"
+                  >
+                    {post.title}
+                  </div>
+
+                  <div className={`overflow-hidden transition-all duration-300 ${expanded.has(post.id) && post.body ? 'max-h-[200px] mt-2' : 'max-h-0'}`}>
+                    <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed">
+                      {post.body}
+                    </p>
+                  </div>
+
+                  <div className="text-[11px] text-[var(--color-txt-3)] mt-2 flex items-center gap-3">
+                    <span className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 rounded-full bg-[var(--color-stat)] flex items-center justify-center text-[9px] font-medium">
+                        {post.user.charAt(0).toUpperCase()}
                       </div>
-                    ))}
-                    <ReplyInput onSubmit={(text) => handleSubmitReply(post.id, text)} />
+                      {post.user}
+                    </span>
+                    <span>{post.time}</span>
+                    <button
+                      onClick={() => toggleReplies(post.id)}
+                      className="flex items-center gap-1 text-[var(--color-accent)] hover:underline"
+                    >
+                      <Icon name="message" size={11} />
+                      {post.replies.length} {post.replies.length === 1 ? 'reply' : 'replies'}
+                    </button>
+                  </div>
+
+                  {/* Replies */}
+                  <div className={`overflow-hidden transition-all duration-300 ${repliesOpen.has(post.id) ? 'max-h-[600px] mt-4' : 'max-h-0'}`}>
+                    <div className="pt-4 border-t border-[var(--color-border)]">
+                      {post.replies.map((reply, i) => (
+                        <div key={reply.id ?? i} className="py-3 border-b border-[var(--color-border)] last:border-b-0">
+                          <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed">{reply.body}</p>
+                          <div className="text-[11px] text-[var(--color-txt-3)] mt-2 flex items-center gap-2">
+                            <span className="flex items-center gap-1.5">
+                              <div className="w-4 h-4 rounded-full bg-[var(--color-stat)] flex items-center justify-center text-[8px] font-medium">
+                                {reply.user.charAt(0).toUpperCase()}
+                              </div>
+                              {reply.user}
+                            </span>
+                            <span>{reply.time}</span>
+                          </div>
+                        </div>
+                      ))}
+                      <ReplyInput onSubmit={(text) => handleSubmitReply(post.id, text)} />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+
+          {sortedPosts.length === 0 && (
+            <div className="card p-12 text-center">
+              <Icon name="message" size={32} className="mx-auto mb-3 text-[var(--color-txt-3)]" />
+              <p className="text-[14px] text-[var(--color-txt-2)]">No posts yet. Be the first to ask a question!</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 function ReplyInput({ onSubmit }) {
   const [text, setText] = useState('')
-  
+
   const handleSubmit = () => {
+    if (!text.trim()) return
     onSubmit(text)
     setText('')
   }
@@ -304,7 +324,7 @@ function ReplyInput({ onSubmit }) {
         placeholder="Write a reply..."
         className="input flex-1 text-[13px] px-4 py-2.5"
       />
-      <button 
+      <button
         onClick={handleSubmit}
         disabled={!text.trim()}
         className="btn btn-primary px-4 py-2.5 disabled:opacity-50"
@@ -313,4 +333,26 @@ function ReplyInput({ onSubmit }) {
       </button>
     </div>
   )
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────────
+
+function toggle(set, id) {
+  const next = new Set(set)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  return next
+}
+
+function formatRelative(isoString) {
+  if (!isoString) return ''
+  const diff = Date.now() - new Date(isoString).getTime()
+  const mins  = Math.floor(diff / 60000)
+  const hours = Math.floor(diff / 3600000)
+  const days  = Math.floor(diff / 86400000)
+  if (mins < 1)   return 'Just now'
+  if (mins < 60)  return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 7)   return `${days}d ago`
+  return new Date(isoString).toLocaleDateString()
 }
