@@ -675,7 +675,7 @@ async function createScheduleSource(userId, { icsUrl, label, sourceType = 'purdu
   return data
 }
 
-async function listCalendarItems(userId, { category, categories, limit = 100, order = 'asc' } = {}) {
+async function listCalendarItems(userId, { category, categories, limit = 100, order = 'asc', from = null } = {}) {
   let query = supabase
     .from('calendar_items')
     .select('id, source_id, title, description, start_time, end_time, location, category, external_uid, source_type')
@@ -685,6 +685,10 @@ async function listCalendarItems(userId, { category, categories, limit = 100, or
     query = query.eq('category', category)
   } else if (categories && categories.length > 0) {
     query = query.in('category', categories)
+  }
+
+  if (from) {
+    query = query.gte('start_time', from)
   }
 
   query = query.order('start_time', { ascending: order === 'asc' }).limit(Number(limit) || 100)
@@ -1312,7 +1316,8 @@ app.get('/api/me/calendar', requireAuth, async (req, res) => {
   const category = typeof req.query.category === 'string' ? req.query.category : null
   const categories = typeof req.query.categories === 'string' ? req.query.categories.split(',').filter(Boolean) : null
   const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 100
-  res.json({ items: await listCalendarItems(req.currentUser.id, { category, categories, limit, order: 'asc' }) })
+  const from = typeof req.query.from === 'string' ? req.query.from : null
+  res.json({ items: await listCalendarItems(req.currentUser.id, { category, categories, limit, order: 'asc', from }) })
 })
 
 app.get('/api/me/calendar/categories', requireAuth, async (req, res) => {
