@@ -1,112 +1,89 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Icon from './Icons'
 
-const responses = {
-  'next class': 'Your next class is CS 30200 – Software Engineering at 1:30 PM in ET 215 with Prof. Nguyen.',
-  'schedule': { text: 'View your full schedule →', link: '/schedule' },
-  'bus': 'Next bus (Route 1) departs in 8 min at 12:38 PM. Union → ET Building → Campus Center.',
-  'transit': { text: 'See live bus countdowns →', link: '/transit' },
-  'dining': 'Tower Dining is open for lunch until 2:00 PM. Today: Grilled Chicken, Pasta Marinara, Black Bean Burger, and more.',
-  'menu': { text: 'See the full dining menu →', link: '/dining' },
-  'hours': 'Dining hours: Breakfast 7–10:30 AM · Lunch 11 AM–2 PM · Dinner 4:30–8 PM.',
-  'et building': 'ET Building is at 723 W. Michigan St — home to CS, ECE, and Engineering Technology labs.',
-  'map': { text: 'Explore the campus map →', link: '/map' },
-  'events': '3 events today: Hackathon Workshop (10am, ET 108), Career Fair (12pm, Ballroom), Student Org Showcase (3pm).',
-  'career fair': 'Spring Career Fair is today at 12:00 PM in the Campus Center Ballroom. Open to all majors.',
-  'hackathon': 'Hackathon Kickoff Workshop today at 10:00 AM in ET 108. Pizza and snacks provided!',
-  'board': { text: 'Visit the Campus Board →', link: '/board' },
-  'services': { text: 'Browse student services →', link: '/services' },
-  'library': 'University Library — 400,000+ volumes, private study rooms, 24/7 during finals.',
-  'print': 'The Library gives you 25 free pages/day with your student ID.',
-  'tutor': 'The Academic Success Center offers free tutoring at 620 Union Dr.',
-}
-
 const quickQuestions = [
-  'When is my next class?',
-  'What\'s for lunch?',
-  'When is the next bus?',
+  "What's for lunch today?",
+  'When does the next bus leave?',
+  'Where is the tutoring center?',
 ]
 
 export default function CampusAssistant() {
   const { getFirstName } = useAuth()
   const firstName = getFirstName()
+
   const [open, setOpen] = useState(false)
+  // Each message: { role: 'user' | 'assistant', content: string }
   const [messages, setMessages] = useState([
     {
-      type: 'assistant',
-      content: `Hey ${firstName}! 👋 Ask me anything — schedule, dining, buses, or buildings.`,
+      role: 'assistant',
+      content: `Hey ${firstName}! 👋 Ask me anything about Purdue Indy — dining, buses, buildings, or campus life.`,
     },
   ])
   const [input, setInput] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const messagesRef = useRef(null)
+  const inputRef = useRef(null)
 
   useEffect(() => {
     if (messagesRef.current) {
       messagesRef.current.scrollTop = messagesRef.current.scrollHeight
     }
-  }, [messages])
+  }, [messages, isTyping])
 
-  const handleSend = (text = input) => {
-    if (!text.trim()) return
+  useEffect(() => {
+    if (open) setTimeout(() => inputRef.current?.focus(), 100)
+  }, [open])
 
+  async function handleSend(text = input) {
     const userMsg = text.trim()
-    setMessages(prev => [...prev, { type: 'user', content: userMsg }])
+    if (!userMsg || isTyping) return
+
+    const nextMessages = [...messages, { role: 'user', content: userMsg }]
+    setMessages(nextMessages)
     setInput('')
     setIsTyping(true)
 
-    setTimeout(() => {
-      const low = userMsg.toLowerCase()
-      let response = 'I can help with schedule, dining, buses, buildings, and events. Try asking about your next class!'
-      
-      for (const [key, value] of Object.entries(responses)) {
-        if (low.includes(key)) {
-          response = value
-          break
-        }
-      }
-
+    try {
+      const res = await fetch('/api/assistant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: nextMessages }),
+      })
+      const data = await res.json()
+      const reply = data.reply || data.error || "Sorry, I couldn't get a response."
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: "Couldn't reach the assistant right now. Try again in a moment." },
+      ])
+    } finally {
       setIsTyping(false)
-      setMessages(prev => [...prev, { type: 'assistant', content: response }])
-    }, 800)
+    }
   }
 
-  const renderMessage = (msg, idx) => {
-    const isUser = msg.type === 'user'
-    const content = msg.content
-
+  function renderMessage(msg, idx) {
+    const isUser = msg.role === 'user'
     return (
       <div
         key={idx}
         className={`flex gap-2.5 animate-fade-in-up ${isUser ? 'flex-row-reverse' : ''}`}
-        style={{ animationDelay: `${idx * 0.05}s` }}
+        style={{ animationDelay: `${idx * 0.03}s` }}
       >
         {!isUser && (
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0 mt-0.5">
             <Icon name="sparkles" size={14} className="text-[var(--color-gold-dark)]" />
           </div>
         )}
         <div
-          className={`text-[13px] px-4 py-2.5 rounded-2xl max-w-[85%] leading-relaxed
-            ${isUser 
-              ? 'bg-gradient-to-br from-[var(--color-gold-dark)] to-[#2A1E0A] text-[var(--color-gold)] rounded-br-md' 
+          className={`text-[13px] px-4 py-2.5 rounded-2xl max-w-[85%] leading-relaxed whitespace-pre-wrap
+            ${isUser
+              ? 'bg-gradient-to-br from-[var(--color-gold-dark)] to-[#2A1E0A] text-[var(--color-gold)] rounded-br-md'
               : 'bg-[var(--color-stat)] text-[var(--color-txt-0)] rounded-bl-md'
             }`}
         >
-          {typeof content === 'object' && content.link ? (
-            <Link 
-              to={content.link} 
-              className="text-[var(--color-accent)] hover:underline flex items-center gap-1" 
-              onClick={() => setOpen(false)}
-            >
-              {content.text}
-              <Icon name="arrowUpRight" size={12} />
-            </Link>
-          ) : (
-            content
-          )}
+          {msg.content}
         </div>
       </div>
     )
@@ -115,7 +92,7 @@ export default function CampusAssistant() {
   return (
     <>
       {/* Backdrop */}
-      <div 
+      <div
         className={`fixed inset-0 bg-black/20 backdrop-blur-sm z-40 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setOpen(false)}
       />
@@ -133,7 +110,7 @@ export default function CampusAssistant() {
                 <div className="text-[14px] font-semibold text-[var(--color-gold)]">Campus Assistant</div>
                 <div className="text-[11px] text-[var(--color-gold)]/60 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
-                  Always here to help
+                  Powered by Gemini
                 </div>
               </div>
             </div>
@@ -148,16 +125,16 @@ export default function CampusAssistant() {
           {/* Messages */}
           <div
             ref={messagesRef}
-            className="min-h-[200px] max-h-[320px] overflow-y-auto p-4 space-y-3 bg-[var(--color-surface)]"
+            className="min-h-[200px] max-h-[340px] overflow-y-auto p-4 space-y-3 bg-[var(--color-surface)]"
           >
             {messages.map(renderMessage)}
-            
+
             {isTyping && (
               <div className="flex gap-2.5 animate-fade-in">
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0">
                   <Icon name="sparkles" size={14} className="text-[var(--color-gold-dark)]" />
                 </div>
-                <div className="bg-[var(--color-stat)] text-[var(--color-txt-0)] rounded-2xl rounded-bl-md px-4 py-3">
+                <div className="bg-[var(--color-stat)] rounded-2xl rounded-bl-md px-4 py-3">
                   <div className="flex gap-1">
                     <span className="w-2 h-2 rounded-full bg-[var(--color-txt-3)] animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-2 h-2 rounded-full bg-[var(--color-txt-3)] animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -169,7 +146,7 @@ export default function CampusAssistant() {
           </div>
 
           {/* Quick Questions */}
-          {messages.length <= 2 && (
+          {messages.length <= 2 && !isTyping && (
             <div className="px-4 pb-3 flex flex-wrap gap-2 bg-[var(--color-surface)]">
               {quickQuestions.map((q, idx) => (
                 <button
@@ -187,15 +164,17 @@ export default function CampusAssistant() {
           <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-bg-1)]">
             <div className="flex gap-2">
               <input
+                ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 placeholder="Ask about campus..."
                 className="input flex-1 text-[13px] px-4 py-2.5"
+                disabled={isTyping}
               />
               <button
                 onClick={() => handleSend()}
-                disabled={!input.trim()}
+                disabled={!input.trim() || isTyping}
                 className="btn btn-primary px-4 py-2.5 disabled:opacity-50"
               >
                 <Icon name="send" size={16} />
@@ -209,8 +188,8 @@ export default function CampusAssistant() {
       <button
         onClick={() => setOpen(!open)}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-500 group
-          ${open 
-            ? 'bg-[var(--color-surface)] border border-[var(--color-border-2)] rotate-90' 
+          ${open
+            ? 'bg-[var(--color-surface)] border border-[var(--color-border-2)] rotate-90'
             : 'bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] hover:shadow-xl hover:scale-110'
           }`}
         title="Campus Assistant"
