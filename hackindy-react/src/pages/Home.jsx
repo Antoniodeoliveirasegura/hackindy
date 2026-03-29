@@ -252,29 +252,59 @@ function formatNearDistance(meters) {
   return `${(meters / 1000).toFixed(1)} km`
 }
 
-function buildSuggestions(freeMinutes) {
+function buildSuggestions({ freeMinutes, nextClass, currentClass, diningStatus, upcomingEvents }) {
+  const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const list = []
+
+  // Currently in class
+  if (currentClass && freeMinutes === 0) {
+    list.push({ icon: 'book', text: `In ${currentClass.title} right now`, time: currentClass.endTime ? `Until ${fmtTime(currentClass.endTime)}` : 'In progress' })
+    if (nextClass) list.push({ icon: 'mapPin', text: `Next up: ${nextClass.title}${nextClass.location ? ` @ ${nextClass.location}` : ''}`, time: fmtTime(nextClass.startTime) })
+    list.push({ icon: 'coffee', text: 'Plan a break after class', time: 'Coming up' })
+    return list.slice(0, 3)
+  }
+
+  // Tight gap — need to head to next class
+  if (freeMinutes > 0 && freeMinutes < 20 && nextClass) {
+    list.push({ icon: 'mapPin', text: `Head to ${nextClass.location || 'your next class'} for ${nextClass.title}`, time: `Starts ${fmtTime(nextClass.startTime)}` })
+    list.push({ icon: 'book', text: 'Skim your notes on the way', time: formatDuration(freeMinutes) })
+    list.push({ icon: 'coffee', text: 'Quick water/coffee grab', time: 'Keep it short' })
+    return list.slice(0, 3)
+  }
+
+  // Good window — dining open?
+  if (diningStatus?.is_open && freeMinutes >= 25) {
+    const hrs = diningStatus.hours && diningStatus.hours !== 'Closed today' ? diningStatus.hours : 'Open now'
+    list.push({ icon: 'dining', text: `${diningStatus.name} is open`, time: hrs })
+  } else if (diningStatus && !diningStatus.is_open) {
+    list.push({ icon: 'dining', text: `${diningStatus.name} is closed right now`, time: diningStatus.hours || 'Check hours' })
+  }
+
+  // Upcoming event today?
+  const nextEvent = upcomingEvents?.[0]
+  if (nextEvent) {
+    list.push({ icon: 'calendar', text: nextEvent.title, time: `Today ${fmtTime(nextEvent.startTime)}` })
+  }
+
+  // Study suggestion
   if (freeMinutes >= 90) {
-    return [
-      { icon: 'book', text: 'Settle into a study block at Cavanaugh Hall', time: formatDuration(freeMinutes) },
-      { icon: 'dining', text: 'Grab a full meal before your next class', time: 'Good window' },
-      { icon: 'coffee', text: 'Reset with coffee and catch up on messages', time: 'Quick break' },
-    ]
+    list.push({ icon: 'book', text: nextClass ? `Study before ${nextClass.title}` : 'Good time for a study block', time: formatDuration(freeMinutes) })
+  } else if (freeMinutes >= 30) {
+    list.push({ icon: 'coffee', text: 'Coffee + review notes', time: formatDuration(freeMinutes) })
+  } else if (freeMinutes > 0) {
+    list.push({ icon: 'book', text: 'Quick review before class', time: formatDuration(freeMinutes) })
   }
-  if (freeMinutes >= 45) {
-    return [
-      { icon: 'coffee', text: 'Pick up coffee and review notes', time: formatDuration(freeMinutes) },
-      { icon: 'book', text: 'Find a quiet corner and prep for the next lecture', time: 'Focused block' },
-      { icon: 'dining', text: 'Make a short dining stop', time: 'Possible now' },
-    ]
-  }
-  if (freeMinutes > 0) {
-    return [
-      { icon: 'coffee', text: 'Use the short gap to recharge', time: formatDuration(freeMinutes) },
-      { icon: 'mapPin', text: 'Head toward your next building now', time: 'Stay on time' },
-      { icon: 'book', text: 'Skim notes before class starts', time: 'Quick review' },
-    ]
-  }
-  return fallbackSuggestions
+
+  // Pad with fallbacks if under 3
+  const fallbacks = [
+    { icon: 'coffee', text: 'Grab coffee at the Union', time: '5 min walk' },
+    { icon: 'book', text: 'Study at Cavanaugh Hall', time: 'Quiet floor' },
+    { icon: 'mapPin', text: 'Explore the Campus Center', time: 'Nearby' },
+  ]
+  let i = 0
+  while (list.length < 3 && i < fallbacks.length) list.push(fallbacks[i++])
+
+  return list.slice(0, 3)
 }
 
 export default function Home() {
@@ -295,6 +325,7 @@ export default function Home() {
   const [transitUpdated, setTransitUpdated] = useState(null)
 
   const [diningPreview, setDiningPreview] = useState(null)
+  const [diningStatus, setDiningStatus] = useState(null) // { name, is_open, hours }
 
   // ── AI Week Digest ──────────────────────────────────────────────────────────
   function getWeekKey() {
@@ -343,6 +374,7 @@ export default function Home() {
         if (cancelled || !data?.ok || !Array.isArray(data.locations)) return
         const tower = data.locations.find((l) => l.slug === 'tower-dining') || data.locations[0]
         if (!tower) return
+        setDiningStatus({ name: tower.name, is_open: tower.is_open, hours: tower.hours })
         const entrees = (tower.entrees || []).slice(0, 4)
         const sides = (tower.sides || []).slice(0, 3)
         if (entrees.length + sides.length === 0 && Array.isArray(tower.menu_items) && tower.menu_items.length) {
@@ -454,7 +486,13 @@ export default function Home() {
 
   const homeClasses = useMemo(() => getHomeClassItems(classes), [classes])
   const scheduleState = useMemo(() => deriveScheduleState(homeClasses, now), [homeClasses, now])
-  const suggestions = useMemo(() => buildSuggestions(scheduleState.freeMinutes), [scheduleState.freeMinutes])
+  const suggestions = useMemo(() => buildSuggestions({
+    freeMinutes: scheduleState.freeMinutes,
+    nextClass: scheduleState.nextClass,
+    currentClass: scheduleState.currentClass,
+    diningStatus,
+    upcomingEvents: calendarItems.filter(i => ['campus_event', 'event'].includes(i.category)),
+  }), [scheduleState, diningStatus, calendarItems])
 
   const todayRelevantEvents = useMemo(
     () => filterTodayRelevantEvents(calendarItems, now),
