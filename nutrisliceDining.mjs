@@ -141,32 +141,42 @@ function normalizeFoodEntry(food) {
   }
 }
 
-function sectionBucket(sectionTitle) {
-  const t = (sectionTitle || '').toLowerCase()
-  if (/dessert|sweet|ice cream|cake|cookie|pastry|brownie|pie|frozen/.test(t)) return 'desserts'
-  if (/salad|side|soup|vegetable|fruit|bread|beverage|drink|bar\s*\(|coffee|juice|milk/.test(t)) return 'sides'
-  return 'entrees'
+// Station/section names to completely omit — condiments, toppings, garnishes, etc.
+const SKIP_SECTION_RE = /condiment|^toppings?$|^garnish|infused.{0,8}water|sugar.{0,12}sub(stitute)?|sweetener|creamer|^spreads?$|^sauces?$|^dressings?$|\bbeverage/i
+
+function shouldSkipSection(name) {
+  return SKIP_SECTION_RE.test((name || '').trim())
 }
 
-function ingestMenuRows(menuItems, mealSlug, byId, sectionsAcc) {
-  if (!Array.isArray(menuItems)) return
-  let section = 'Menu'
+// Build per-station item lists from one meal's flat menu_items array.
+// Returns [{name: stationName, items: [{name, calories, icons, meal}]}]
+// Sections matching SKIP_SECTION_RE are dropped entirely.
+function ingestMenuStations(menuItems, mealSlug, seenKeys) {
+  if (!Array.isArray(menuItems)) return []
+  const stationMap = new Map()
+  let station = 'Menu'
+  let skip = false
+
   for (const row of menuItems) {
     if (row?.is_section_title || row?.is_station_header) {
-      section = row.text || section
+      station = (row.text || '').trim() || 'Menu'
+      skip = shouldSkipSection(station)
       continue
     }
-    if (!row?.food) continue
+    if (!row?.food || skip) continue
     const norm = normalizeFoodEntry(row.food)
     if (!norm) continue
     const id = row.food.id
     const key = id != null ? `id:${id}` : `name:${norm.name}:${mealSlug}`
-    if (byId.has(key)) continue
-    byId.set(key, { ...norm, meal: mealSlug })
-    const bucket = sectionBucket(section)
-    if (!sectionsAcc[bucket]) sectionsAcc[bucket] = []
-    sectionsAcc[bucket].push(norm.name)
+    if (seenKeys.has(key)) continue
+    seenKeys.add(key)
+    if (!stationMap.has(station)) stationMap.set(station, [])
+    stationMap.get(station).push({ ...norm, meal: mealSlug })
   }
+
+  return [...stationMap.entries()]
+    .map(([name, items]) => ({ name, items }))
+    .filter((s) => s.items.length > 0)
 }
 
 function deriveStatusFromSchool(school, now = new Date()) {
@@ -200,13 +210,14 @@ function mealSlugsForSchool(school) {
 
 async function fetchMenusForSchool(school, ymd) {
   const parts = ymdParts(ymd)
-  if (!parts) return { menu_items: [], buckets: { entrees: [], sides: [], desserts: [] }, warnings: ['invalid_date'] }
+  if (!parts) return { stations: [], meals: [], warnings: ['invalid_date'] }
 
   const { year, month, day } = parts
   const slug = school.slug
   const mealSlugs = mealSlugsForSchool(school)
-  const byId = new Map()
-  const buckets = { entrees: [], sides: [], desserts: [] }
+  const seenKeys = new Set()
+  const stationMerge = new Map() // stationName → items[]
+  const mealsFound = []
   const warnings = []
 
   for (const meal of mealSlugs) {
@@ -221,11 +232,23 @@ async function fetchMenusForSchool(school, ymd) {
     const days = week?.days || []
     const target = days.find((d) => d.date === ymd) || days[0]
     if (!target?.menu_items?.length) continue
-    ingestMenuRows(target.menu_items, meal, byId, buckets)
+
+    const stations = ingestMenuStations(target.menu_items, meal, seenKeys)
+    if (stations.length) mealsFound.push(meal)
+    for (const { name, items } of stations) {
+      if (!stationMerge.has(name)) stationMerge.set(name, [])
+      stationMerge.get(name).push(...items)
+    }
   }
 
-  const menu_items = [...byId.values()]
-  return { menu_items, buckets, warnings }
+  const stations = [...stationMerge.entries()]
+    .map(([name, items]) => ({
+      name,
+      items: items.map(({ name, calories, icons }) => ({ name, calories, icons })),
+    }))
+    .filter((s) => s.items.length > 0)
+
+  return { stations, meals: mealsFound, warnings }
 }
 
 function pickSchools(allSchools) {
@@ -253,25 +276,20 @@ async function buildSnapshotBody(ymd, allSchools) {
 
   for (const { spec, school } of picked) {
     const status = deriveStatusFromSchool(school)
-    let menu_items = []
-    let entrees = []
-    let sides = []
-    let desserts = []
+    let stations = []
+    let meals = []
     const warnings = []
 
     try {
-      const menus = await fetchMenusForSchool(school, ymd)
-      menu_items = menus.menu_items
-      entrees = [...new Set(menus.buckets.entrees || [])]
-      sides = [...new Set(menus.buckets.sides || [])]
-      desserts = [...new Set(menus.buckets.desserts || [])]
-      warnings.push(...(menus.warnings || []))
+      const result = await fetchMenusForSchool(school, ymd)
+      stations = result.stations
+      meals = result.meals
+      warnings.push(...(result.warnings || []))
     } catch (e) {
       warnings.push(`menu_exception:${String(e?.message || e)}`)
     }
 
-    const meals = [...new Set(menu_items.map((m) => m.meal).filter(Boolean))]
-    const mealHint = menu_items.length > 0 ? `Menus: ${meals.join(', ')}` : 'Menu not posted yet'
+    const mealHint = meals.length > 0 ? `Menus: ${meals.join(', ')}` : 'Menu not posted yet'
 
     locations.push({
       id: school.slug,
@@ -281,10 +299,7 @@ async function buildSnapshotBody(ymd, allSchools) {
       hours: status.hours,
       timezone: status.tz,
       meal: mealHint || '—',
-      menu_items: menu_items.map(({ name, calories, icons }) => ({ name, calories, icons })),
-      entrees,
-      sides,
-      desserts,
+      stations,
       warnings: warnings.length ? warnings : undefined,
     })
   }
