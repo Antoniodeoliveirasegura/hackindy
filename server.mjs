@@ -1280,6 +1280,7 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 
 const CAMPUS_SYSTEM_PROMPT = `You are a helpful campus assistant for Purdue University Indianapolis (Purdue Indy / IUPUI).
 You help students with questions about:
+- Their personal class schedule and upcoming assignments/events (provided below when available)
 - Campus dining (Tower Dining, Campus Center food options, meal hours)
 - Campus transit/buses (TransLoc routes, stop locations, schedules)
 - Buildings and campus map (ET Building, Campus Center, University Library, Science building, etc.)
@@ -1289,7 +1290,23 @@ You help students with questions about:
 
 Be concise, friendly, and helpful. Keep responses to 2-3 sentences unless more detail is clearly needed.
 If asked about something unrelated to Purdue Indy campus life, briefly acknowledge and redirect to campus topics.
-Do not make up specific real-time data (bus times, today's menu) — instead direct students to the relevant tab in the app.`
+Do not make up specific real-time data (bus times, today's menu) — instead direct students to the relevant tab in the app.
+When answering "next class" questions, only consider items that are regular class sessions (lectures, labs, discussions) — not exams, midterms, quizzes, or office hours, unless the student specifically asks about those.`
+
+const TZ = 'America/Indiana/Indianapolis'
+
+function formatScheduleContext(items) {
+  if (!items.length) return 'No upcoming schedule items found.'
+  return items.map((item) => {
+    const start = new Date(item.startTime)
+    const end = item.endTime ? new Date(item.endTime) : null
+    const dateStr = start.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' })
+    const startStr = start.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })
+    const endStr = end ? ` – ${end.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })}` : ''
+    const loc = item.location ? ` @ ${item.location}` : ''
+    return `- ${dateStr} ${startStr}${endStr}${loc}: ${item.title} [${item.category}]`
+  }).join('\n')
+}
 
 app.post('/api/assistant', async (req, res) => {
   if (!GEMINI_API_KEY) {
@@ -1300,6 +1317,30 @@ app.post('/api/assistant', async (req, res) => {
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'messages array required' })
   }
+
+  // Optionally enrich with the user's real schedule if they're logged in
+  let scheduleContext = ''
+  try {
+    const user = await getCurrentUser(req)
+    if (user) {
+      const now = new Date().toISOString()
+      const twoWeeksOut = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      const { data } = await supabase
+        .from('calendar_items')
+        .select('title, start_time, end_time, location, category')
+        .eq('user_id', user.id)
+        .gte('start_time', now)
+        .lte('start_time', twoWeeksOut)
+        .order('start_time', { ascending: true })
+        .limit(30)
+      if (data?.length) {
+        const mapped = data.map(r => ({ title: r.title, startTime: r.start_time, endTime: r.end_time, location: r.location, category: r.category }))
+        scheduleContext = `\n\nThe student's upcoming schedule (next 14 days, as of ${new Date().toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' })}):\n${formatScheduleContext(mapped)}`
+      }
+    }
+  } catch {}
+
+  const systemPrompt = CAMPUS_SYSTEM_PROMPT + scheduleContext
 
   const contents = messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -1313,7 +1354,7 @@ app.post('/api/assistant', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: CAMPUS_SYSTEM_PROMPT }] },
+        system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
         generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
       }),
