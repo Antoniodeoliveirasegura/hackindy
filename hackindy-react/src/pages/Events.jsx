@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
-import { linkifyText } from '../lib/linkifyText'
+import { linkifyText, stripHtml, cleanAiText } from '../lib/linkifyText'
 import Icon from '../components/Icons'
 
 const categoryConfig = {
@@ -94,15 +94,16 @@ export default function Events() {
       body: JSON.stringify({
         messages: [{
           role: 'user',
-          content: 'Based on my class schedule and free time this week, which 2-3 upcoming campus events should I attend? Consider time conflicts with my classes. For each, give the event name, when it is, and a one-sentence reason to go. Keep it concise, no markdown headers or bullet markers.',
+          content: 'Pick 2-3 upcoming campus events I should attend based on my free time this week. For each, write one sentence: the event name, the day/time, and why I should go. Plain text only, no markdown, no asterisks, no bold, no bullet points. Complete every sentence.',
         }],
       }),
     })
       .then((r) => r.json())
       .then((d) => {
         if (d.reply) {
-          setEventRecs(d.reply)
-          try { localStorage.setItem(getRecsCacheKey(), JSON.stringify(d.reply)) } catch {}
+          const clean = cleanAiText(d.reply)
+          setEventRecs(clean)
+          try { localStorage.setItem(getRecsCacheKey(), JSON.stringify(clean)) } catch {}
         }
       })
       .catch(() => {})
@@ -417,8 +418,17 @@ export default function Events() {
                       Details
                     </div>
                     <div className="text-[13px] text-[var(--color-txt-1)] leading-relaxed min-w-0 max-w-full break-words [overflow-wrap:anywhere]">
-                      {linkifyText(selectedItem.description.slice(0, 800), { maxDisplayLength: 96 })}
-                      {selectedItem.description.length > 800 && '…'}
+                      {(() => {
+                        const full = stripHtml(selectedItem.description)
+                        const truncated = full.length > 800
+                        const chunk = truncated ? full.slice(0, 800) : full
+                        return (
+                          <>
+                            {linkifyText(chunk, { maxDisplayLength: 96 })}
+                            {truncated ? '…' : ''}
+                          </>
+                        )
+                      })()}
                     </div>
                   </div>
                 )}

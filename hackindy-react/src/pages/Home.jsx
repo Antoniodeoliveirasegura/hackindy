@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
+import { cleanAiText } from '../lib/linkifyText'
 import Icon from '../components/Icons'
 import {
   routes as transitRoutes,
@@ -136,15 +137,30 @@ function isLikelyExamItem(item) {
   return /\b(midterm|final|exam|quiz|test)\b/.test(haystack)
 }
 
+function isOnlineMeetingNoise(item) {
+  const title = (item.title || '').toLowerCase()
+  const haystack = `${title} ${item.description || ''} ${item.location || ''}`.toLowerCase()
+  if (/\b(zoom|teams meeting|webex|microsoft teams|google meet)\b/.test(haystack)) return true
+  if (/\bonline\b/.test(title)) return true
+  if (/\b(synchronous online|online meeting|online session)\b/.test(haystack)) return true
+  return false
+}
+
+function shouldExcludeFromSchedule(item) {
+  return isLikelyExamItem(item) || isOnlineMeetingNoise(item)
+}
+
 function isLikelyClassMeeting(item) {
+  if (shouldExcludeFromSchedule(item)) return false
   const haystack = `${item.description || ''} ${item.title || ''}`.toLowerCase()
-  return /\b(lecture|laboratory|lab|recitation|discussion|seminar|studio|practicum|clinic|workshop|synchronous online)\b/.test(haystack)
+  return /\b(lecture|laboratory|lab|recitation|discussion|seminar|studio|practicum|clinic|workshop)\b/.test(haystack)
 }
 
 function getRecurringClassItems(items) {
   const patterns = new Map()
 
   for (const item of items || []) {
+    if (shouldExcludeFromSchedule(item)) continue
     const start = new Date(item.startTime)
     const end = item.endTime ? new Date(item.endTime) : null
     const key = [
@@ -166,17 +182,16 @@ function getRecurringClassItems(items) {
   const recurringItems = [...patterns.values()]
     .filter((group) => group.length > 1)
     .flat()
-    .filter((item) => !isLikelyExamItem(item))
 
   if (recurringItems.length) {
     return recurringItems
   }
 
-  return (items || []).filter((item) => !isLikelyExamItem(item))
+  return (items || []).filter((item) => !shouldExcludeFromSchedule(item))
 }
 
 function getHomeClassItems(items) {
-  const meetingTypeItems = (items || []).filter((item) => isLikelyClassMeeting(item) && !isLikelyExamItem(item))
+  const meetingTypeItems = (items || []).filter((item) => isLikelyClassMeeting(item))
   if (meetingTypeItems.length) {
     return meetingTypeItems
   }
@@ -186,9 +201,8 @@ function getHomeClassItems(items) {
     return recurringItems
   }
 
-  const nonExamItems = (items || []).filter((item) => !isLikelyExamItem(item))
-  // Always prefer non-exam items; only fall back to full list if every item is exam-like
-  return nonExamItems.length ? nonExamItems : (items || [])
+  const clean = (items || []).filter((item) => !shouldExcludeFromSchedule(item))
+  return clean.length ? clean : (items || [])
 }
 
 function deriveScheduleState(items, now) {
@@ -200,9 +214,9 @@ function deriveScheduleState(items, now) {
     }))
     .sort((a, b) => a.startDate - b.startDate)
 
-  const currentClass = normalized.find((item) => item.startDate <= now && item.endDate > now && !isLikelyExamItem(item)) || null
-  const futureItems = normalized.filter((item) => item.startDate > now)
-  const nextClass = futureItems.find((item) => !isLikelyExamItem(item)) || futureItems[0] || null
+  const currentClass = normalized.find((item) => item.startDate <= now && item.endDate > now && !shouldExcludeFromSchedule(item)) || null
+  const futureItems = normalized.filter((item) => item.startDate > now && !shouldExcludeFromSchedule(item))
+  const nextClass = futureItems[0] || null
 
   const displayClass = currentClass || nextClass
   let freeMinutes = 0
@@ -437,15 +451,16 @@ export default function Home() {
       body: JSON.stringify({
         messages: [{
           role: 'user',
-          content: 'Summarize my week in exactly 3 short sentences. Sentence 1: name my courses (not meetings) and which days they meet. Sentence 2: list any assignments, midterms, or exams due this week with the day — if none, say so. Sentence 3: mention any campus events, or say it looks clear. Use course names, not counts. No bullet points, no headers, no markdown. Finish every sentence.',
+          content: 'Give me a 3-sentence weekly briefing as plain text. Sentence 1: list each course name and the days it meets (e.g. "TDM 20200 meets Mon/Wed/Fri, ECE 2940 meets Tue/Thu"). Sentence 2: any assignments, exams, or deadlines due this week with the day, or say none. Sentence 3: any campus events worth noting, or say the week looks clear. Plain text only — absolutely no markdown, no asterisks, no bullet points, no headers. Complete every sentence.',
         }],
       }),
     })
       .then(r => r.json())
       .then(d => {
         if (d.reply) {
-          setWeekDigest(d.reply)
-          try { localStorage.setItem(getWeekKey(), JSON.stringify(d.reply)) } catch {}
+          const clean = cleanAiText(d.reply)
+          setWeekDigest(clean)
+          try { localStorage.setItem(getWeekKey(), JSON.stringify(clean)) } catch {}
         }
       })
       .catch(() => {})
@@ -453,7 +468,8 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (!weekDigest) generateDigest()
+    const looksIncomplete = weekDigest && !weekDigest.trim().endsWith('.')
+    if (!weekDigest || looksIncomplete) generateDigest()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -599,6 +615,10 @@ export default function Home() {
     }
   }, [])
 
+  const cleanCalendarItems = useMemo(
+    () => calendarItems.filter(i => !isOnlineMeetingNoise(i)),
+    [calendarItems],
+  )
   const homeClasses = useMemo(() => getHomeClassItems(classes), [classes])
   const scheduleState = useMemo(() => deriveScheduleState(homeClasses, now), [homeClasses, now])
   const suggestions = useMemo(() => buildSuggestions({
@@ -606,12 +626,12 @@ export default function Home() {
     nextClass: scheduleState.nextClass,
     currentClass: scheduleState.currentClass,
     diningStatus,
-    upcomingEvents: calendarItems.filter(i => ['campus_event', 'event'].includes(i.category)),
-  }), [scheduleState, diningStatus, calendarItems])
+    upcomingEvents: cleanCalendarItems.filter(i => ['campus_event', 'event'].includes(i.category)),
+  }), [scheduleState, diningStatus, cleanCalendarItems])
 
   const todayRelevantEvents = useMemo(
-    () => filterTodayRelevantEvents(calendarItems, now),
-    [calendarItems, now],
+    () => filterTodayRelevantEvents(cleanCalendarItems, now),
+    [cleanCalendarItems, now],
   )
   const todayEventsPreview = useMemo(() => todayRelevantEvents.slice(0, 6), [todayRelevantEvents])
 
