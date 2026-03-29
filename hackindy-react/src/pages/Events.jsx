@@ -68,6 +68,10 @@ function isPast(dateString) {
   return new Date(dateString) < new Date()
 }
 
+function getRecsCacheKey() {
+  return `ai-event-recs-${new Date().toISOString().slice(0, 10)}`
+}
+
 export default function Events() {
   const { onboarding } = useAuth()
   const [items, setItems] = useState([])
@@ -75,6 +79,35 @@ export default function Events() {
   const [loading, setLoading] = useState(true)
   const [showPast, setShowPast] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
+
+  const [eventRecs, setEventRecs] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(getRecsCacheKey())) ?? null } catch { return null }
+  })
+  const [recsLoading, setRecsLoading] = useState(false)
+
+  const generateRecs = () => {
+    setRecsLoading(true)
+    fetch('/api/assistant', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{
+          role: 'user',
+          content: 'Based on my class schedule and free time this week, which 2-3 upcoming campus events should I attend? Consider time conflicts with my classes. For each, give the event name, when it is, and a one-sentence reason to go. Keep it concise, no markdown headers or bullet markers.',
+        }],
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.reply) {
+          setEventRecs(d.reply)
+          try { localStorage.setItem(getRecsCacheKey(), JSON.stringify(d.reply)) } catch {}
+        }
+      })
+      .catch(() => {})
+      .finally(() => setRecsLoading(false))
+  }
 
   useEffect(() => {
     loadData()
@@ -203,6 +236,39 @@ export default function Events() {
               </button>
             )
           })}
+        </div>
+      )}
+
+      {/* AI Event Recommendations */}
+      {!hasNoSources && !loading && items.length > 0 && (
+        <div className="card p-4 mb-6 border-[var(--color-gold)]/20 animate-fade-in-up stagger-2">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0">
+                <Icon name="sparkles" size={12} className="text-[var(--color-gold-dark)]" />
+              </div>
+              <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">Recommended for You</span>
+            </div>
+            <button
+              onClick={generateRecs}
+              disabled={recsLoading}
+              className="text-[11px] text-[var(--color-accent)] hover:underline disabled:opacity-40 shrink-0"
+            >
+              {recsLoading ? 'Thinking…' : eventRecs ? 'Refresh' : 'Get Picks'}
+            </button>
+          </div>
+          {recsLoading && !eventRecs ? (
+            <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)]">
+              <div className="w-3.5 h-3.5 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin shrink-0" />
+              Finding events that fit your schedule…
+            </div>
+          ) : eventRecs ? (
+            <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed whitespace-pre-line">{eventRecs}</p>
+          ) : (
+            <p className="text-[12px] text-[var(--color-txt-3)]">
+              AI picks campus events that fit your free time. Tap &ldquo;Get Picks&rdquo; to try it.
+            </p>
+          )}
         </div>
       )}
 

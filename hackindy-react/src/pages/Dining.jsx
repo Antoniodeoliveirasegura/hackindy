@@ -38,6 +38,9 @@ const GENERIC_HOURS = [
   { meal: 'Dinner', time: '4:30 – 8:00 PM', icon: 'moon' },
 ]
 
+const WEEKDAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const SHORT_DAY = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' }
+
 function nutrisliceToLocation(loc) {
   return {
     id: loc.slug,
@@ -46,11 +49,16 @@ function nutrisliceToLocation(loc) {
     source: 'nutrislice',
     status: loc.is_open ? 'open' : 'closed',
     hours: loc.hours,
+    weekly_hours: loc.weekly_hours || null,
     meal: loc.meal,
     rating: null,
     stations: loc.stations || [],
     warnings: loc.warnings,
   }
+}
+
+function getTodayDayName() {
+  return new Date().toLocaleDateString('en-US', { weekday: 'long' })
 }
 
 const STATION_ICONS = ['dining', 'grid', 'star', 'coffee', 'moon', 'book', 'building', 'users', 'navigation', 'bus']
@@ -124,6 +132,28 @@ export default function Dining() {
   const [refreshing, setRefreshing] = useState(false)
   const [selectedId, setSelectedId] = useState(null)
 
+  const [aiSuggestion, setAiSuggestion] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
+  const askWhatToEat = () => {
+    setAiLoading(true)
+    fetch('/api/assistant', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{
+          role: 'user',
+          content: "Based on what's currently being served at open dining locations on campus, give me a quick meal recommendation. Mention the specific location, a dish or two, and a short reason. Keep it to 2-3 sentences. No markdown.",
+        }],
+      }),
+    })
+      .then((r) => r.json())
+      .then((d) => { if (d.reply) setAiSuggestion(d.reply) })
+      .catch(() => {})
+      .finally(() => setAiLoading(false))
+  }
+
   function loadMenu(force = false) {
     if (force) setRefreshing(true)
     else setLoading(true)
@@ -162,9 +192,10 @@ export default function Dining() {
   }, [locations])
 
   const selected = locations.find((l) => l.id === selectedId) || locations[0]
+  const todayHours = selected?.weekly_hours?.[getTodayDayName()]
   const headerBlurb =
     selected?.source === 'nutrislice'
-      ? `${selected.meal} · ${selected.hours}`
+      ? `Today: ${todayHours || selected.hours}${selected.meal ? ` · ${selected.meal}` : ''}`
       : 'Sample location (not on Nutrislice)'
 
   return (
@@ -186,6 +217,16 @@ export default function Dining() {
           )}
           <button
             type="button"
+            onClick={askWhatToEat}
+            disabled={aiLoading || loading}
+            title="AI meal recommendation"
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-[var(--color-gold)]/30 bg-[var(--color-gold)]/8 text-[var(--color-gold-muted)] text-[12px] font-medium shadow-sm hover:bg-[var(--color-gold)]/15 transition-colors disabled:opacity-40"
+          >
+            <Icon name="sparkles" size={13} />
+            {aiLoading ? 'Thinking…' : 'What should I eat?'}
+          </button>
+          <button
+            type="button"
             onClick={() => loadMenu(true)}
             disabled={refreshing || loading}
             title="Force-refresh menu"
@@ -203,6 +244,26 @@ export default function Dining() {
       {loadError && (
         <div className="mb-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-stat)] px-4 py-3 text-[13px] text-[var(--color-txt-2)]">
           {loadError} Showing sample venues below.
+        </div>
+      )}
+
+      {/* AI Suggestion */}
+      {aiSuggestion && (
+        <div className="card p-4 mb-4 border-[var(--color-gold)]/20 bg-[var(--color-gold)]/5 animate-fade-in-up">
+          <div className="flex items-start gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0 mt-0.5">
+              <Icon name="sparkles" size={12} className="text-[var(--color-gold-dark)]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed">{aiSuggestion}</p>
+            </div>
+            <button
+              onClick={() => setAiSuggestion(null)}
+              className="text-[var(--color-txt-3)] hover:text-[var(--color-txt-1)] shrink-0"
+            >
+              <Icon name="close" size={14} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -312,26 +373,88 @@ export default function Dining() {
         </div>
       )}
 
+      {/* Weekly Hours for all locations */}
       <div className="card p-6 animate-fade-in-up stagger-3">
-        <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-4">
-          Typical meal periods (reference)
+        <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-5">
+          Weekly Hours of Operation
         </div>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {GENERIC_HOURS.map(({ meal, time, icon }) => (
-            <div
-              key={meal}
-              className="bg-[var(--color-stat)] rounded-xl p-4 flex items-center gap-4 hover:bg-[var(--color-bg-3)] transition-colors"
-            >
-              <div className="w-10 h-10 rounded-xl bg-[var(--color-bg-2)] flex items-center justify-center">
-                <Icon name={icon} size={18} className="text-[var(--color-txt-2)]" />
+
+        {locations.filter((l) => l.weekly_hours).length > 0 ? (
+          <div className="space-y-6">
+            {locations
+              .filter((l) => l.weekly_hours)
+              .map((loc) => {
+                const today = getTodayDayName()
+                return (
+                  <div key={loc.id}>
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className={`status-dot ${loc.status === 'open' ? 'status-open' : 'status-closed'}`} />
+                      <span className="text-[14px] font-semibold text-[var(--color-txt-0)]">{loc.name}</span>
+                      <span className="text-[12px] text-[var(--color-txt-2)]">
+                        · {loc.status === 'open' ? 'Open now' : 'Closed'} · {loc.hours}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                      {WEEKDAY_ORDER.map((day) => {
+                        const hrs = loc.weekly_hours[day] || 'N/A'
+                        const isToday = day === today
+                        const isClosed = /closed/i.test(hrs)
+                        return (
+                          <div
+                            key={day}
+                            className={`rounded-xl p-3 text-center transition-all ${
+                              isToday
+                                ? 'bg-gradient-to-br from-[var(--color-dining-bg)] to-[var(--color-dining-bg)]/50 border border-[var(--color-dining-color)]/15 ring-1 ring-[var(--color-dining-color)]/10'
+                                : 'bg-[var(--color-stat)]'
+                            }`}
+                          >
+                            <div
+                              className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${
+                                isToday ? 'text-[var(--color-dining-color)]' : 'text-[var(--color-txt-3)]'
+                              }`}
+                            >
+                              {SHORT_DAY[day]}
+                              {isToday && (
+                                <span className="ml-1 inline-flex w-1.5 h-1.5 rounded-full bg-[var(--color-success)] align-middle" />
+                              )}
+                            </div>
+                            <div
+                              className={`text-[12px] leading-snug ${
+                                isClosed
+                                  ? 'text-[var(--color-txt-3)]'
+                                  : isToday
+                                    ? 'text-[var(--color-dining-color)] font-medium'
+                                    : 'text-[var(--color-txt-1)]'
+                              }`}
+                            >
+                              {isClosed ? 'Closed' : hrs}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-3 gap-4">
+            {GENERIC_HOURS.map(({ meal, time, icon }) => (
+              <div
+                key={meal}
+                className="bg-[var(--color-stat)] rounded-xl p-4 flex items-center gap-4 hover:bg-[var(--color-bg-3)] transition-colors"
+              >
+                <div className="w-10 h-10 rounded-xl bg-[var(--color-bg-2)] flex items-center justify-center">
+                  <Icon name={icon} size={18} className="text-[var(--color-txt-2)]" />
+                </div>
+                <div>
+                  <div className="text-[12px] text-[var(--color-txt-2)]">{meal}</div>
+                  <div className="text-[14px] font-medium text-[var(--color-txt-0)]">{time}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-[12px] text-[var(--color-txt-2)]">{meal}</div>
-                <div className="text-[14px] font-medium text-[var(--color-txt-0)]">{time}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
         </>
       )}

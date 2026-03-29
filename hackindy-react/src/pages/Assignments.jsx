@@ -111,6 +111,14 @@ function isPastDue(dateString) {
 // Categories that belong on the Events page, not Tasks
 const eventCategories = ['campus_event', 'event', 'deadline']
 
+function getInsightsCacheKey(mode) {
+  const d = new Date()
+  const day = d.getDay()
+  const monday = new Date(d)
+  monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
+  return `ai-assignments-${mode}-${monday.toISOString().slice(0, 10)}`
+}
+
 export default function Assignments() {
   const { onboarding } = useAuth()
   const [items, setItems] = useState([])
@@ -119,6 +127,45 @@ export default function Assignments() {
   const [loading, setLoading] = useState(true)
   const [showPast, setShowPast] = useState(false)
   const [selectedItem, setSelectedItem] = useState(null)
+
+  const [insightsMode, setInsightsMode] = useState('priority')
+  const [insightsText, setInsightsText] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(getInsightsCacheKey('priority'))) ?? null } catch { return null }
+  })
+  const [studyPlan, setStudyPlan] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(getInsightsCacheKey('study'))) ?? null } catch { return null }
+  })
+  const [insightsLoading, setInsightsLoading] = useState(false)
+  const [insightsOpen, setInsightsOpen] = useState(true)
+
+  const generateInsights = (mode) => {
+    setInsightsLoading(true)
+    const prompt = mode === 'study'
+      ? 'Look at my free time between classes this week and my upcoming assignments. Create a short study plan: which assignment to work on, when (specific day and time slot), and for how long. Keep it actionable — max 5 items. No markdown headers.'
+      : 'Rank my upcoming assignments by urgency. Flag any due within 48 hours or where multiple deadlines cluster on the same day. One line per item, most urgent first. Prefix each with a priority: [!] urgent, [~] soon, [ok] comfortable. No markdown headers.'
+    fetch('/api/assistant', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: prompt }] }),
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.reply) {
+          if (mode === 'study') {
+            setStudyPlan(d.reply)
+            try { localStorage.setItem(getInsightsCacheKey('study'), JSON.stringify(d.reply)) } catch {}
+          } else {
+            setInsightsText(d.reply)
+            try { localStorage.setItem(getInsightsCacheKey('priority'), JSON.stringify(d.reply)) } catch {}
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setInsightsLoading(false))
+  }
+
+  const activeInsight = insightsMode === 'study' ? studyPlan : insightsText
 
   useEffect(() => {
     loadData()
@@ -184,7 +231,7 @@ export default function Assignments() {
     <div className="max-w-[1000px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 opacity-100">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Assignments & Events</h1>
+          <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Assignments</h1>
           <p className="text-[14px] text-[var(--color-txt-2)] mt-1">
             {filteredItems.length} upcoming items from Brightspace
           </p>
@@ -245,6 +292,62 @@ export default function Assignments() {
               </button>
             )
           })}
+        </div>
+      )}
+
+      {/* AI Insights Panel */}
+      {!hasNoSources && !loading && filteredItems.length > 0 && (
+        <div className={`card mb-6 transition-all duration-300 border-[var(--color-gold)]/20 animate-fade-in-up stagger-2 ${insightsOpen ? '' : 'cursor-pointer'}`}>
+          <div
+            className="flex items-center justify-between gap-3 p-4 cursor-pointer"
+            onClick={() => setInsightsOpen((v) => !v)}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0">
+                <Icon name="sparkles" size={12} className="text-[var(--color-gold-dark)]" />
+              </div>
+              <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">AI Insights</span>
+            </div>
+            <Icon name={insightsOpen ? 'chevronUp' : 'chevronDown'} size={14} className="text-[var(--color-txt-3)]" />
+          </div>
+          {insightsOpen && (
+            <div className="px-4 pb-4">
+              <div className="flex items-center gap-2 mb-3">
+                {['priority', 'study'].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setInsightsMode(m)}
+                    className={`text-[11px] font-medium px-3 py-1.5 rounded-full transition-all ${
+                      insightsMode === m
+                        ? 'bg-[var(--color-gold)]/15 text-[var(--color-gold-muted)]'
+                        : 'bg-[var(--color-stat)] text-[var(--color-txt-2)] hover:bg-[var(--color-bg-3)]'
+                    }`}
+                  >
+                    {m === 'priority' ? 'Priority Ranking' : 'Study Plan'}
+                  </button>
+                ))}
+                <button
+                  onClick={() => generateInsights(insightsMode)}
+                  disabled={insightsLoading}
+                  className="ml-auto text-[11px] text-[var(--color-accent)] hover:underline disabled:opacity-40 shrink-0"
+                >
+                  {insightsLoading ? 'Generating…' : activeInsight ? 'Refresh' : 'Generate'}
+                </button>
+              </div>
+              {insightsLoading && !activeInsight ? (
+                <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)] py-2">
+                  <div className="w-3.5 h-3.5 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin shrink-0" />
+                  Analyzing your assignments…
+                </div>
+              ) : activeInsight ? (
+                <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed whitespace-pre-line">{activeInsight}</p>
+              ) : (
+                <p className="text-[12px] text-[var(--color-txt-3)] py-1">
+                  Click &ldquo;Generate&rdquo; to get AI-powered {insightsMode === 'priority' ? 'priority ranking' : 'study plan'} based on your schedule and deadlines.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       )}
 

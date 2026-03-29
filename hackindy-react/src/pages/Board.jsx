@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
 import Icon from '../components/Icons'
@@ -134,11 +134,62 @@ export default function Board() {
     }
   }
 
-  const sortedPosts = [...posts].sort((a, b) => {
-    if (a.pinned && !b.pinned) return -1
-    if (!a.pinned && b.pinned) return 1
-    return sort === 'popular' ? b.upvotes - a.upvotes : 0
-  })
+  const [threadSummaries, setThreadSummaries] = useState({})
+  const [summarizing, setSummarizing] = useState(new Set())
+
+  const summarizeThread = async (post) => {
+    if (summarizing.has(post.id)) return
+    setSummarizing((prev) => new Set(prev).add(post.id))
+    try {
+      const threadText = [
+        `Title: ${post.title}`,
+        post.body ? `Post: ${post.body}` : '',
+        ...post.replies.map((r, i) => `Reply ${i + 1} (${r.user}): ${r.body}`),
+      ].filter(Boolean).join('\n').slice(0, 2000)
+
+      const res = await fetch('/api/assistant', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{
+            role: 'user',
+            content: `Summarize this campus board discussion in 2-3 concise bullet points. What is the main question and what are the key answers or opinions? No markdown headers.\n\n${threadText}`,
+          }],
+        }),
+      })
+      const data = await res.json()
+      if (data.reply) {
+        setThreadSummaries((prev) => ({ ...prev, [post.id]: data.reply }))
+      }
+    } catch (err) {
+      console.error('Summarize thread error', err)
+    } finally {
+      setSummarizing((prev) => { const n = new Set(prev); n.delete(post.id); return n })
+    }
+  }
+
+  const [filterTag, setFilterTag] = useState(null)
+
+  const allTags = useMemo(() => {
+    const counts = {}
+    for (const p of posts) {
+      for (const t of p.tags || []) {
+        counts[t] = (counts[t] || 0) + 1
+      }
+    }
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag, count]) => ({ tag, count }))
+  }, [posts])
+
+  const sortedPosts = [...posts]
+    .filter((p) => !filterTag || (p.tags || []).includes(filterTag))
+    .sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1
+      if (!a.pinned && b.pinned) return 1
+      return sort === 'popular' ? b.upvotes - a.upvotes : 0
+    })
 
   return (
     <div className={`max-w-[800px] mx-auto px-6 py-8 pb-24 transition-opacity duration-500 ${mounted ? 'opacity-100' : 'opacity-0'}`}>
@@ -219,7 +270,7 @@ export default function Board() {
       </div>
 
       {/* Controls */}
-      <div className="flex items-center justify-between mb-5 animate-fade-in-up stagger-1">
+      <div className="flex items-center justify-between mb-3 animate-fade-in-up stagger-1">
         <div className="flex gap-2">
           {['recent', 'popular'].map(s => (
             <button
@@ -231,8 +282,36 @@ export default function Board() {
             </button>
           ))}
         </div>
-        <span className="text-[12px] text-[var(--color-txt-3)]">{posts.length} posts</span>
+        <span className="text-[12px] text-[var(--color-txt-3)]">{sortedPosts.length} posts</span>
       </div>
+
+      {allTags.length > 0 && (
+        <div className="flex gap-1.5 mb-5 overflow-x-auto pb-1 -mx-1 px-1 animate-fade-in-up stagger-1">
+          <button
+            onClick={() => setFilterTag(null)}
+            className={`text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-all ${
+              !filterTag
+                ? 'bg-[var(--color-accent)] text-white'
+                : 'bg-[var(--color-stat)] text-[var(--color-txt-2)] hover:bg-[var(--color-bg-3)]'
+            }`}
+          >
+            All
+          </button>
+          {allTags.map(({ tag, count }) => (
+            <button
+              key={tag}
+              onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+              className={`text-[11px] font-medium px-2.5 py-1 rounded-full whitespace-nowrap transition-all ${
+                filterTag === tag
+                  ? 'bg-[var(--color-accent)] text-white'
+                  : 'bg-[var(--color-stat)] text-[var(--color-txt-2)] hover:bg-[var(--color-bg-3)]'
+              }`}
+            >
+              #{tag} <span className="opacity-60">{count}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
@@ -289,6 +368,19 @@ export default function Board() {
                     {post.title}
                   </div>
 
+                  {post.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {post.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--color-accent)]/10 text-[var(--color-accent)]"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
                   <div className={`overflow-hidden transition-all duration-300 ${expanded.has(post.id) && post.body ? 'max-h-[200px] mt-2' : 'max-h-0'}`}>
                     <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed">
                       {post.body}
@@ -313,8 +405,31 @@ export default function Board() {
                   </div>
 
                   {/* Replies */}
-                  <div className={`overflow-hidden transition-all duration-300 ${repliesOpen.has(post.id) ? 'max-h-[600px] mt-4' : 'max-h-0'}`}>
+                  <div className={`overflow-hidden transition-all duration-300 ${repliesOpen.has(post.id) ? 'max-h-[800px] mt-4' : 'max-h-0'}`}>
                     <div className="pt-4 border-t border-[var(--color-border)]">
+                      {/* Thread summarizer */}
+                      {post.replies.length >= 5 && (
+                        <div className="mb-4">
+                          {threadSummaries[post.id] ? (
+                            <div className="rounded-xl p-3 bg-[var(--color-gold)]/5 border border-[var(--color-gold)]/20">
+                              <div className="flex items-center gap-1.5 mb-1.5">
+                                <Icon name="sparkles" size={11} className="text-[var(--color-gold-muted)]" />
+                                <span className="text-[10px] font-semibold text-[var(--color-gold-muted)] uppercase tracking-wider">Thread Summary</span>
+                              </div>
+                              <p className="text-[12px] text-[var(--color-txt-1)] leading-relaxed whitespace-pre-line">{threadSummaries[post.id]}</p>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => summarizeThread(post)}
+                              disabled={summarizing.has(post.id)}
+                              className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-gold-muted)] hover:text-[var(--color-gold)] transition-colors disabled:opacity-40"
+                            >
+                              <Icon name="sparkles" size={12} />
+                              {summarizing.has(post.id) ? 'Summarizing…' : 'Summarize thread'}
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {post.replies.map((reply, i) => (
                         <div key={reply.id ?? i} className="py-3 border-b border-[var(--color-border)] last:border-b-0">
                           <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed">{reply.body}</p>
