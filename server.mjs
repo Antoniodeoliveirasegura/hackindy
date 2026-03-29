@@ -1274,6 +1274,66 @@ app.get('/', (_req, res) => {
   res.redirect(clientAppUrl)
 })
 
+// Gemini campus assistant
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent'
+
+const CAMPUS_SYSTEM_PROMPT = `You are a helpful campus assistant for Purdue University Indianapolis (Purdue Indy / IUPUI).
+You help students with questions about:
+- Campus dining (Tower Dining, Campus Center food options, meal hours)
+- Campus transit/buses (TransLoc routes, stop locations, schedules)
+- Buildings and campus map (ET Building, Campus Center, University Library, Science building, etc.)
+- Student services (tutoring, printing, health center, financial aid, registrar)
+- Events and activities on campus
+- General student life at Purdue Indy
+
+Be concise, friendly, and helpful. Keep responses to 2-3 sentences unless more detail is clearly needed.
+If asked about something unrelated to Purdue Indy campus life, briefly acknowledge and redirect to campus topics.
+Do not make up specific real-time data (bus times, today's menu) — instead direct students to the relevant tab in the app.`
+
+app.post('/api/assistant', async (req, res) => {
+  if (!GEMINI_API_KEY) {
+    return res.status(503).json({ error: 'Assistant not configured.' })
+  }
+
+  const { messages } = req.body
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return res.status(400).json({ error: 'messages array required' })
+  }
+
+  const contents = messages
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }))
+
+  try {
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: CAMPUS_SYSTEM_PROMPT }] },
+        contents,
+        generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
+      }),
+    })
+
+    if (!response.ok) {
+      const err = await response.text()
+      console.error('Gemini error:', err)
+      return res.status(502).json({ error: 'AI service error' })
+    }
+
+    const data = await response.json()
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "Sorry, I couldn't generate a response."
+    res.json({ reply: text })
+  } catch (err) {
+    console.error('Assistant error:', err)
+    res.status(500).json({ error: 'Assistant request failed' })
+  }
+})
+
 // TransLoc API proxy endpoints (to avoid CORS issues)
 const TRANSLOC_API = 'https://iuindianapolis.transloc.com/Services/JSONPRelay.svc'
 const TRANSLOC_API_KEY = '8882812681'
