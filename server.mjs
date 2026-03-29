@@ -488,6 +488,40 @@ function normalizeCategory(sourceType, event) {
 }
 
 /**
+ * node-ical sets the rrule DTSTART to the *local* class time (e.g. 9:30 AM)
+ * without the UTC offset, so rrule.between() returns dates where the UTC
+ * hours/minutes equal the Eastern local hours/minutes (e.g. 09:30Z instead
+ * of 14:30Z for an EST class).  This function corrects each generated date
+ * back to real UTC by applying the Eastern timezone offset for that date.
+ */
+function fixRruleTimezone(rruleDate) {
+  const TZ = 'America/Indiana/Indianapolis'
+  const lYear  = rruleDate.getUTCFullYear()
+  const lMonth = rruleDate.getUTCMonth()
+  const lDay   = rruleDate.getUTCDate()
+  const lHour  = rruleDate.getUTCHours()
+  const lMin   = rruleDate.getUTCMinutes()
+  const lSec   = rruleDate.getUTCSeconds()
+
+  // Try EDT (UTC-4) and EST (UTC-5) — whichever produces the same local hour
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+  for (const offsetH of [4, 5]) {
+    const candidate = new Date(Date.UTC(lYear, lMonth, lDay, lHour + offsetH, lMin, lSec))
+    const parts = fmt.formatToParts(candidate)
+    const checkH = parseInt(parts.find(p => p.type === 'hour').value) % 24
+    const checkM = parseInt(parts.find(p => p.type === 'minute').value)
+    if (checkH === lHour && checkM === lMin) return candidate
+  }
+  // Fallback: assume EST (UTC-5)
+  return new Date(Date.UTC(lYear, lMonth, lDay, lHour + 5, lMin, lSec))
+}
+
+/**
  * Expand RRULE-based recurring events into individual occurrences.
  * node-ical returns one object per UID even for recurring events; this
  * function generates all individual date instances within ±1 year.
@@ -505,7 +539,7 @@ function expandRecurringEvents(events) {
 
     const startMs = event.start instanceof Date ? event.start.getTime() : new Date(event.start).getTime()
     const endMs   = event.end   instanceof Date ? event.end.getTime()   : new Date(event.end || event.start).getTime()
-    const duration = Math.max(0, endMs - startMs)
+    const durationMs = Math.max(0, endMs - startMs)
 
     let dates
     try {
@@ -531,10 +565,14 @@ function expandRecurringEvents(events) {
         continue
       }
 
+      // Fix: rrule generates "local time as UTC" — convert to real UTC
+      const correctStart = fixRruleTimezone(date)
+      const correctEnd   = new Date(correctStart.getTime() + durationMs)
+
       result.push({
         ...event,
-        start: date,
-        end: new Date(date.getTime() + duration),
+        start: correctStart,
+        end: correctEnd,
         uid: `${event.uid}:${dateKey}`,
         rrule: undefined,
         recurrences: undefined,
