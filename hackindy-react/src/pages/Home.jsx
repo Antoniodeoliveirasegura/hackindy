@@ -82,12 +82,6 @@ function formatDashboardEventTime(startTime, endTime) {
   return `${startLabel} – ${endLabel}`
 }
 
-const boardPosts = [
-  { title: 'Anyone know if ET 215 has outlets near the windows?', user: 'Anonymous', votes: 14, replies: 5, hot: true },
-  { title: 'Best place to study during finals week?', user: 'sarah_k', votes: 31, replies: 12, hot: true },
-  { title: 'Is the Career Fair open to freshmen?', user: 'Anonymous', votes: 8, replies: 3, hot: false },
-]
-
 const fallbackMenuPreview = {
   entrees: ['Grilled Chicken', 'Pasta Marinara', 'Black Bean Burger', 'Mac & Cheese'],
   sides: ['Caesar Salad', 'Roasted Veggies', 'Garlic Bread'],
@@ -417,6 +411,10 @@ export default function Home() {
   const [diningPreview, setDiningPreview] = useState(null)
   const [diningStatus, setDiningStatus] = useState(null) // { name, is_open, hours, weekly_hours }
 
+  const [boardPreview, setBoardPreview] = useState([])
+  const [boardLoading, setBoardLoading] = useState(true)
+  const [boardError, setBoardError] = useState('')
+
   // ── AI Week Digest ──────────────────────────────────────────────────────────
   function getWeekKey() {
     const d = new Date()
@@ -482,6 +480,29 @@ export default function Home() {
         }
       })
       .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setBoardLoading(true)
+      try {
+        const data = await authRequest('/api/board/posts?sort=recent')
+        if (cancelled) return
+        setBoardPreview((data.posts || []).slice(0, 3))
+        setBoardError('')
+      } catch (e) {
+        if (!cancelled) {
+          setBoardPreview([])
+          setBoardError(e?.message || 'Could not load board.')
+        }
+      } finally {
+        if (!cancelled) setBoardLoading(false)
+      }
+    })()
     return () => {
       cancelled = true
     }
@@ -1127,27 +1148,108 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="card p-5 transition-all duration-700 delay-[700ms] opacity-100 translate-y-0">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">Student Board</span>
-            <Link to="/board" className="text-[12px] text-[var(--color-accent)] hover:underline">Open board</Link>
-          </div>
-          <div className="space-y-3">
-            {boardPosts.map((post, idx) => (
-              <div key={idx} className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)]">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[14px] font-medium text-[var(--color-txt-0)] leading-snug">{post.title}</div>
-                    <div className="text-[12px] text-[var(--color-txt-2)] mt-1">{post.user}</div>
-                  </div>
-                  {post.hot && <span className="badge">Hot</span>}
-                </div>
-                <div className="flex items-center gap-4 mt-3 text-[12px] text-[var(--color-txt-2)]">
-                  <span className="flex items-center gap-1.5"><Icon name="arrowUp" size={12} />{post.votes}</span>
-                  <span className="flex items-center gap-1.5"><Icon name="messageCircle" size={12} />{post.replies}</span>
-                </div>
+        <div className="card p-0 overflow-hidden transition-all duration-700 delay-[700ms] opacity-100 translate-y-0 shadow-[var(--shadow-sm)]">
+          <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-4 border-b border-[var(--color-border)] bg-gradient-to-r from-[var(--color-accent-bg)]/35 via-transparent to-[var(--color-gold)]/8">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-sm)] flex items-center justify-center shrink-0">
+                <Icon name="messageCircle" size={20} className="text-[var(--color-accent)]" />
               </div>
-            ))}
+              <div className="min-w-0">
+                <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider block">Student Board</span>
+                <p className="text-[12px] text-[var(--color-txt-2)] mt-0.5 truncate">Community Q&amp;A from campus</p>
+              </div>
+            </div>
+            <Link
+              to="/board"
+              className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-[var(--color-accent)] hover:text-[var(--color-accent-light)] px-3 py-1.5 rounded-lg hover:bg-[var(--color-accent)]/10 transition-colors no-underline"
+            >
+              Open board
+              <Icon name="arrowUpRight" size={14} />
+            </Link>
+          </div>
+
+          <div className="p-5 pt-4">
+            {boardError && !boardLoading && (
+              <p className="text-[12px] text-[var(--color-error)] mb-3 px-1">{boardError}</p>
+            )}
+            <div className="space-y-2.5">
+              {boardLoading ? (
+                <div className="space-y-2.5">
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="flex gap-3 p-3 rounded-xl bg-[var(--color-stat)] border border-[var(--color-border)] animate-pulse"
+                    >
+                      <div className="w-1 rounded-full bg-[var(--color-border-2)] shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3.5 bg-[var(--color-border-2)] rounded-md w-[85%]" />
+                        <div className="h-3 bg-[var(--color-border-2)] rounded-md w-[40%]" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : boardPreview.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[var(--color-border-2)] bg-[var(--color-stat)]/50 px-5 py-8 text-center">
+                  <div className="w-12 h-12 mx-auto rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] flex items-center justify-center mb-3 shadow-[var(--shadow-sm)]">
+                    <Icon name="message" size={22} className="text-[var(--color-txt-3)]" />
+                  </div>
+                  <p className="text-[13px] text-[var(--color-txt-1)] font-medium">No threads yet</p>
+                  <p className="text-[12px] text-[var(--color-txt-2)] mt-1 max-w-[220px] mx-auto">
+                    Be the first to ask the campus a question.
+                  </p>
+                  <Link
+                    to="/board"
+                    className="inline-flex items-center gap-1.5 mt-4 text-[12px] font-semibold text-[var(--color-accent)] hover:underline"
+                  >
+                    Start a thread
+                    <Icon name="arrowUpRight" size={12} />
+                  </Link>
+                </div>
+              ) : (
+                boardPreview.map((post) => (
+                  <Link
+                    key={post.id}
+                    to="/board"
+                    className="group flex gap-3 p-3.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)]/35 hover:bg-[var(--color-surface-hover)] hover:shadow-[var(--shadow-sm)] transition-all duration-200 no-underline text-inherit"
+                  >
+                    <div className="w-1 self-stretch min-h-[2.5rem] rounded-full bg-gradient-to-b from-[var(--color-gold-muted)] to-[var(--color-accent)] opacity-80 group-hover:opacity-100 transition-opacity shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-[14px] font-semibold text-[var(--color-txt-0)] leading-snug line-clamp-2 group-hover:text-[var(--color-accent)] transition-colors">
+                          {post.title}
+                        </h3>
+                        {post.hot && (
+                          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-[var(--color-events-bg)] text-[var(--color-events-color)]">
+                            Hot
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--color-txt-2)]">
+                          <span className="w-5 h-5 rounded-full bg-[var(--color-accent-bg)] text-[var(--color-accent)] text-[9px] font-bold flex items-center justify-center">
+                            {(post.user || '?').charAt(0).toUpperCase()}
+                          </span>
+                          {post.user}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--color-stat)] text-[var(--color-txt-2)] text-[11px] font-medium">
+                          <Icon name="arrowUp" size={11} />
+                          {post.upvotes}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--color-stat)] text-[var(--color-txt-2)] text-[11px] font-medium">
+                          <Icon name="messageCircle" size={11} />
+                          {Array.isArray(post.replies) ? post.replies.length : 0}
+                        </span>
+                      </div>
+                    </div>
+                    <Icon
+                      name="arrowUpRight"
+                      size={15}
+                      className="text-[var(--color-txt-3)] shrink-0 opacity-0 group-hover:opacity-100 group-hover:text-[var(--color-accent)] transition-all mt-0.5"
+                    />
+                  </Link>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>

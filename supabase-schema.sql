@@ -143,6 +143,9 @@ ALTER TABLE board_posts   ENABLE ROW LEVEL SECURITY;
 ALTER TABLE board_replies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE board_upvotes ENABLE ROW LEVEL SECURITY;
 
+-- Board rows are read/written by the HackIndy Node server (SUPABASE_SERVICE_ROLE_KEY),
+-- which bypasses RLS. Endpoints: GET/POST /api/board/posts, reply, upvote.
+
 CREATE TRIGGER update_board_posts_updated_at
   BEFORE UPDATE ON board_posts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

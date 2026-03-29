@@ -8,6 +8,11 @@ import ical from 'node-ical'
 import { createClient } from '@supabase/supabase-js'
 import { cancelCalendarCapture, getCalendarCaptureJob, startCalendarCapture } from './purdueCalendarAutomation.mjs'
 import { getDiningSnapshot } from './nutrisliceDining.mjs'
+import {
+  assertBoardPostTextAllowed,
+  boardTextFailsPolicy,
+  BOARD_PROFANITY_USER_MESSAGE,
+} from './boardProfanity.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -1616,12 +1621,44 @@ app.get('/api/dining', async (req, res) => {
 // Board API
 // ============================================================
 
+const BOARD_SQL_FILE = 'hackindy/supabase-board-only.sql'
+
+function isBoardSchemaMissingError(err) {
+  const m = String(err?.message || '')
+  const c = String(err?.code || '')
+  return (
+    m.includes('schema cache') ||
+    m.includes('Could not find the table') ||
+    m.includes('does not exist') && m.includes('board_posts') ||
+    c === 'PGRST205' ||
+    c === '42P01'
+  )
+}
+
+function respondBoardDbError(res, err) {
+  console.error('Board DB error:', err?.message || err, err?.code, err?.details)
+  if (isBoardSchemaMissingError(err)) {
+    return res.status(503).json({
+      error: {
+        message: `Campus board tables are missing in Supabase. In the dashboard: SQL Editor → paste and run the file ${BOARD_SQL_FILE} from this repo → Run. Wait a few seconds, then try again.`,
+        code: 'board_schema_missing',
+        status: 503,
+      },
+    })
+  }
+  return res.status(500).json({
+    error: { message: err?.message || 'Database error', status: 500 },
+  })
+}
+
 app.get('/api/board/posts', requireAuth, async (req, res) => {
   const sort = req.query.sort === 'popular' ? 'popular' : 'recent'
 
   let query = supabase
     .from('board_posts')
-    .select('id, title, body, is_anon, pinned, upvote_count, reply_count, tags, created_at, user_id, users ( display_name )')
+    .select(
+      'id, title, body, is_anon, pinned, upvote_count, reply_count, tags, created_at, user_id, users!board_posts_user_id_fkey ( display_name )',
+    )
   if (sort === 'popular') {
     query = query
       .order('pinned', { ascending: false })
@@ -1633,14 +1670,16 @@ app.get('/api/board/posts', requireAuth, async (req, res) => {
       .order('created_at', { ascending: false })
   }
   const { data: postsData, error: postsError } = await query.limit(100)
-  if (postsError) return res.status(500).json({ error: { message: postsError.message, status: 500 } })
+  if (postsError) return respondBoardDbError(res, postsError)
 
   const postIds = postsData.map(p => p.id)
   let repliesData = []
   if (postIds.length > 0) {
     const { data: rd } = await supabase
       .from('board_replies')
-      .select('id, post_id, body, is_anon, created_at, user_id, users ( display_name )')
+      .select(
+        'id, post_id, body, is_anon, created_at, user_id, users!board_replies_user_id_fkey ( display_name )',
+      )
       .in('post_id', postIds)
       .order('created_at', { ascending: true })
     repliesData = rd || []
@@ -1667,6 +1706,7 @@ app.get('/api/board/posts', requireAuth, async (req, res) => {
     })
   }
 
+  const myId = req.currentUser.id
   const posts = postsData.map(p => ({
     id: p.id,
     title: p.title,
@@ -1679,6 +1719,7 @@ app.get('/api/board/posts', requireAuth, async (req, res) => {
     time: p.created_at,
     tags: Array.isArray(p.tags) ? p.tags : [],
     upvotedByMe: upvotedIds.has(p.id),
+    isMine: p.user_id === myId,
     replies: repliesByPost[p.id] || [],
   }))
 
@@ -1736,15 +1777,31 @@ app.post('/api/board/posts', requireAuth, async (req, res) => {
   if (!title) return res.status(400).json({ error: { message: 'Title is required.', status: 400 } })
   if (title.length > 300) return res.status(400).json({ error: { message: 'Title must be 300 characters or fewer.', status: 400 } })
 
-  const id = makeId()
-  const timestamp = nowIso()
+  const profanityCheck = assertBoardPostTextAllowed(title, body)
+  if (!profanityCheck.ok) {
+    return res.status(400).json({ error: { message: profanityCheck.message, status: 400 } })
+  }
+
+  const userId = req.currentUser.id
+  if (!userId) {
+    return res.status(401).json({ error: { message: 'Invalid session.', status: 401 } })
+  }
+
   const { data, error } = await supabase
     .from('board_posts')
-    .insert({ id, user_id: req.currentUser.id, title, body, is_anon: isAnon, pinned: false, upvote_count: 0, reply_count: 0, tags: [], created_at: timestamp, updated_at: timestamp })
+    .insert({
+      user_id: userId,
+      title,
+      body: body || '',
+      is_anon: isAnon,
+    })
     .select('id, title, body, is_anon, pinned, upvote_count, reply_count, created_at')
     .single()
 
-  if (error) return res.status(500).json({ error: { message: error.message, status: 500 } })
+  if (error) {
+    console.error('board_posts insert:', error.message, error.code, error.details)
+    return respondBoardDbError(res, error)
+  }
 
   // Fire-and-forget: AI assigns tags in the background
   const tagsPromise = autoTagBoardPost(data.id, title, body)
@@ -1755,12 +1812,13 @@ app.post('/api/board/posts', requireAuth, async (req, res) => {
     title: data.title,
     body: data.body,
     anon: data.is_anon,
-    user: data.is_anon ? 'Anonymous' : req.currentUser.display_name,
+    user: data.is_anon ? 'Anonymous' : (req.currentUser.display_name || 'Student'),
     upvotes: 0,
     pinned: false,
     hot: false,
     time: data.created_at,
     upvotedByMe: false,
+    isMine: true,
     tags: [],
     replies: [],
   }
@@ -1781,13 +1839,17 @@ app.post('/api/board/posts/:id/reply', requireAuth, async (req, res) => {
   const isAnon = req.body.anon === true || req.body.anon === 'true'
 
   if (!body) return res.status(400).json({ error: { message: 'Reply body is required.', status: 400 } })
+  if (boardTextFailsPolicy(body)) {
+    return res.status(400).json({ error: { message: BOARD_PROFANITY_USER_MESSAGE, status: 400 } })
+  }
 
   const { data: post, error: postError } = await supabase
     .from('board_posts')
     .select('id, reply_count')
     .eq('id', postId)
     .single()
-  if (postError || !post) return res.status(404).json({ error: { message: 'Post not found.', status: 404 } })
+  if (postError) return respondBoardDbError(res, postError)
+  if (!post) return res.status(404).json({ error: { message: 'Post not found.', status: 404 } })
 
   const id = makeId()
   const timestamp = nowIso()
@@ -1797,7 +1859,7 @@ app.post('/api/board/posts/:id/reply', requireAuth, async (req, res) => {
     .select('id, body, is_anon, created_at')
     .single()
 
-  if (replyError) return res.status(500).json({ error: { message: replyError.message, status: 500 } })
+  if (replyError) return respondBoardDbError(res, replyError)
 
   await supabase
     .from('board_posts')
@@ -1823,7 +1885,8 @@ app.post('/api/board/posts/:id/upvote', requireAuth, async (req, res) => {
     .select('id, upvote_count')
     .eq('id', postId)
     .single()
-  if (postError || !post) return res.status(404).json({ error: { message: 'Post not found.', status: 404 } })
+  if (postError) return respondBoardDbError(res, postError)
+  if (!post) return res.status(404).json({ error: { message: 'Post not found.', status: 404 } })
 
   const { error: insertError } = await supabase
     .from('board_upvotes')
@@ -1835,7 +1898,7 @@ app.post('/api/board/posts/:id/upvote', requireAuth, async (req, res) => {
     newCount = Math.max(0, post.upvote_count - 1)
     upvotedByMe = false
   } else if (insertError) {
-    return res.status(500).json({ error: { message: insertError.message, status: 500 } })
+    return respondBoardDbError(res, insertError)
   } else {
     newCount = post.upvote_count + 1
     upvotedByMe = true
@@ -1845,8 +1908,32 @@ app.post('/api/board/posts/:id/upvote', requireAuth, async (req, res) => {
   res.json({ upvotes: newCount, upvotedByMe })
 })
 
-app.listen(port, host, () => {
+app.delete('/api/board/posts/:id', requireAuth, async (req, res) => {
+  const postId = req.params.id
+  const userId = req.currentUser.id
+  const { data, error } = await supabase
+    .from('board_posts')
+    .delete()
+    .eq('id', postId)
+    .eq('user_id', userId)
+    .select('id')
+  if (error) return respondBoardDbError(res, error)
+  if (!data?.length) {
+    return res.status(404).json({
+      error: { message: 'Post not found or you can only delete your own posts.', status: 404 },
+    })
+  }
+  res.status(204).end()
+})
+
+app.listen(port, host, async () => {
   console.log(`HackIndy backend listening on ${publicBaseUrl}`)
   console.log(`Purdue link mode: ${purdueAuthMode}`)
   console.log(`Database: Supabase`)
+  const probe = await supabase.from('board_posts').select('id').limit(1)
+  if (probe.error && isBoardSchemaMissingError(probe.error)) {
+    console.warn(
+      `\n[HackIndy] Campus board: table board_posts not found. Run ${BOARD_SQL_FILE} in Supabase SQL Editor, then restart the server.\n`,
+    )
+  }
 })
