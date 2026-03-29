@@ -7,9 +7,11 @@ import {
   routes as transitRoutes,
   TRANLOC_ROUTE_ALIASES,
   UNKNOWN_ROUTE,
+  SCHEDULE_PEERS,
   canonicalFromMap,
   buildTranslocRouteIdMap,
   nearestStopForVehicle,
+  isRouteActiveNow,
 } from '../lib/transitShared'
 
 const quickActionTemplates = [
@@ -437,7 +439,16 @@ export default function Home() {
 
   const transitDashboardRows = useMemo(() => {
     const mapped = (transitVehicles || []).map((v) => {
-      const canon = canonicalFromMap(transitRouteMap, v.RouteID)
+      let canon = canonicalFromMap(transitRouteMap, v.RouteID)
+      // Remap to active schedule peer (e.g. Gray → Orange on weekends)
+      const reportedRoute = transitRoutes.find((r) => r.id === canon)
+      if (reportedRoute && !isRouteActiveNow(reportedRoute)) {
+        const peerId = SCHEDULE_PEERS[canon]
+        if (peerId != null) {
+          const peerRoute = transitRoutes.find((r) => r.id === peerId)
+          if (peerRoute && isRouteActiveNow(peerRoute)) canon = peerId
+        }
+      }
       const route = transitRoutes.find((r) => r.id === canon) || UNKNOWN_ROUTE
       const near = nearestStopForVehicle(transitStops, v, transitRouteMap)
       const speed = Number(v.GroundSpeed) || 0
