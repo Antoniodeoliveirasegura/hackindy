@@ -177,7 +177,12 @@ export default function Schedule() {
       try {
         const response = await authRequest('/api/me/classes?limit=500&mode=chronological')
         if (cancelled) return
-        setClassItems(response.items || [])
+        // Exclude one-off exam events — only show recurring class meetings
+        const examRe = /\b(midterm|final|exam|quiz|test)\b/i
+        const meetingItems = (response.items || []).filter(
+          item => !examRe.test(`${item.title || ''} ${item.description || ''}`)
+        )
+        setClassItems(meetingItems)
         setClassesMeta(response.meta || { totalInTerm: 0 })
         setTermLabel(response.meta?.selectedTermLabel || '')
       } catch (error) {
