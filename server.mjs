@@ -1434,25 +1434,32 @@ function buildDiningContext(dining) {
   return lines.join('\n')
 }
 
+function summarizeClassSchedule(classes) {
+  const byName = new Map()
+  for (const c of classes) {
+    const name = c.title || 'Untitled'
+    if (!byName.has(name)) byName.set(name, new Set())
+    const day = new Date(c.start_time).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'short' })
+    byName.get(name).add(day)
+  }
+  if (!byName.size) return 'No upcoming classes found.'
+  return [...byName.entries()]
+    .map(([name, days]) => `${name} (${[...days].join(', ')})`)
+    .join('; ')
+}
+
 function buildCalendarContext(classes, assignments, events) {
   const parts = []
 
-  if (classes.length) {
-    parts.push('=== UPCOMING CLASSES ===')
-    parts.push(classes.map(i =>
-      `- ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}–${i.end_time ? fmtTime(i.end_time) : '?'}${i.location ? ` @ ${i.location}` : ''}: ${i.title}`
-    ).join('\n'))
-  } else {
-    parts.push('=== UPCOMING CLASSES ===\nNo upcoming classes found.')
-  }
+  parts.push(`=== COURSES THIS WEEK ===\n${summarizeClassSchedule(classes)}`)
 
   if (assignments.length) {
-    parts.push('=== UPCOMING ASSIGNMENTS / TASKS ===')
+    parts.push('=== UPCOMING ASSIGNMENTS / DEADLINES ===')
     parts.push(assignments.map(i =>
       `- Due ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}: ${i.title}${i.location ? ` (${i.location})` : ''}`
     ).join('\n'))
   } else {
-    parts.push('=== UPCOMING ASSIGNMENTS / TASKS ===\nNo upcoming assignments found.')
+    parts.push('=== UPCOMING ASSIGNMENTS / DEADLINES ===\nNo upcoming assignments found.')
   }
 
   if (events.length) {
@@ -1537,7 +1544,7 @@ app.post('/api/assistant', async (req, res) => {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
-        generationConfig: { maxOutputTokens: 500, temperature: 0.65 },
+        generationConfig: { maxOutputTokens: 1500, temperature: 0.65 },
       }),
     })
 
@@ -1614,7 +1621,7 @@ app.get('/api/board/posts', requireAuth, async (req, res) => {
 
   let query = supabase
     .from('board_posts')
-    .select('id, title, body, is_anon, pinned, upvote_count, reply_count, created_at, user_id, users ( display_name )')
+    .select('id, title, body, is_anon, pinned, upvote_count, reply_count, tags, created_at, user_id, users ( display_name )')
   if (sort === 'popular') {
     query = query
       .order('pinned', { ascending: false })
@@ -1670,12 +1677,56 @@ app.get('/api/board/posts', requireAuth, async (req, res) => {
     pinned: p.pinned,
     hot: !p.pinned && p.upvote_count >= 10,
     time: p.created_at,
+    tags: Array.isArray(p.tags) ? p.tags : [],
     upvotedByMe: upvotedIds.has(p.id),
     replies: repliesByPost[p.id] || [],
   }))
 
   res.json({ posts })
 })
+
+const BOARD_TAG_CANDIDATES = [
+  'dining', 'parking', 'tutoring', 'housing', 'transit', 'library',
+  'career', 'health', 'clubs', 'sports', 'tech', 'financial-aid',
+  'study-spots', 'events', 'classes', 'safety',
+]
+
+async function autoTagBoardPost(postId, title, body) {
+  if (!GEMINI_API_KEY) return []
+  const combined = `${title}\n${body}`.slice(0, 400)
+  try {
+    const resp = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: {
+          parts: [{
+            text: `You are a campus board post auto-tagger. Given a student's post, pick 1-3 of the most relevant tags from this list: ${BOARD_TAG_CANDIDATES.join(', ')}. Return ONLY a JSON array of strings, e.g. ["dining","parking"]. If nothing fits, return [].`,
+          }],
+        },
+        contents: [{ role: 'user', parts: [{ text: combined }] }],
+        generationConfig: { maxOutputTokens: 60, temperature: 0.1 },
+      }),
+    })
+    if (!resp.ok) return []
+    const data = await resp.json()
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '[]'
+    const match = raw.match(/\[.*\]/)
+    if (!match) return []
+    const parsed = JSON.parse(match[0])
+    const tags = parsed
+      .filter((t) => typeof t === 'string' && BOARD_TAG_CANDIDATES.includes(t.toLowerCase()))
+      .map((t) => t.toLowerCase())
+      .slice(0, 3)
+    if (tags.length) {
+      await supabase.from('board_posts').update({ tags }).eq('id', postId)
+    }
+    return tags
+  } catch (e) {
+    console.error('Auto-tag error:', e?.message || e)
+    return []
+  }
+}
 
 app.post('/api/board/posts', requireAuth, async (req, res) => {
   const title = String(req.body.title || '').trim()
@@ -1689,27 +1740,39 @@ app.post('/api/board/posts', requireAuth, async (req, res) => {
   const timestamp = nowIso()
   const { data, error } = await supabase
     .from('board_posts')
-    .insert({ id, user_id: req.currentUser.id, title, body, is_anon: isAnon, pinned: false, upvote_count: 0, reply_count: 0, created_at: timestamp, updated_at: timestamp })
+    .insert({ id, user_id: req.currentUser.id, title, body, is_anon: isAnon, pinned: false, upvote_count: 0, reply_count: 0, tags: [], created_at: timestamp, updated_at: timestamp })
     .select('id, title, body, is_anon, pinned, upvote_count, reply_count, created_at')
     .single()
 
   if (error) return res.status(500).json({ error: { message: error.message, status: 500 } })
 
-  res.status(201).json({
-    post: {
-      id: data.id,
-      title: data.title,
-      body: data.body,
-      anon: data.is_anon,
-      user: data.is_anon ? 'Anonymous' : req.currentUser.display_name,
-      upvotes: 0,
-      pinned: false,
-      hot: false,
-      time: data.created_at,
-      upvotedByMe: false,
-      replies: [],
-    }
-  })
+  // Fire-and-forget: AI assigns tags in the background
+  const tagsPromise = autoTagBoardPost(data.id, title, body)
+
+  // Respond immediately so the UI doesn't block on AI
+  const postPayload = {
+    id: data.id,
+    title: data.title,
+    body: data.body,
+    anon: data.is_anon,
+    user: data.is_anon ? 'Anonymous' : req.currentUser.display_name,
+    upvotes: 0,
+    pinned: false,
+    hot: false,
+    time: data.created_at,
+    upvotedByMe: false,
+    tags: [],
+    replies: [],
+  }
+
+  // Wait briefly (200ms) in case AI is fast, so the user sees tags immediately
+  const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 200))
+  const quickTags = await Promise.race([tagsPromise, timeout])
+  if (Array.isArray(quickTags) && quickTags.length) {
+    postPayload.tags = quickTags
+  }
+
+  res.status(201).json({ post: postPayload })
 })
 
 app.post('/api/board/posts/:id/reply', requireAuth, async (req, res) => {

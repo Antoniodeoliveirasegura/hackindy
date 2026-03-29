@@ -19,9 +19,6 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- If your table already exists, run this to add the avatar_url column:
--- ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-
 -- Linked sources table (for ICS feeds, etc.)
 CREATE TABLE IF NOT EXISTS linked_sources (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -112,9 +109,13 @@ CREATE TABLE IF NOT EXISTS board_posts (
   pinned       BOOLEAN NOT NULL DEFAULT FALSE,
   upvote_count INTEGER NOT NULL DEFAULT 0,
   reply_count  INTEGER NOT NULL DEFAULT 0,
+  tags         TEXT[] NOT NULL DEFAULT '{}',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Add tags column if table already exists
+ALTER TABLE board_posts ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS board_replies (
   id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

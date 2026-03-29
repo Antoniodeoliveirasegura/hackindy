@@ -179,6 +179,27 @@ function ingestMenuStations(menuItems, mealSlug, seenKeys) {
     .filter((s) => s.items.length > 0)
 }
 
+const DAY_PREFIXES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function extractWeeklyHours(school) {
+  const result = {}
+  for (let i = 0; i < DAY_PREFIXES.length; i++) {
+    const p = DAY_PREFIXES[i]
+    const enabled = school[`${p}_enabled`]
+    if (!enabled) {
+      result[DAY_LABELS[i]] = 'Closed'
+      continue
+    }
+    const start = school[`${p}_start`]
+    const end = school[`${p}_end`]
+    const a = formatClock12(start)
+    const b = formatClock12(end)
+    result[DAY_LABELS[i]] = a && b ? `${a} - ${b}` : 'Hours unavailable'
+  }
+  return result
+}
+
 function deriveStatusFromSchool(school, now = new Date()) {
   const tz = school.timezone || FALLBACK_TZ
   const prefix = dayPrefixInZone(now, tz)
@@ -297,6 +318,7 @@ async function buildSnapshotBody(ymd, allSchools) {
       name: school.name || spec.label,
       is_open: status.is_open,
       hours: status.hours,
+      weekly_hours: extractWeeklyHours(school),
       timezone: status.tz,
       meal: mealHint || '—',
       stations,

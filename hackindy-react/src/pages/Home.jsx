@@ -11,6 +11,8 @@ import {
   canonicalFromMap,
   buildTranslocRouteIdMap,
   nearestStopForVehicle,
+  getOrderedStopsForRoute,
+  haversineMeters,
   isRouteActiveNow,
 } from '../lib/transitShared'
 
@@ -252,6 +254,84 @@ function formatNearDistance(meters) {
   return `${(meters / 1000).toFixed(1)} km`
 }
 
+const AVG_STOP_MINUTES = 2
+
+/**
+ * Find the index of the stop closest to a given lat/lon within the ordered
+ * stop list. Returns -1 if no stop is within 300m.
+ */
+function findStopIndex(routeStops, lat, lon) {
+  let bestIdx = -1
+  let bestD = 300
+  for (let i = 0; i < routeStops.length; i++) {
+    const d = haversineMeters(routeStops[i].lat, routeStops[i].lon, lat, lon)
+    if (d < bestD) {
+      bestD = d
+      bestIdx = i
+    }
+  }
+  return bestIdx
+}
+
+/**
+ * Plain-language ETA from this bus to the user's nearest stop on its route.
+ * Falls back to a generic description when user location or stop data is missing.
+ */
+function describeBusEta(vehicle, route, nearestBusStop, routeStops, speed, moving, userLoc) {
+  if (!routeStops?.length) {
+    if (!moving) return `${route.shortName} bus is stopped`
+    return `${route.shortName} bus is moving at ${Math.round(speed)} mph`
+  }
+
+  const busIdx = findStopIndex(routeStops, vehicle.Latitude, vehicle.Longitude)
+
+  // Find user's closest stop on this route
+  let userIdx = -1
+  let userStopName = null
+  if (userLoc) {
+    let bestD = Infinity
+    for (let i = 0; i < routeStops.length; i++) {
+      const d = haversineMeters(routeStops[i].lat, routeStops[i].lon, userLoc.lat, userLoc.lon)
+      if (d < bestD) {
+        bestD = d
+        userIdx = i
+      }
+    }
+    if (bestD < 2000) {
+      userStopName = routeStops[userIdx].name
+    } else {
+      userIdx = -1
+    }
+  }
+
+  // If we know both positions, compute stops between bus and user
+  if (busIdx !== -1 && userIdx !== -1 && userStopName) {
+    // Route is a loop: bus travels in index order and wraps around
+    const stopsAway =
+      userIdx >= busIdx
+        ? userIdx - busIdx
+        : routeStops.length - busIdx + userIdx
+    if (stopsAway === 0) {
+      return `At your stop — ${userStopName}`
+    }
+    const etaMin = stopsAway * AVG_STOP_MINUTES
+    const stopWord = stopsAway === 1 ? 'stop' : 'stops'
+    return `${stopsAway} ${stopWord} from you (${userStopName}), ~${etaMin} min`
+  }
+
+  // Fallback: no user location — describe bus position generically
+  if (!nearestBusStop) {
+    if (!moving) return `${route.shortName} bus is stopped`
+    return `${route.shortName} bus is en route`
+  }
+  const dist = nearestBusStop.meters
+  if (dist < 150) return `At ${nearestBusStop.description}`
+  if (!moving) return `Near ${nearestBusStop.description}, stopped`
+  const avgMps = (speed > 1 ? speed : 12) * 0.44704
+  const etaMin = Math.max(1, Math.round(dist / avgMps / 60))
+  return `~${etaMin} min from ${nearestBusStop.description}`
+}
+
 function buildSuggestions({ freeMinutes, nextClass, currentClass, diningStatus, upcomingEvents }) {
   const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const list = []
@@ -323,9 +403,19 @@ export default function Home() {
   const [transitLoading, setTransitLoading] = useState(true)
   const [transitError, setTransitError] = useState('')
   const [transitUpdated, setTransitUpdated] = useState(null)
+  const [userLocation, setUserLocation] = useState(null) // { lat, lon }
+
+  useEffect(() => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      () => {},
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 120000 },
+    )
+  }, [])
 
   const [diningPreview, setDiningPreview] = useState(null)
-  const [diningStatus, setDiningStatus] = useState(null) // { name, is_open, hours }
+  const [diningStatus, setDiningStatus] = useState(null) // { name, is_open, hours, weekly_hours }
 
   // ── AI Week Digest ──────────────────────────────────────────────────────────
   function getWeekKey() {
@@ -347,7 +437,10 @@ export default function Home() {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: [{ role: 'user', content: 'Give me a short friendly 3-sentence summary of my week ahead — call out key classes, assignments due, and any notable events by day and time. Be specific, not generic.' }],
+        messages: [{
+          role: 'user',
+          content: 'Summarize my week in exactly 3 short sentences. Sentence 1: name my courses (not meetings) and which days they meet. Sentence 2: list any assignments, midterms, or exams due this week with the day — if none, say so. Sentence 3: mention any campus events, or say it looks clear. Use course names, not counts. No bullet points, no headers, no markdown. Finish every sentence.',
+        }],
       }),
     })
       .then(r => r.json())
@@ -374,18 +467,19 @@ export default function Home() {
         if (cancelled || !data?.ok || !Array.isArray(data.locations)) return
         const tower = data.locations.find((l) => l.slug === 'tower-dining') || data.locations[0]
         if (!tower) return
-        setDiningStatus({ name: tower.name, is_open: tower.is_open, hours: tower.hours })
-        const entrees = (tower.entrees || []).slice(0, 4)
-        const sides = (tower.sides || []).slice(0, 3)
-        if (entrees.length + sides.length === 0 && Array.isArray(tower.menu_items) && tower.menu_items.length) {
-          const names = tower.menu_items.map((m) => m.name).filter(Boolean)
-          setDiningPreview({
-            entrees: names.slice(0, 4),
-            sides: names.slice(4, 7),
-          })
-          return
+        const todayName = new Date().toLocaleDateString('en-US', { weekday: 'long' })
+        const todayHrs = tower.weekly_hours?.[todayName]
+        setDiningStatus({
+          name: tower.name,
+          is_open: tower.is_open,
+          hours: todayHrs || tower.hours,
+          weekly_hours: tower.weekly_hours || null,
+        })
+        const allItems = (tower.stations || []).flatMap((s) => s.items || [])
+        const names = allItems.map((i) => i.name).filter(Boolean)
+        if (names.length > 0) {
+          setDiningPreview({ items: names.slice(0, 8) })
         }
-        setDiningPreview({ entrees, sides })
       })
       .catch(() => {})
     return () => {
@@ -393,7 +487,7 @@ export default function Home() {
     }
   }, [])
 
-  const menuSnapshot = diningPreview || fallbackMenuPreview
+  const menuSnapshot = diningPreview || { items: fallbackMenuPreview.entrees.concat(fallbackMenuPreview.sides) }
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 60000)
@@ -517,7 +611,6 @@ export default function Home() {
   const transitDashboardRows = useMemo(() => {
     const mapped = (transitVehicles || []).map((v) => {
       let canon = canonicalFromMap(transitRouteMap, v.RouteID)
-      // Remap to active schedule peer (e.g. Gray → Orange on weekends)
       const reportedRoute = transitRoutes.find((r) => r.id === canon)
       if (reportedRoute && !isRouteActiveNow(reportedRoute)) {
         const peerId = SCHEDULE_PEERS[canon]
@@ -530,6 +623,10 @@ export default function Home() {
       const near = nearestStopForVehicle(transitStops, v, transitRouteMap)
       const speed = Number(v.GroundSpeed) || 0
       const moving = speed > 0.5
+
+      const routeStops = getOrderedStopsForRoute(transitStops, canon, transitRouteMap)
+      const eta = describeBusEta(v, route, near, routeStops, speed, moving, userLocation)
+
       return {
         key: v.VehicleID ?? `${v.Latitude},${v.Longitude},${v.RouteID}`,
         vehicle: v,
@@ -537,6 +634,7 @@ export default function Home() {
         near,
         speed,
         moving,
+        eta,
       }
     })
     mapped.sort((a, b) => {
@@ -545,7 +643,71 @@ export default function Home() {
       return String(a.vehicle.Name || '').localeCompare(String(b.vehicle.Name || ''))
     })
     return mapped.slice(0, 5)
-  }, [transitVehicles, transitStops, transitRouteMap])
+  }, [transitVehicles, transitStops, transitRouteMap, userLocation])
+
+  const smartAlerts = useMemo(() => {
+    const alerts = []
+    const nowMs = now.getTime()
+
+    // Assignment due within 24 hours
+    const urgentItems = (calendarItems || []).filter((item) => {
+      if (['campus_event', 'event', 'class'].includes(item.category)) return false
+      const due = new Date(item.startTime).getTime()
+      return due > nowMs && due - nowMs < 24 * 60 * 60 * 1000
+    })
+    for (const item of urgentItems.slice(0, 2)) {
+      const hoursLeft = Math.round((new Date(item.startTime).getTime() - nowMs) / 3600000)
+      alerts.push({
+        icon: 'alert',
+        color: 'text-red-500',
+        text: `${item.title} is due in ${hoursLeft}h`,
+      })
+    }
+
+    // Next class starting within 15 minutes
+    if (scheduleState.nextClass && !scheduleState.currentClass) {
+      const minsToClass = Math.round(
+        (new Date(scheduleState.nextClass.startTime).getTime() - nowMs) / 60000,
+      )
+      if (minsToClass > 0 && minsToClass <= 15) {
+        alerts.push({
+          icon: 'clock',
+          color: 'text-orange-500',
+          text: `${scheduleState.nextClass.title} starts in ${minsToClass} min`,
+        })
+      }
+    }
+
+    // Dining closing within 45 minutes
+    if (diningStatus?.is_open && diningStatus.hours) {
+      const match = diningStatus.hours.match(/(\d{1,2}:\d{2}\s*[AP]M)\s*$/i)
+      if (match) {
+        const todayStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        const closeTime = new Date(`${todayStr} ${match[1]}`)
+        if (!isNaN(closeTime)) {
+          const minsUntilClose = Math.round((closeTime.getTime() - nowMs) / 60000)
+          if (minsUntilClose > 0 && minsUntilClose <= 45) {
+            alerts.push({
+              icon: 'dining',
+              color: 'text-yellow-500',
+              text: `${diningStatus.name} closes in ${minsUntilClose} min`,
+            })
+          }
+        }
+      }
+    }
+
+    // No buses running
+    if (!transitLoading && transitVehicles.length === 0 && !transitError) {
+      alerts.push({
+        icon: 'bus',
+        color: 'text-[var(--color-txt-3)]',
+        text: 'No campus shuttles are running right now',
+      })
+    }
+
+    return alerts.slice(0, 4)
+  }, [now, calendarItems, scheduleState, diningStatus, transitLoading, transitVehicles, transitError])
 
   const quickActions = useMemo(
     () =>
@@ -607,14 +769,20 @@ export default function Home() {
         </div>
       )}
 
-      {/* AI Week Digest */}
-      <div className="card p-4 mb-6 transition-all duration-700 delay-75 opacity-100 translate-y-0 border-[var(--color-gold)]/20">
+      {/* AI Week Digest — more prominent on Mondays */}
+      <div className={`card p-4 mb-6 transition-all duration-700 delay-75 opacity-100 translate-y-0 ${
+        now.getDay() === 1
+          ? 'border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 ring-1 ring-[var(--color-gold)]/15'
+          : 'border-[var(--color-gold)]/20'
+      }`}>
         <div className="flex items-center justify-between gap-3 mb-2">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0">
               <Icon name="sparkles" size={12} className="text-[var(--color-gold-dark)]" />
             </div>
-            <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">AI · Week Ahead</span>
+            <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">
+              {now.getDay() === 1 ? 'Monday Briefing' : 'AI · Week Ahead'}
+            </span>
           </div>
           <button
             onClick={generateDigest}
@@ -630,9 +798,27 @@ export default function Home() {
             Generating your week summary…
           </div>
         ) : weekDigest ? (
-          <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed">{weekDigest}</p>
+          <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed whitespace-pre-line">{weekDigest}</p>
         ) : null}
       </div>
+
+      {/* Smart Alerts */}
+      {smartAlerts.length > 0 && (
+        <div className="card p-4 mb-4 border-[var(--color-border)] transition-all duration-700 delay-75 opacity-100 translate-y-0">
+          <div className="flex items-center gap-2 mb-3">
+            <Icon name="alert" size={14} className="text-[var(--color-txt-2)]" />
+            <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">Heads Up</span>
+          </div>
+          <div className="space-y-2">
+            {smartAlerts.map((alert, i) => (
+              <div key={i} className="flex items-center gap-3 text-[13px]">
+                <Icon name={alert.icon} size={14} className={alert.color} />
+                <span className="text-[var(--color-txt-1)]">{alert.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 transition-all duration-700 delay-100 opacity-100 translate-y-0">
         {quickActions.map(({ path, label, sub, icon, color }, idx) => (
@@ -839,11 +1025,19 @@ export default function Home() {
           <div className="flex items-center justify-between mb-4 gap-2">
             <div>
               <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">Live shuttles</span>
-              {transitUpdated && !transitLoading && (
-                <div className="text-[10px] text-[var(--color-txt-3)] mt-0.5">
-                  Updated {transitUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                </div>
-              )}
+              <div className="flex items-center gap-2 mt-0.5">
+                {transitUpdated && !transitLoading && (
+                  <span className="text-[10px] text-[var(--color-txt-3)]">
+                    Updated {transitUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                  </span>
+                )}
+                {userLocation && (
+                  <span className="text-[10px] text-[var(--color-success)] flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-[var(--color-success)]" />
+                    ETA to you
+                  </span>
+                )}
+              </div>
             </div>
             <Link to="/transit" className="text-[12px] text-[var(--color-accent)] hover:underline shrink-0">Map & routes</Link>
           </div>
@@ -864,10 +1058,10 @@ export default function Home() {
                 No buses active right now. Check the transit map for routes and alerts.
               </div>
             ) : (
-              transitDashboardRows.map(({ key, vehicle, route, near, speed, moving }) => (
+              transitDashboardRows.map(({ key, vehicle, route, near, speed, moving, eta }) => (
                 <div
                   key={key}
-                  className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)] flex items-center justify-between gap-4"
+                  className="rounded-xl border border-[var(--color-border)] p-4 bg-[var(--color-surface)]"
                 >
                   <div className="flex items-start gap-3 min-w-0">
                     <div
@@ -875,25 +1069,21 @@ export default function Home() {
                       style={{ backgroundColor: route.color }}
                       title={route.name}
                     />
-                    <div className="min-w-0">
-                      <div className="text-[14px] font-medium text-[var(--color-txt-0)]">{route.name}</div>
-                      <div className="text-[12px] text-[var(--color-txt-2)] mt-1">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[14px] font-medium text-[var(--color-txt-0)]">{route.name}</div>
+                        <span className={`text-[11px] shrink-0 ${moving ? 'text-[var(--color-success)]' : 'text-[var(--color-txt-3)]'}`}>
+                          {moving ? `${Math.round(speed)} mph` : 'stopped'}
+                        </span>
+                      </div>
+                      <div className="text-[13px] text-[var(--color-txt-1)] mt-1 leading-snug">
+                        {eta}
+                      </div>
+                      <div className="text-[11px] text-[var(--color-txt-3)] mt-1">
                         Bus {vehicle.Name}
-                        {near && (
-                          <>
-                            {' '}
-                            · Near {near.description}
-                            <span className="text-[var(--color-txt-3)]"> ({formatNearDistance(near.meters)})</span>
-                          </>
-                        )}
+                        {near && <> · near {near.description}</>}
                       </div>
                     </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-[18px] font-semibold text-[var(--color-txt-0)]">
-                      {moving ? Math.round(speed) : '—'}
-                    </div>
-                    <div className="text-[11px] text-[var(--color-txt-3)]">{moving ? 'mph' : 'stopped'}</div>
                   </div>
                 </div>
               ))
@@ -912,27 +1102,28 @@ export default function Home() {
 
       <div className="grid lg:grid-cols-[0.95fr_1.05fr] gap-4">
         <div className="card p-5 transition-all duration-700 delay-[600ms] opacity-100 translate-y-0">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">Dining Snapshot</span>
             <Link to="/dining" className="text-[12px] text-[var(--color-accent)] hover:underline">Open dining</Link>
           </div>
-          <div className="space-y-4">
-            <div>
-              <div className="text-[12px] font-medium text-[var(--color-txt-1)] mb-2">Entrees</div>
-              <div className="flex flex-wrap gap-2">
-                {menuSnapshot.entrees.map((item) => (
-                  <span key={item} className="badge">{item}</span>
-                ))}
-              </div>
+
+          {diningStatus && (
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${diningStatus.is_open ? 'bg-[var(--color-success)]' : 'bg-[var(--color-txt-3)]'}`} />
+              <span className="text-[13px] font-medium text-[var(--color-txt-0)]">{diningStatus.name}</span>
+              <span className="text-[12px] text-[var(--color-txt-2)]">
+                · {diningStatus.is_open ? 'Open' : 'Closed'} · {diningStatus.hours}
+              </span>
             </div>
-            <div>
-              <div className="text-[12px] font-medium text-[var(--color-txt-1)] mb-2">Sides</div>
-              <div className="flex flex-wrap gap-2">
-                {menuSnapshot.sides.map((item) => (
-                  <span key={item} className="badge">{item}</span>
-                ))}
-              </div>
-            </div>
+          )}
+
+          <div className="text-[12px] font-medium text-[var(--color-txt-1)] mb-2">
+            {diningPreview ? "Today's menu" : 'Sample items'}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {menuSnapshot.items.map((item) => (
+              <span key={item} className="badge">{item}</span>
+            ))}
           </div>
         </div>
 
