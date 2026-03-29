@@ -7,6 +7,7 @@ import session from 'express-session'
 import ical from 'node-ical'
 import { createClient } from '@supabase/supabase-js'
 import { cancelCalendarCapture, getCalendarCaptureJob, startCalendarCapture } from './purdueCalendarAutomation.mjs'
+import { getDiningSnapshot } from './nutrisliceDining.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -1307,6 +1308,18 @@ app.get('/api/transit/routes', async (_req, res) => {
   } catch (error) {
     console.error('TransLoc routes error:', error)
     res.status(500).json({ error: 'Failed to fetch routes data' })
+  }
+})
+
+app.get('/api/dining', async (req, res) => {
+  try {
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true'
+    const date = typeof req.query.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : undefined
+    const data = await getDiningSnapshot({ forceRefresh, date })
+    res.json(data)
+  } catch (error) {
+    console.error('Nutrislice dining error:', error)
+    res.status(500).json({ ok: false, error: 'dining_internal', locations: [] })
   }
 })
 
