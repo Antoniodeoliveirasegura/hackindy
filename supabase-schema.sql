@@ -98,3 +98,50 @@ CREATE TRIGGER update_calendar_items_updated_at
   BEFORE UPDATE ON calendar_items
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================
+-- Student Board
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS board_posts (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title        TEXT NOT NULL CHECK (char_length(title) >= 1 AND char_length(title) <= 300),
+  body         TEXT NOT NULL DEFAULT '',
+  is_anon      BOOLEAN NOT NULL DEFAULT FALSE,
+  pinned       BOOLEAN NOT NULL DEFAULT FALSE,
+  upvote_count INTEGER NOT NULL DEFAULT 0,
+  reply_count  INTEGER NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS board_replies (
+  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  post_id    UUID NOT NULL REFERENCES board_posts(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  body       TEXT NOT NULL CHECK (char_length(body) >= 1 AND char_length(body) <= 2000),
+  is_anon    BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS board_upvotes (
+  post_id    UUID NOT NULL REFERENCES board_posts(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (post_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_board_posts_created_at   ON board_posts(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_board_posts_upvote_count ON board_posts(upvote_count DESC);
+CREATE INDEX IF NOT EXISTS idx_board_replies_post_id    ON board_replies(post_id);
+CREATE INDEX IF NOT EXISTS idx_board_upvotes_post_id    ON board_upvotes(post_id);
+CREATE INDEX IF NOT EXISTS idx_board_upvotes_user_id    ON board_upvotes(user_id);
+
+ALTER TABLE board_posts   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE board_replies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE board_upvotes ENABLE ROW LEVEL SECURITY;
+
+CREATE TRIGGER update_board_posts_updated_at
+  BEFORE UPDATE ON board_posts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

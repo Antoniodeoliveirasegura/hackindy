@@ -1526,6 +1526,183 @@ app.get('/api/dining', async (req, res) => {
   }
 })
 
+// ============================================================
+// Board API
+// ============================================================
+
+app.get('/api/board/posts', requireAuth, async (req, res) => {
+  const sort = req.query.sort === 'popular' ? 'popular' : 'recent'
+
+  let query = supabase
+    .from('board_posts')
+    .select('id, title, body, is_anon, pinned, upvote_count, reply_count, created_at, user_id, users ( display_name )')
+  if (sort === 'popular') {
+    query = query
+      .order('pinned', { ascending: false })
+      .order('upvote_count', { ascending: false })
+      .order('created_at', { ascending: false })
+  } else {
+    query = query
+      .order('pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+  }
+  const { data: postsData, error: postsError } = await query.limit(100)
+  if (postsError) return res.status(500).json({ error: { message: postsError.message, status: 500 } })
+
+  const postIds = postsData.map(p => p.id)
+  let repliesData = []
+  if (postIds.length > 0) {
+    const { data: rd } = await supabase
+      .from('board_replies')
+      .select('id, post_id, body, is_anon, created_at, user_id, users ( display_name )')
+      .in('post_id', postIds)
+      .order('created_at', { ascending: true })
+    repliesData = rd || []
+  }
+
+  let upvotedIds = new Set()
+  if (postIds.length > 0) {
+    const { data: uv } = await supabase
+      .from('board_upvotes')
+      .select('post_id')
+      .eq('user_id', req.currentUser.id)
+      .in('post_id', postIds)
+    if (uv) uv.forEach(r => upvotedIds.add(r.post_id))
+  }
+
+  const repliesByPost = {}
+  for (const reply of repliesData) {
+    if (!repliesByPost[reply.post_id]) repliesByPost[reply.post_id] = []
+    repliesByPost[reply.post_id].push({
+      id: reply.id,
+      body: reply.body,
+      user: reply.is_anon ? 'Anonymous' : (reply.users?.display_name || 'Student'),
+      time: reply.created_at,
+    })
+  }
+
+  const posts = postsData.map(p => ({
+    id: p.id,
+    title: p.title,
+    body: p.body,
+    anon: p.is_anon,
+    user: p.is_anon ? 'Anonymous' : (p.users?.display_name || 'Student'),
+    upvotes: p.upvote_count,
+    pinned: p.pinned,
+    hot: !p.pinned && p.upvote_count >= 10,
+    time: p.created_at,
+    upvotedByMe: upvotedIds.has(p.id),
+    replies: repliesByPost[p.id] || [],
+  }))
+
+  res.json({ posts })
+})
+
+app.post('/api/board/posts', requireAuth, async (req, res) => {
+  const title = String(req.body.title || '').trim()
+  const body  = String(req.body.body  || '').trim()
+  const isAnon = req.body.anon === true || req.body.anon === 'true'
+
+  if (!title) return res.status(400).json({ error: { message: 'Title is required.', status: 400 } })
+  if (title.length > 300) return res.status(400).json({ error: { message: 'Title must be 300 characters or fewer.', status: 400 } })
+
+  const id = makeId()
+  const timestamp = nowIso()
+  const { data, error } = await supabase
+    .from('board_posts')
+    .insert({ id, user_id: req.currentUser.id, title, body, is_anon: isAnon, pinned: false, upvote_count: 0, reply_count: 0, created_at: timestamp, updated_at: timestamp })
+    .select('id, title, body, is_anon, pinned, upvote_count, reply_count, created_at')
+    .single()
+
+  if (error) return res.status(500).json({ error: { message: error.message, status: 500 } })
+
+  res.status(201).json({
+    post: {
+      id: data.id,
+      title: data.title,
+      body: data.body,
+      anon: data.is_anon,
+      user: data.is_anon ? 'Anonymous' : req.currentUser.display_name,
+      upvotes: 0,
+      pinned: false,
+      hot: false,
+      time: data.created_at,
+      upvotedByMe: false,
+      replies: [],
+    }
+  })
+})
+
+app.post('/api/board/posts/:id/reply', requireAuth, async (req, res) => {
+  const postId = req.params.id
+  const body   = String(req.body.body || '').trim()
+  const isAnon = req.body.anon === true || req.body.anon === 'true'
+
+  if (!body) return res.status(400).json({ error: { message: 'Reply body is required.', status: 400 } })
+
+  const { data: post, error: postError } = await supabase
+    .from('board_posts')
+    .select('id, reply_count')
+    .eq('id', postId)
+    .single()
+  if (postError || !post) return res.status(404).json({ error: { message: 'Post not found.', status: 404 } })
+
+  const id = makeId()
+  const timestamp = nowIso()
+  const { data: reply, error: replyError } = await supabase
+    .from('board_replies')
+    .insert({ id, post_id: postId, user_id: req.currentUser.id, body, is_anon: isAnon, created_at: timestamp })
+    .select('id, body, is_anon, created_at')
+    .single()
+
+  if (replyError) return res.status(500).json({ error: { message: replyError.message, status: 500 } })
+
+  await supabase
+    .from('board_posts')
+    .update({ reply_count: post.reply_count + 1, updated_at: nowIso() })
+    .eq('id', postId)
+
+  res.status(201).json({
+    reply: {
+      id: reply.id,
+      body: reply.body,
+      user: reply.is_anon ? 'Anonymous' : req.currentUser.display_name,
+      time: reply.created_at,
+    }
+  })
+})
+
+app.post('/api/board/posts/:id/upvote', requireAuth, async (req, res) => {
+  const postId = req.params.id
+  const userId = req.currentUser.id
+
+  const { data: post, error: postError } = await supabase
+    .from('board_posts')
+    .select('id, upvote_count')
+    .eq('id', postId)
+    .single()
+  if (postError || !post) return res.status(404).json({ error: { message: 'Post not found.', status: 404 } })
+
+  const { error: insertError } = await supabase
+    .from('board_upvotes')
+    .insert({ post_id: postId, user_id: userId, created_at: nowIso() })
+
+  let newCount, upvotedByMe
+  if (insertError && insertError.code === '23505') {
+    await supabase.from('board_upvotes').delete().eq('post_id', postId).eq('user_id', userId)
+    newCount = Math.max(0, post.upvote_count - 1)
+    upvotedByMe = false
+  } else if (insertError) {
+    return res.status(500).json({ error: { message: insertError.message, status: 500 } })
+  } else {
+    newCount = post.upvote_count + 1
+    upvotedByMe = true
+  }
+
+  await supabase.from('board_posts').update({ upvote_count: newCount, updated_at: nowIso() }).eq('id', postId)
+  res.json({ upvotes: newCount, upvotedByMe })
+})
+
 app.listen(port, host, () => {
   console.log(`HackIndy backend listening on ${publicBaseUrl}`)
   console.log(`Purdue link mode: ${purdueAuthMode}`)
