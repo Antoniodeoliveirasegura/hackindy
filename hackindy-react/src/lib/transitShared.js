@@ -1,11 +1,48 @@
+// days: 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
+// start/end: 24-h "HH:MM" in Eastern time
 export const routes = [
-  { id: 31, num: '1', name: 'Route 1 – Crimson', shortName: 'Crimson', color: '#990000' },
-  { id: 19, num: '2', name: 'Route 2 – Gray', shortName: 'Gray', color: '#83786F' },
-  { id: 32, num: '3', name: 'Route 3 – Yellow', shortName: 'Yellow', color: '#F1BE48' },
-  { id: 27, num: '4', name: 'Route 4 – Blue', shortName: 'Blue', color: '#006298' },
-  { id: 33, num: '5', name: 'Route 5 – Purple', shortName: 'Purple', color: '#66435A' },
-  { id: 34, num: '7', name: 'Route 7 – Orange', shortName: 'Orange', color: '#e68217' },
+  { id: 31, num: '1', name: 'Route 1 – Crimson', shortName: 'Crimson', color: '#990000',
+    schedule: { days: [1,2,3,4,5], start: '06:30', end: '22:00', label: 'Mon–Fri 6:30a–10:00p' } },
+  { id: 19, num: '2', name: 'Route 2 – Gray',    shortName: 'Gray',    color: '#83786F',
+    schedule: { days: [1,2,3,4,5], start: '06:30', end: '22:00', label: 'Mon–Fri 6:30a–10:00p' } },
+  { id: 32, num: '3', name: 'Route 3 – Yellow',  shortName: 'Yellow',  color: '#F1BE48',
+    schedule: { days: [1,2,3,4,5], start: '05:30', end: '00:00', label: 'Mon–Fri 5:30a–12:00a' } },
+  { id: 27, num: '4', name: 'Route 4 – Blue',    shortName: 'Blue',    color: '#006298',
+    schedule: { days: [1,2,3,4,5], start: '05:30', end: '00:00', label: 'Mon–Fri 5:30a–12:00a' } },
+  { id: 33, num: '5', name: 'Route 5 – Purple',  shortName: 'Purple',  color: '#66435A',
+    schedule: { days: [1,2,3,4,5], start: '07:00', end: '22:00', label: 'Mon–Fri 7:00a–10:00p' } },
+  { id: 34, num: '7', name: 'Route 7 – Orange',  shortName: 'Orange',  color: '#e68217',
+    schedule: { days: [0,6],       start: '09:00', end: '20:00', label: 'Sat–Sun 9:00a–8:00p' } },
 ]
+
+/** Returns true if the given route is scheduled to run right now (Eastern time). */
+export function isRouteActiveNow(route) {
+  if (!route?.schedule) return true
+  const { days, start, end } = route.schedule
+
+  // Get current Eastern time
+  const now = new Date()
+  const eastern = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Indiana/Indianapolis',
+    weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(now)
+  const dayIdx = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(
+    eastern.find(p => p.type === 'weekday').value
+  )
+  const hh = parseInt(eastern.find(p => p.type === 'hour').value) % 24
+  const mm = parseInt(eastern.find(p => p.type === 'minute').value)
+  const nowMins = hh * 60 + mm
+
+  if (!days.includes(dayIdx)) return false
+
+  const [sh, sm] = start.split(':').map(Number)
+  const startMins = sh * 60 + sm
+  const [eh, em] = end.split(':').map(Number)
+  // midnight-crossing routes (end === "00:00" means runs until midnight)
+  const endMins = (eh === 0 && em === 0) ? 24 * 60 : eh * 60 + em
+
+  return nowMins >= startMins && nowMins < endMins
+}
 
 /**
  * Offline fallback when /api/transit/routes has not loaded yet (or fails).
@@ -24,6 +61,18 @@ export const TRANLOC_ROUTE_ALIASES = {
   21: 33,
   28: 33,
   29: 34,
+}
+
+/**
+ * Routes that share an overlapping physical path but run on different days.
+ * Key = canonical id of a route; value = canonical id of its schedule peer.
+ * When the key route is off today but its peer is on, vehicles tagged with the
+ * key route are automatically remapped to the peer.
+ * Gray (19) ↔ Orange (34): same corridor, Mon–Fri vs Sat–Sun.
+ */
+export const SCHEDULE_PEERS = {
+  19: 34, // Gray → Orange (weekends)
+  34: 19, // Orange → Gray (weekdays)
 }
 
 export const UNKNOWN_ROUTE = {

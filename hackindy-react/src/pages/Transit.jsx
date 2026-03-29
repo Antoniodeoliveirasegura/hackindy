@@ -4,10 +4,12 @@ import {
   routes,
   TRANLOC_ROUTE_ALIASES,
   UNKNOWN_ROUTE,
+  SCHEDULE_PEERS,
   canonicalFromMap,
   buildTranslocRouteIdMap,
   haversineMeters,
   getOrderedStopsForRoute,
+  isRouteActiveNow,
 } from '../lib/transitShared'
 
 const CAMPUS_CENTER = { lat: 39.7745, lng: -86.1756 }
@@ -364,7 +366,7 @@ function myStopStorageKey(routeId) {
 }
 
 export default function Transit() {
-  const [vehicles, setVehicles] = useState([])
+  const [rawVehicles, setRawVehicles] = useState([])
   const [stops, setStops] = useState([])
   const [selectedRoute, setSelectedRoute] = useState(null)
   const [selectedBus, setSelectedBus] = useState(null)
@@ -382,11 +384,34 @@ export default function Transit() {
     [routeIdToCanonical],
   )
 
+  /**
+   * Remap vehicles whose canonical route isn't running today to their active
+   * schedule peer (e.g. Gray ↔ Orange share the same corridor but run on
+   * opposite day sets). The RouteID on the returned object is replaced with the
+   * peer's canonical id so all downstream filtering and coloring work correctly.
+   */
+  const vehicles = useMemo(() => {
+    return rawVehicles.map((v) => {
+      const canon = canonicalFromMap(routeIdToCanonical, v.RouteID)
+      const route = routes.find((r) => r.id === canon)
+      if (route && !isRouteActiveNow(route)) {
+        const peerId = SCHEDULE_PEERS[canon]
+        if (peerId != null) {
+          const peerRoute = routes.find((r) => r.id === peerId)
+          if (peerRoute && isRouteActiveNow(peerRoute)) {
+            return { ...v, RouteID: peerId }
+          }
+        }
+      }
+      return v
+    })
+  }, [rawVehicles, routeIdToCanonical])
+
   const fetchVehicles = useCallback(async () => {
     try {
       const response = await fetch('/api/transit/vehicles')
       const data = await response.json()
-      setVehicles(data || [])
+      setRawVehicles(data || [])
       setLastUpdate(new Date())
     } catch (error) {
       console.error('Failed to fetch vehicles:', error)
@@ -563,32 +588,60 @@ export default function Transit() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6 animate-fade-in-up stagger-1">
-        <button
-          onClick={() => setSelectedRoute(null)}
-          className={`pill whitespace-nowrap ${!selectedRoute ? 'pill-active' : ''}`}
-        >
-          All Routes ({vehicles.length})
-        </button>
-        {routes.map((route) => {
-          const count = vehicles.filter((v) => canonicalRouteId(v.RouteID) === route.id).length
-          return (
-            <button
-              key={route.id}
-              onClick={() => setSelectedRoute(selectedRoute?.id === route.id ? null : route)}
-              className={`pill whitespace-nowrap flex items-center gap-2 ${selectedRoute?.id === route.id ? 'pill-active' : ''}`}
-            >
-              <span
-                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
-                style={{ backgroundColor: route.color }}
+      {/* Route filter pills — split into today's routes vs not-running-today */}
+      <div className="mb-6 animate-fade-in-up stagger-1">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setSelectedRoute(null)}
+            className={`pill whitespace-nowrap ${!selectedRoute ? 'pill-active' : ''}`}
+          >
+            All Routes ({vehicles.length})
+          </button>
+          {routes.map((route) => {
+            const count = vehicles.filter((v) => canonicalRouteId(v.RouteID) === route.id).length
+            const activeToday = isRouteActiveNow(route)
+            return (
+              <button
+                key={route.id}
+                onClick={() => setSelectedRoute(selectedRoute?.id === route.id ? null : route)}
+                className={`pill whitespace-nowrap flex items-center gap-2 transition-opacity
+                  ${selectedRoute?.id === route.id ? 'pill-active' : ''}
+                  ${!activeToday ? 'opacity-40' : ''}`}
+                title={route.schedule?.label ?? ''}
               >
-                {route.num}
-              </span>
-              {route.shortName}
-              {count > 0 && <span className="text-[var(--color-txt-3)]">({count})</span>}
-            </button>
-          )
-        })}
+                <span
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                  style={{ backgroundColor: route.color }}
+                >
+                  {route.num}
+                </span>
+                {route.shortName}
+                {count > 0 && <span className="text-[var(--color-txt-3)]">({count})</span>}
+                {!activeToday && (
+                  <span className="text-[10px] text-[var(--color-txt-3)] font-normal">off</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Schedule reference — one row per day group */}
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+          {[...new Map(routes.map(r => [r.schedule?.label, r])).values()].map(r => {
+            if (!r.schedule) return null
+            const groupRoutes = routes.filter(x => x.schedule?.label === r.schedule.label)
+            return (
+              <div key={r.schedule.label} className="flex items-center gap-1.5 text-[11px] text-[var(--color-txt-3)]">
+                <div className="flex gap-0.5">
+                  {groupRoutes.map(gr => (
+                    <span key={gr.id} className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: gr.color }} />
+                  ))}
+                </div>
+                <span>{r.schedule.label}</span>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {loading ? (
