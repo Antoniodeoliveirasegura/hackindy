@@ -1743,6 +1743,90 @@ const BOARD_TAG_CANDIDATES = [
   'study-spots', 'events', 'classes', 'safety',
 ]
 
+app.post('/api/board/ai-suggestions', requireAuth, async (req, res) => {
+  if (!GEMINI_API_KEY) {
+    return res.status(503).json({
+      error: { message: 'AI suggestions are not configured.', status: 503 },
+    })
+  }
+  const context = req.body.context === 'reply' ? 'reply' : 'compose'
+  const title = String(req.body.title || '').trim().slice(0, 300)
+  const body = String(req.body.body || '').trim().slice(0, 1200)
+  const postTitle = String(req.body.postTitle || '').trim().slice(0, 300)
+  const postBody = String(req.body.postBody || '').trim().slice(0, 800)
+  const draft = String(req.body.draft || '').trim().slice(0, 1000)
+
+  if (context === 'compose') {
+    if (title.length < 6 && body.length < 20) {
+      return res.json({ betterTitle: null, bodyAddOn: null, tags: [] })
+    }
+  } else if (draft.length < 8) {
+    return res.json({ replyTip: null })
+  }
+
+  const tagList = BOARD_TAG_CANDIDATES.join(', ')
+  const userText =
+    context === 'compose'
+      ? `The student is composing a question for a Purdue Indianapolis campus board.\n\nTitle (draft):\n${title}\n\nBody (draft):\n${body || '(empty)'}\n\nReturn ONLY a JSON object, no markdown code fences, with this exact shape:\n{"betterTitle":string|null,"bodyAddOn":string|null,"tags":string[]}\n\n- betterTitle: a clearer full title under 120 characters, or null if the draft title is already good.\n- bodyAddOn: one short optional sentence they could add for context (location, course, deadline), or null if not needed.\n- tags: 0 to 3 items, each must be exactly one of: ${tagList}\nUse JSON null (not the string "null") where appropriate.`
+      : `Campus board thread title: ${postTitle}\nOriginal post:\n${postBody || '(no body)'}\n\nStudent's reply draft:\n${draft}\n\nReturn ONLY JSON: {"replyTip":string|null} — one concise coaching sentence (tone, specificity, or missing info), or null if the draft is fine.`
+
+  try {
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: userText }] }],
+        generationConfig: { maxOutputTokens: 350, temperature: 0.35 },
+      }),
+    })
+    if (!response.ok) {
+      console.error('Board AI suggestions:', await response.text())
+      return res.status(502).json({ error: { message: 'AI service error', status: 502 } })
+    }
+    const data = await response.json()
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}'
+    const match = raw.match(/\{[\s\S]*\}/)
+    if (!match) {
+      return context === 'compose'
+        ? res.json({ betterTitle: null, bodyAddOn: null, tags: [] })
+        : res.json({ replyTip: null })
+    }
+    let parsed
+    try {
+      parsed = JSON.parse(match[0])
+    } catch {
+      return context === 'compose'
+        ? res.json({ betterTitle: null, bodyAddOn: null, tags: [] })
+        : res.json({ replyTip: null })
+    }
+
+    if (context === 'compose') {
+      const betterTitle =
+        typeof parsed.betterTitle === 'string' ? parsed.betterTitle.trim().slice(0, 120) : null
+      const bodyAddOn =
+        typeof parsed.bodyAddOn === 'string' ? parsed.bodyAddOn.trim().slice(0, 400) : null
+      const tags = Array.isArray(parsed.tags)
+        ? parsed.tags
+            .filter((t) => typeof t === 'string' && BOARD_TAG_CANDIDATES.includes(t.toLowerCase()))
+            .map((t) => t.toLowerCase())
+            .slice(0, 3)
+        : []
+      res.json({
+        betterTitle: betterTitle || null,
+        bodyAddOn: bodyAddOn || null,
+        tags,
+      })
+    } else {
+      const replyTip =
+        typeof parsed.replyTip === 'string' ? parsed.replyTip.trim().slice(0, 240) : null
+      res.json({ replyTip: replyTip || null })
+    }
+  } catch (e) {
+    console.error('Board AI suggestions:', e?.message || e)
+    return res.status(500).json({ error: { message: 'Suggestion request failed', status: 500 } })
+  }
+})
+
 async function autoTagBoardPost(postId, title, body) {
   if (!GEMINI_API_KEY) return []
   const combined = `${title}\n${body}`.slice(0, 400)
