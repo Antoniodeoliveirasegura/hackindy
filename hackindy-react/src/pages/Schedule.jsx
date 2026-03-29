@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
+import { extractBuildingCode } from './Map'
 import Icon from '../components/Icons'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
@@ -11,22 +12,6 @@ const DAY_CODES = {
   Wednesday: 'W',
   Thursday: 'Th',
   Friday: 'F',
-}
-
-// All Purdue classes are in Eastern time
-const EASTERN_TZ = 'America/Indiana/Indianapolis'
-
-function getEasternParts(date) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: EASTERN_TZ,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(date)
-  return {
-    hour: parseInt(parts.find(p => p.type === 'hour').value) % 24,
-    minute: parseInt(parts.find(p => p.type === 'minute').value),
-  }
 }
 
 const colorOrder = ['blue', 'green', 'purple', 'orange']
@@ -58,15 +43,14 @@ const colorConfig = {
 }
 
 function getDayName(dateValue) {
-  return new Date(dateValue).toLocaleDateString('en-US', { weekday: 'long', timeZone: EASTERN_TZ })
+  return new Date(dateValue).toLocaleDateString(undefined, { weekday: 'long' })
 }
 
 function getTimeRange(startTime, endTime) {
-  const opts = { hour: 'numeric', minute: '2-digit', timeZone: EASTERN_TZ }
   const start = new Date(startTime)
   const end = endTime ? new Date(endTime) : null
-  const startLabel = start.toLocaleTimeString('en-US', opts)
-  const endLabel = end ? end.toLocaleTimeString('en-US', opts) : ''
+  const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  const endLabel = end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
   return endLabel ? `${startLabel} – ${endLabel}` : startLabel
 }
 
@@ -100,17 +84,15 @@ function getWeeklyPattern(items) {
 
     const start = new Date(item.startTime)
     const end = item.endTime ? new Date(item.endTime) : null
-    const { hour: sHour, minute: sMin } = getEasternParts(start)
-    const endParts = end ? getEasternParts(end) : { hour: '', minute: '' }
     const key = [
       day,
       item.title,
       item.description || '',
       item.location || '',
-      sHour,
-      sMin,
-      endParts.hour,
-      endParts.minute,
+      start.getHours(),
+      start.getMinutes(),
+      end?.getHours() || '',
+      end?.getMinutes() || '',
     ].join('|')
     const seriesKey = [
       item.title,
@@ -158,6 +140,7 @@ function getWeeklyPattern(items) {
 
 export default function Schedule() {
   const { onboarding } = useAuth()
+  const navigate = useNavigate()
   const [selectedDay, setSelectedDay] = useState(() => {
     const today = getDayName(new Date())
     return DAYS.includes(today) ? today : 'Monday'
@@ -169,6 +152,15 @@ export default function Schedule() {
   const [classesMeta, setClassesMeta] = useState({ totalInTerm: 0 })
   const [classItems, setClassItems] = useState([])
 
+  const handleFindRoom = (room) => {
+    const buildingCode = extractBuildingCode(room)
+    if (buildingCode) {
+      navigate(`/map?building=${buildingCode}&room=${encodeURIComponent(room)}`)
+    } else {
+      navigate(`/map?room=${encodeURIComponent(room)}`)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -177,12 +169,7 @@ export default function Schedule() {
       try {
         const response = await authRequest('/api/me/classes?limit=500&mode=chronological')
         if (cancelled) return
-        // Exclude one-off exam events — only show recurring class meetings
-        const examRe = /\b(midterm|final|exam|quiz|test)\b/i
-        const meetingItems = (response.items || []).filter(
-          item => !examRe.test(`${item.title || ''} ${item.description || ''}`)
-        )
-        setClassItems(meetingItems)
+        setClassItems(response.items || [])
         setClassesMeta(response.meta || { totalInTerm: 0 })
         setTermLabel(response.meta?.selectedTermLabel || '')
       } catch (error) {
@@ -317,8 +304,8 @@ export default function Schedule() {
                   <div className="flex">
                     <div className={`w-1.5 ${config.accent}`} />
                     <div className={`flex-1 p-4 ${config.bg} ${config.border} border-l-0 border`}>
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
+                        <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
                             <div className={`text-[11px] font-semibold ${config.text} tracking-wide`}>
                               {cls.code}
@@ -333,17 +320,27 @@ export default function Schedule() {
                               <Icon name="clock" size={12} />
                               {cls.time}
                             </span>
-                            <span className="flex items-center gap-1.5">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleFindRoom(cls.room); }}
+                              className="flex items-center gap-1.5 hover:text-[var(--color-gold)] transition-colors"
+                              title="Find this room on map"
+                            >
                               <Icon name="mapPin" size={12} />
                               {cls.room}
-                            </span>
+                            </button>
                             <span className="flex items-center gap-1.5">
                               <Icon name="calendar" size={12} />
                               Meets {cls.pattern} · {cls.count} time{cls.count === 1 ? '' : 's'} this term
                             </span>
                           </div>
                         </div>
-                        <Icon name="arrowUpRight" size={16} className={`${config.text} opacity-50`} />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleFindRoom(cls.room); }}
+                          className={`shrink-0 p-2 rounded-lg ${config.bg} hover:ring-2 hover:ring-[var(--color-gold)] transition-all`}
+                          title="Find room on map"
+                        >
+                          <Icon name="mapPin" size={16} className={config.text} />
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -388,13 +385,13 @@ export default function Schedule() {
                 </div>
 
                 <div className="flex gap-2 mt-5">
-                  <Link
-                    to="/map"
+                  <button
+                    onClick={() => handleFindRoom(selectedClass.room)}
                     className="btn btn-primary text-[12px] px-4 py-2.5 flex-1"
                   >
                     <Icon name="mapPin" size={14} />
                     Find Room
-                  </Link>
+                  </button>
                   <Link to="/setup" className="btn btn-secondary text-[12px] px-4 py-2.5 flex-1">
                     <Icon name="calendar" size={14} />
                     Resync Feed
