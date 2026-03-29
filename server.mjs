@@ -487,9 +487,68 @@ function normalizeCategory(sourceType, event) {
   return 'event'
 }
 
+/**
+ * Expand RRULE-based recurring events into individual occurrences.
+ * node-ical returns one object per UID even for recurring events; this
+ * function generates all individual date instances within ±1 year.
+ */
+function expandRecurringEvents(events) {
+  const rangeStart = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000) // ~6 months back
+  const rangeEnd   = new Date(Date.now() + 400 * 24 * 60 * 60 * 1000) // ~13 months forward
+  const result = []
+
+  for (const event of events) {
+    if (!event.rrule) {
+      result.push(event)
+      continue
+    }
+
+    const startMs = event.start instanceof Date ? event.start.getTime() : new Date(event.start).getTime()
+    const endMs   = event.end   instanceof Date ? event.end.getTime()   : new Date(event.end || event.start).getTime()
+    const duration = Math.max(0, endMs - startMs)
+
+    let dates
+    try {
+      dates = event.rrule.between(rangeStart, rangeEnd, true /* inclusive */)
+    } catch {
+      result.push(event) // fall back to base event on error
+      continue
+    }
+
+    for (const date of dates) {
+      const dateKey = date.toISOString().slice(0, 10)
+
+      // Skip excluded (EXDATE) dates
+      if (event.exdate) {
+        const excluded = Object.keys(event.exdate).some(k => k.slice(0, 10) === dateKey)
+        if (excluded) continue
+      }
+
+      // Use RECURRENCE-ID override if present
+      const override = event.recurrences?.[dateKey]
+      if (override) {
+        result.push({ ...override, uid: `${event.uid}:${dateKey}` })
+        continue
+      }
+
+      result.push({
+        ...event,
+        start: date,
+        end: new Date(date.getTime() + duration),
+        uid: `${event.uid}:${dateKey}`,
+        rrule: undefined,
+        recurrences: undefined,
+        exdate: undefined,
+      })
+    }
+  }
+  return result
+}
+
 async function syncSource(source) {
   const eventsByKey = await ical.async.fromURL(source.source_url)
-  const events = Object.values(eventsByKey).filter((item) => item?.type === 'VEVENT')
+  const rawEvents = Object.values(eventsByKey).filter((item) => item?.type === 'VEVENT')
+  const events = expandRecurringEvents(rawEvents)
   const syncedAt = nowIso()
 
   // Delete existing items for this source
@@ -551,7 +610,7 @@ async function syncSource(source) {
     .update({ status: 'ready', last_synced_at: syncedAt, last_error: null, updated_at: syncedAt })
     .eq('id', source.id)
 
-  return { syncedAt, itemCount: events.length }
+  return { syncedAt, itemCount: itemsToInsert.length }
 }
 
 async function createScheduleSource(userId, { icsUrl, label, sourceType = 'purdue_schedule_ical' }) {
