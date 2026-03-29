@@ -127,8 +127,11 @@ export default function Assignments() {
   async function loadData() {
     setLoading(true)
     try {
+      // Fetch from 14 days ago so the 500-item window covers upcoming items
+      // rather than being swamped by historical data
+      const from = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
       const [calRes, catRes] = await Promise.all([
-        authRequest('/api/me/calendar?limit=500'),
+        authRequest(`/api/me/calendar?limit=500&from=${encodeURIComponent(from)}`),
         authRequest('/api/me/calendar/categories'),
       ])
       setItems(calRes.items || [])
