@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
 import { extractBuildingCode } from './Map'
 import Icon from '../components/Icons'
+import { filterClassItemsForSchedulePage } from '../lib/scheduleFilters'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 const DAY_CODES = {
@@ -186,7 +187,12 @@ export default function Schedule() {
     }
   }, [])
 
-  const schedule = useMemo(() => getWeeklyPattern(classItems), [classItems])
+  const scheduleClassItems = useMemo(
+    () => filterClassItemsForSchedulePage(classItems),
+    [classItems],
+  )
+  const placeholderHiddenCount = classItems.length - scheduleClassItems.length
+  const schedule = useMemo(() => getWeeklyPattern(scheduleClassItems), [scheduleClassItems])
   const classes = useMemo(() => schedule[selectedDay] || [], [schedule, selectedDay])
 
   useEffect(() => {
@@ -210,7 +216,14 @@ export default function Schedule() {
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Class Schedule</h1>
           <p className="text-[14px] text-[var(--color-txt-2)] mt-1">
-            {termLabel || 'Current term'}{classesMeta.totalInTerm ? ` · ${classesMeta.totalInTerm} imported meetings` : ''}
+            {termLabel || 'Current term'}
+            {classesMeta.totalInTerm ? ` · ${classesMeta.totalInTerm} imported meetings` : ''}
+            {placeholderHiddenCount > 0 ? (
+              <span className="text-[var(--color-txt-3)]">
+                {' '}
+                · {placeholderHiddenCount} placeholder{placeholderHiddenCount !== 1 ? 's' : ''} hidden (online shells / exams in feed)
+              </span>
+            ) : null}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2.5 shadow-sm">
