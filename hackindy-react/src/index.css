@@ -645,20 +645,34 @@ body {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 .dark-purdue-map .leaflet-tile-pane {
-  /* Shifted hue-rotate to -15deg for a true gold/yellow glow rather than red */
-  filter: sepia(100%) hue-rotate(-15deg) saturate(450%) brightness(0.9) contrast(120%) invert(5%);
+  /* Lighter dark mode: increased brightness so buildings/roads are visible */
+  filter: sepia(60%) hue-rotate(-10deg) saturate(300%) brightness(1.15) contrast(95%);
 }
 
-/* Style for the permanent building abbreviation labels */
-.building-label {
+/* Building label markers - positioned at polygon centroids */
+.building-label-marker {
   background: transparent !important;
   border: none !important;
-  box-shadow: none !important;
-  color: #FFD700 !important; /* Brighter Gold */
-  font-weight: 900 !important;
-  font-size: 10px !important;
-  text-shadow: 2px 2px 3px rgba(0,0,0,1);
-  pointer-events: none;
+}
+
+.building-code-label {
+  background: rgba(62, 34, 0, 0.85);
+  color: #FFD700;
+  font-weight: 800;
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  text-align: center;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(212, 168, 75, 0.4);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+.building-code-label.dark {
+  background: rgba(232, 200, 120, 0.95);
+  color: #1A1408;
+  border: 1px solid rgba(26, 20, 8, 0.3);
 }
 
 /* Style for the new building outlines */
@@ -670,4 +684,9 @@ body {
 .dark-purdue-map .leaflet-marker-pane,
 .dark-purdue-map .leaflet-popup-pane {
   filter: none !important;
+}
+
+/* Make the GeoJSON building outlines pop in dark mode */
+.dark-purdue-map .leaflet-overlay-pane svg path {
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.4));
 }
