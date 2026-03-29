@@ -16,6 +16,102 @@ const routes = [
   { id: 34, num: '7', name: 'Route 7 – Orange', shortName: 'Orange', color: '#e68217' },
 ]
 
+/**
+ * Offline fallback when /api/transit/routes has not loaded yet (or fails).
+ * Merged with live TransLoc route definitions for automatic new-variant support.
+ */
+const TRANLOC_ROUTE_ALIASES = {
+  18: 31,
+  3: 32,
+  22: 32,
+  25: 32,
+  26: 32,
+  20: 27,
+  23: 27,
+  24: 27,
+  13: 33,
+  21: 33,
+  28: 33,
+  29: 34,
+}
+
+const UNKNOWN_ROUTE = {
+  id: -1,
+  num: '?',
+  name: 'Shuttle',
+  shortName: 'Bus',
+  color: '#64748b',
+}
+
+/** Map raw TransLoc RouteID -> canonical UI route id (see `routes`). */
+function canonicalFromMap(map, routeId) {
+  const n = Number(routeId)
+  if (!Number.isFinite(n)) return null
+  return map[n] ?? n
+}
+
+/** Printed route number in TransLoc description → canonical id (see `routes`). */
+const ROUTE_NUM_TO_CANON = {
+  1: 31,
+  2: 19,
+  3: 32,
+  4: 27,
+  5: 33,
+  6: 6,
+  7: 34,
+}
+
+/**
+ * Infer canonical route from TransLoc GetRoutes row (Description + MapLineColor).
+ * Skips charter / unmapped shuttles.
+ */
+function inferCanonicalFromTransLocRoute(row) {
+  const rawDesc = String(row.Description || '')
+  const d = rawDesc.toLowerCase()
+  if (/\bcharter\b/.test(d)) return null
+
+  const numMatch = rawDesc.match(/\broute\s*(\d+)\b/i)
+  if (numMatch) {
+    const cid = ROUTE_NUM_TO_CANON[numMatch[1]]
+    if (cid != null) return cid
+    return null
+  }
+
+  const rules = [
+    [/orange/, 34],
+    [/purple/, 33],
+    [/blue/, 27],
+    [/yellow/, 32],
+    [/gray|grey/, 19],
+    [/crimson/, 31],
+    [/green/, 6],
+  ]
+  for (const [re, cid] of rules) {
+    if (re.test(d)) return cid
+  }
+
+  let hex = String(row.MapLineColor || '').trim().toLowerCase()
+  if (hex && !hex.startsWith('#')) hex = `#${hex}`
+  if (hex) {
+    const found = routes.find((r) => r.color.toLowerCase() === hex)
+    if (found) return found.id
+  }
+  return null
+}
+
+function buildTranslocRouteIdMap(apiRoutes) {
+  const inferred = {}
+  if (Array.isArray(apiRoutes)) {
+    for (const row of apiRoutes) {
+      const id = Number(row.RouteID)
+      if (!Number.isFinite(id)) continue
+      const canon = inferCanonicalFromTransLocRoute(row)
+      if (canon != null) inferred[id] = canon
+    }
+  }
+  return { ...inferred, ...TRANLOC_ROUTE_ALIASES }
+}
+
 function haversineMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000
   const toRad = (d) => (d * Math.PI) / 180
@@ -27,11 +123,11 @@ function haversineMeters(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-function getOrderedStopsForRoute(stops, routeId) {
+function getOrderedStopsForRoute(stops, routeId, routeIdMap) {
   const out = []
   const seen = new Set()
   for (const s of stops) {
-    if (s.RouteID !== routeId) continue
+    if (canonicalFromMap(routeIdMap, s.RouteID) !== routeId) continue
     const id = s.RouteStopID != null ? String(s.RouteStopID) : `${s.Latitude},${s.Longitude}`
     if (seen.has(id)) continue
     seen.add(id)
@@ -80,6 +176,7 @@ function LiveMap({
   onSelectBus,
   selectedBus,
   stopHighlights,
+  canonicalRouteId,
 }) {
   const mapRef = useRef(null)
   const mapInstanceRef = useRef(null)
@@ -158,20 +255,17 @@ function LiveMap({
 
     if (!selectedRoute) return
 
-    const routeStopsMap = {}
+    const points = []
     stops.forEach((stop) => {
-      if (!routeStopsMap[stop.RouteID]) {
-        routeStopsMap[stop.RouteID] = []
-      }
+      if (canonicalRouteId(stop.RouteID) !== selectedRoute.id) return
       if (stop.MapPoints && stop.MapPoints.length > 0) {
         stop.MapPoints.forEach((point) => {
-          routeStopsMap[stop.RouteID].push([point.Latitude, point.Longitude])
+          points.push([point.Latitude, point.Longitude])
         })
       }
     })
 
-    const points = routeStopsMap[selectedRoute.id]
-    if (!points || points.length < 2) return
+    if (points.length < 2) return
 
     const polyline = L.polyline(points, {
       color: selectedRoute.color,
@@ -182,7 +276,7 @@ function LiveMap({
 
     routeLinesRef.current.push(polyline)
     map.fitBounds(polyline.getBounds(), { padding: [30, 30] })
-  }, [stops, selectedRoute, mapReady])
+  }, [stops, selectedRoute, mapReady, canonicalRouteId])
 
   useEffect(() => {
     const map = mapInstanceRef.current
@@ -195,7 +289,7 @@ function LiveMap({
 
     if (!selectedRoute) return
 
-    const visibleStops = stops.filter((s) => s.RouteID === selectedRoute.id)
+    const visibleStops = stops.filter((s) => canonicalRouteId(s.RouteID) === selectedRoute.id)
     const uniqueStops = []
     const seen = new Set()
     visibleStops.forEach((stop) => {
@@ -207,7 +301,7 @@ function LiveMap({
     })
 
     uniqueStops.forEach((stop) => {
-      const route = routes.find((r) => r.id === stop.RouteID) || routes[0]
+      const route = selectedRoute
       const sid = stop._sid
       const mode = stopHighlights?.[sid] || 'normal'
 
@@ -242,7 +336,7 @@ function LiveMap({
 
       stopMarkersRef.current.push(marker)
     })
-  }, [stops, routes, selectedRoute, mapReady, stopHighlights])
+  }, [stops, routes, selectedRoute, mapReady, stopHighlights, canonicalRouteId])
 
   useEffect(() => {
     const map = mapInstanceRef.current
@@ -253,10 +347,13 @@ function LiveMap({
     Object.values(markersRef.current).forEach((marker) => marker.remove())
     markersRef.current = {}
 
-    const displayVehicles = selectedRoute ? vehicles.filter((v) => v.RouteID === selectedRoute.id) : vehicles
+    const displayVehicles = selectedRoute
+      ? vehicles.filter((v) => canonicalRouteId(v.RouteID) === selectedRoute.id)
+      : vehicles
 
     displayVehicles.forEach((vehicle) => {
-      const route = routes.find((r) => r.id === vehicle.RouteID) || routes[0]
+      const canon = canonicalRouteId(vehicle.RouteID)
+      const route = routes.find((r) => r.id === canon) || UNKNOWN_ROUTE
       const isSelected = selectedBus?.VehicleID === vehicle.VehicleID
       const isMoving = vehicle.GroundSpeed > 0
 
@@ -338,7 +435,7 @@ function LiveMap({
       const bounds = L.latLngBounds(displayVehicles.map((v) => [v.Latitude, v.Longitude]))
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 })
     }
-  }, [vehicles, selectedBus, selectedRoute, onSelectBus])
+  }, [vehicles, selectedBus, selectedRoute, onSelectBus, canonicalRouteId])
 
   return (
     <div className="relative w-full h-[450px] rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-lg">
@@ -357,7 +454,7 @@ function LiveMap({
         </div>
         <div className="space-y-1.5">
           {routes.map((route) => {
-            const count = vehicles.filter((v) => v.RouteID === route.id).length
+            const count = vehicles.filter((v) => canonicalRouteId(v.RouteID) === route.id).length
             if (count === 0) return null
             return (
               <div key={route.id} className="flex items-center gap-2">
@@ -403,6 +500,12 @@ export default function Transit() {
   /** One “my stop” per route — chime fires when bus reaches the stop before this one */
   const [myStopId, setMyStopId] = useState(null)
   const chimePlayedRef = useRef(false)
+  const [routeIdToCanonical, setRouteIdToCanonical] = useState(() => ({ ...TRANLOC_ROUTE_ALIASES }))
+
+  const canonicalRouteId = useCallback(
+    (routeId) => canonicalFromMap(routeIdToCanonical, routeId),
+    [routeIdToCanonical],
+  )
 
   const fetchVehicles = useCallback(async () => {
     try {
@@ -425,30 +528,40 @@ export default function Transit() {
     }
   }, [])
 
+  const fetchTransitRouteMap = useCallback(async () => {
+    try {
+      const response = await fetch('/api/transit/routes')
+      const data = await response.json()
+      setRouteIdToCanonical(buildTranslocRouteIdMap(data))
+    } catch {
+      /* keep static TRANLOC_ROUTE_ALIASES */
+    }
+  }, [])
+
   useEffect(() => {
     const init = async () => {
       setLoading(true)
-      await Promise.all([fetchVehicles(), fetchStops()])
+      await Promise.all([fetchVehicles(), fetchStops(), fetchTransitRouteMap()])
       setLoading(false)
     }
     init()
 
     const interval = setInterval(fetchVehicles, 10000)
     return () => clearInterval(interval)
-  }, [fetchVehicles, fetchStops])
+  }, [fetchVehicles, fetchStops, fetchTransitRouteMap])
 
   const orderedStops = useMemo(() => {
     if (!selectedRoute) return []
-    return getOrderedStopsForRoute(stops, selectedRoute.id)
-  }, [stops, selectedRoute])
+    return getOrderedStopsForRoute(stops, selectedRoute.id, routeIdToCanonical)
+  }, [stops, selectedRoute, routeIdToCanonical])
 
   const trackingBus = useMemo(() => {
     if (!selectedRoute) return null
-    const onRoute = vehicles.filter((v) => v.RouteID === selectedRoute.id)
+    const onRoute = vehicles.filter((v) => canonicalRouteId(v.RouteID) === selectedRoute.id)
     if (!onRoute.length) return null
     if (selectedBus && onRoute.some((v) => v.VehicleID === selectedBus.VehicleID)) return selectedBus
     return onRoute[0]
-  }, [vehicles, selectedRoute, selectedBus])
+  }, [vehicles, selectedRoute, selectedBus, canonicalRouteId])
 
   useEffect(() => {
     setVisitedStopIds(new Set())
@@ -583,7 +696,7 @@ export default function Transit() {
           All Routes ({vehicles.length})
         </button>
         {routes.map((route) => {
-          const count = vehicles.filter((v) => v.RouteID === route.id).length
+          const count = vehicles.filter((v) => canonicalRouteId(v.RouteID) === route.id).length
           return (
             <button
               key={route.id}
@@ -618,6 +731,7 @@ export default function Transit() {
             selectedBus={selectedBus}
             onSelectBus={setSelectedBus}
             stopHighlights={stopHighlights}
+            canonicalRouteId={canonicalRouteId}
           />
         </div>
       )}
@@ -634,8 +748,10 @@ export default function Transit() {
             <div>
               <h3 className="text-[15px] font-semibold text-[var(--color-txt-0)]">{selectedRoute.name}</h3>
               <p className="text-[12px] text-[var(--color-txt-2)]">
-                {vehicles.filter((v) => v.RouteID === selectedRoute.id).length} bus
-                {vehicles.filter((v) => v.RouteID === selectedRoute.id).length !== 1 ? 'es' : ''} active
+                {(() => {
+                  const n = vehicles.filter((v) => canonicalRouteId(v.RouteID) === selectedRoute.id).length
+                  return `${n} bus${n !== 1 ? 'es' : ''} active`
+                })()}
                 {trackingBus && (
                   <span className="text-[var(--color-txt-3)]">
                     {' '}
