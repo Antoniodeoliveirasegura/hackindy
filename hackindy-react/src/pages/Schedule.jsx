@@ -13,6 +13,22 @@ const DAY_CODES = {
   Friday: 'F',
 }
 
+// All Purdue classes are in Eastern time
+const EASTERN_TZ = 'America/Indiana/Indianapolis'
+
+function getEasternParts(date) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+  return {
+    hour: parseInt(parts.find(p => p.type === 'hour').value) % 24,
+    minute: parseInt(parts.find(p => p.type === 'minute').value),
+  }
+}
+
 const colorOrder = ['blue', 'green', 'purple', 'orange']
 const colorConfig = {
   blue: {
@@ -42,14 +58,15 @@ const colorConfig = {
 }
 
 function getDayName(dateValue) {
-  return new Date(dateValue).toLocaleDateString(undefined, { weekday: 'long' })
+  return new Date(dateValue).toLocaleDateString('en-US', { weekday: 'long', timeZone: EASTERN_TZ })
 }
 
 function getTimeRange(startTime, endTime) {
+  const opts = { hour: 'numeric', minute: '2-digit', timeZone: EASTERN_TZ }
   const start = new Date(startTime)
   const end = endTime ? new Date(endTime) : null
-  const startLabel = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  const endLabel = end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
+  const startLabel = start.toLocaleTimeString('en-US', opts)
+  const endLabel = end ? end.toLocaleTimeString('en-US', opts) : ''
   return endLabel ? `${startLabel} – ${endLabel}` : startLabel
 }
 
@@ -83,15 +100,17 @@ function getWeeklyPattern(items) {
 
     const start = new Date(item.startTime)
     const end = item.endTime ? new Date(item.endTime) : null
+    const { hour: sHour, minute: sMin } = getEasternParts(start)
+    const endParts = end ? getEasternParts(end) : { hour: '', minute: '' }
     const key = [
       day,
       item.title,
       item.description || '',
       item.location || '',
-      start.getHours(),
-      start.getMinutes(),
-      end?.getHours() || '',
-      end?.getMinutes() || '',
+      sHour,
+      sMin,
+      endParts.hour,
+      endParts.minute,
     ].join('|')
     const seriesKey = [
       item.title,
