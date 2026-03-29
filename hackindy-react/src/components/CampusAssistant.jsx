@@ -4,8 +4,9 @@ import Icon from './Icons'
 
 const quickQuestions = [
   "What's for lunch today?",
-  'When does the next bus leave?',
-  'Where is the tutoring center?',
+  "What's my next assignment due?",
+  'What events are coming up?',
+  'Is Tower Dining open now?',
 ]
 
 export default function CampusAssistant() {

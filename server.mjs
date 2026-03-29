@@ -1376,38 +1376,93 @@ app.get('/', (_req, res) => {
   res.redirect(clientAppUrl)
 })
 
+// ============================================================
 // Gemini campus assistant
+// ============================================================
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
-
-const CAMPUS_SYSTEM_PROMPT = `You are a helpful campus assistant for Purdue University Indianapolis (Purdue Indy / IUPUI).
-You help students with questions about:
-- Their personal class schedule and upcoming assignments/events (provided below when available)
-- Campus dining (Tower Dining, Campus Center food options, meal hours)
-- Campus transit/buses (TransLoc routes, stop locations, schedules)
-- Buildings and campus map (ET Building, Campus Center, University Library, Science building, etc.)
-- Student services (tutoring, printing, health center, financial aid, registrar)
-- Events and activities on campus
-- General student life at Purdue Indy
-
-Be concise, friendly, and helpful. Keep responses to 2-3 sentences unless more detail is clearly needed.
-If asked about something unrelated to Purdue Indy campus life, briefly acknowledge and redirect to campus topics.
-Do not make up specific real-time data (bus times, today's menu) — instead direct students to the relevant tab in the app.
-When answering "next class" questions, only consider items that are regular class sessions (lectures, labs, discussions) — not exams, midterms, quizzes, or office hours, unless the student specifically asks about those.`
-
 const TZ = 'America/Indiana/Indianapolis'
 
-function formatScheduleContext(items) {
-  if (!items.length) return 'No upcoming schedule items found.'
-  return items.map((item) => {
-    const start = new Date(item.startTime)
-    const end = item.endTime ? new Date(item.endTime) : null
-    const dateStr = start.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' })
-    const startStr = start.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })
-    const endStr = end ? ` – ${end.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })}` : ''
-    const loc = item.location ? ` @ ${item.location}` : ''
-    return `- ${dateStr} ${startStr}${endStr}${loc}: ${item.title} [${item.category}]`
-  }).join('\n')
+const CAMPUS_SYSTEM_PROMPT = `You are a helpful campus assistant for Purdue University Indianapolis (Purdue Indy / IUPUI).
+You have access to real-time data about the student's schedule, dining, and campus events — all provided in the context block below.
+Use that data to answer questions directly and accurately. Do not tell the student to "check the app" or "check the tab" when the answer is already in the context.
+
+You help students with:
+- Their personal class schedule, upcoming assignments, and due dates (from context)
+- Dining hours and today's menu at each location (from context)
+- Upcoming campus events (from context)
+- Campus transit/buses: Crimson & Gray routes run Mon–Fri 6:30am–10pm; Yellow & Blue run Mon–Fri 5:30am–midnight; Purple runs Mon–Fri 7am–10pm; Orange runs Sat–Sun 9am–8pm
+- Buildings: ET Building (engineering/tech), Campus Center (dining, student services), University Library, Science & Engineering Lab Building (SL), Cavanaugh Hall (CA), Hine Hall (HH), Madam Walker Legacy Center, IUPUI Tower
+- Student services: ASC tutoring (Campus Center 2nd floor), printing (library 25 free pages/day), Health & Wellness Center, Financial Aid (Cavanaugh Hall), Registrar (Cavanaugh Hall)
+- General student life at Purdue Indy
+
+Rules:
+- Be concise and friendly. 2–4 sentences unless a list is clearly better.
+- Answer directly from the context data when available — do not hedge or defer.
+- For "next class" questions only count regular lectures/labs/discussions, not exams or office hours (unless asked).
+- If something is genuinely unknown (not in context and not general knowledge), say so briefly.
+- If asked about something totally unrelated to campus life, briefly redirect.`
+
+// ── Context formatters ────────────────────────────────────────────────────────
+
+function fmtTime(isoStr, opts = {}) {
+  return new Date(isoStr).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', ...opts })
+}
+function fmtDate(isoStr) {
+  return new Date(isoStr).toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' })
+}
+
+function buildDiningContext(dining) {
+  if (!dining?.ok || !dining.locations?.length) return ''
+  const lines = [`=== DINING TODAY (${dining.date}) ===`]
+  for (const loc of dining.locations) {
+    const status = loc.is_open ? 'OPEN' : 'CLOSED'
+    const hrs = loc.hours && loc.hours !== 'Closed today' ? ` — ${loc.hours}` : ''
+    lines.push(`${loc.name}: ${status}${hrs}`)
+    if (loc.stations?.length) {
+      for (const station of loc.stations) {
+        const items = (station.items || []).slice(0, 8).map(it => {
+          const tags = (it.icons || []).filter(t => ['Vegan', 'Vegetarian', 'Avoiding Gluten'].includes(t))
+          return `${it.name}${it.calories ? ` ${it.calories}cal` : ''}${tags.length ? ` (${tags.join('/')})` : ''}`
+        })
+        if (items.length) lines.push(`  ${station.name}: ${items.join(', ')}`)
+      }
+    } else if (loc.meal) {
+      lines.push(`  Menus: ${loc.meal}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+function buildCalendarContext(classes, assignments, events) {
+  const parts = []
+
+  if (classes.length) {
+    parts.push('=== UPCOMING CLASSES ===')
+    parts.push(classes.map(i =>
+      `- ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}–${i.end_time ? fmtTime(i.end_time) : '?'}${i.location ? ` @ ${i.location}` : ''}: ${i.title}`
+    ).join('\n'))
+  } else {
+    parts.push('=== UPCOMING CLASSES ===\nNo upcoming classes found.')
+  }
+
+  if (assignments.length) {
+    parts.push('=== UPCOMING ASSIGNMENTS / TASKS ===')
+    parts.push(assignments.map(i =>
+      `- Due ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}: ${i.title}${i.location ? ` (${i.location})` : ''}`
+    ).join('\n'))
+  } else {
+    parts.push('=== UPCOMING ASSIGNMENTS / TASKS ===\nNo upcoming assignments found.')
+  }
+
+  if (events.length) {
+    parts.push('=== UPCOMING CAMPUS EVENTS ===')
+    parts.push(events.map(i =>
+      `- ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}${i.location ? ` @ ${i.location}` : ''}: ${i.title}`
+    ).join('\n'))
+  }
+
+  return parts.join('\n\n')
 }
 
 app.post('/api/assistant', async (req, res) => {
@@ -1420,29 +1475,53 @@ app.post('/api/assistant', async (req, res) => {
     return res.status(400).json({ error: 'messages array required' })
   }
 
-  // Optionally enrich with the user's real schedule if they're logged in
-  let scheduleContext = ''
-  try {
-    const user = await getCurrentUser(req)
-    if (user) {
-      const now = new Date().toISOString()
-      const twoWeeksOut = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-      const { data } = await supabase
-        .from('calendar_items')
-        .select('title, start_time, end_time, location, category')
-        .eq('user_id', user.id)
-        .gte('start_time', now)
-        .lte('start_time', twoWeeksOut)
-        .order('start_time', { ascending: true })
-        .limit(30)
-      if (data?.length) {
-        const mapped = data.map(r => ({ title: r.title, startTime: r.start_time, endTime: r.end_time, location: r.location, category: r.category }))
-        scheduleContext = `\n\nThe student's upcoming schedule (next 14 days, as of ${new Date().toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'short', day: 'numeric' })}):\n${formatScheduleContext(mapped)}`
-      }
-    }
-  } catch {}
+  const now = new Date()
+  const nowISOStr = now.toISOString()
+  const fourWeeksOut = new Date(now.getTime() + 28 * 24 * 60 * 60 * 1000).toISOString()
+  const nowLabel = now.toLocaleDateString('en-US', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+  const timeLabel = now.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' })
 
-  const systemPrompt = CAMPUS_SYSTEM_PROMPT + scheduleContext
+  // Fetch all context in parallel
+  const [diningData, calendarData] = await Promise.all([
+    getDiningSnapshot({}).catch(() => null),
+    (async () => {
+      try {
+        const user = await getCurrentUser(req)
+        if (!user) return null
+        const { data } = await supabase
+          .from('calendar_items')
+          .select('title, start_time, end_time, location, category')
+          .eq('user_id', user.id)
+          .gte('start_time', nowISOStr)
+          .lte('start_time', fourWeeksOut)
+          .order('start_time', { ascending: true })
+          .limit(60)
+        return data || null
+      } catch { return null }
+    })(),
+  ])
+
+  // Split calendar items by category
+  const examRe = /\b(midterm|final|exam|quiz|test)\b/i
+  const classes     = (calendarData || []).filter(r => r.category === 'class' && !examRe.test(r.title)).slice(0, 15)
+  const assignments = (calendarData || []).filter(r => ['assignment', 'task', 'homework', 'submission'].includes(r.category)).slice(0, 15)
+  const events      = (calendarData || []).filter(r => ['event', 'campus_event', 'activity'].includes(r.category)).slice(0, 10)
+
+  // If no dedicated event category, pull from any non-class items that look like events
+  const calendarEvents = events.length
+    ? events
+    : (calendarData || []).filter(r => r.category !== 'class' && !['assignment','task','homework','submission'].includes(r.category)).slice(0, 10)
+
+  const diningCtx   = buildDiningContext(diningData)
+  const calendarCtx = calendarData ? buildCalendarContext(classes, assignments, calendarEvents) : ''
+
+  const contextBlock = [
+    `=== CURRENT DATE & TIME ===\n${nowLabel} at ${timeLabel} (Eastern)`,
+    diningCtx,
+    calendarCtx,
+  ].filter(Boolean).join('\n\n')
+
+  const systemPrompt = CAMPUS_SYSTEM_PROMPT + '\n\n' + contextBlock
 
   const contents = messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
@@ -1458,7 +1537,7 @@ app.post('/api/assistant', async (req, res) => {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
-        generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
+        generationConfig: { maxOutputTokens: 500, temperature: 0.65 },
       }),
     })
 
