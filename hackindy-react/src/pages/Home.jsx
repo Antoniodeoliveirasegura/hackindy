@@ -340,54 +340,128 @@ function describeBusEta(vehicle, route, nearestBusStop, routeStops, speed, movin
   return `~${etaMin} min from ${nearestBusStop.description}`
 }
 
-function buildSuggestions({ freeMinutes, nextClass, currentClass, diningStatus, upcomingEvents }) {
+/** Avoid "Today 12:00 AM" for calendar blocks that start at local midnight (common all-day pattern). */
+function formatSuggestionEventTiming(item, now) {
+  const start = new Date(item.startTime)
+  const end = item.endTime ? new Date(item.endTime) : null
+  const midnightStart = start.getHours() === 0 && start.getMinutes() === 0
+  const spansRestOfDay =
+    midnightStart &&
+    end &&
+    isSameLocalDay(item.startTime, now) &&
+    end.getTime() - start.getTime() >= 20 * 60 * 60 * 1000
+  if (midnightStart && isSameLocalDay(item.startTime, now) && (!end || spansRestOfDay)) {
+    return 'Today · All day'
+  }
+  if (isSameLocalDay(item.startTime, now)) {
+    const t = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    return `Today · ${t}`
+  }
+  const dayPart = start.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+  const timePart = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  return `${dayPart} · ${timePart}`
+}
+
+function buildSuggestions({ freeMinutes, nextClass, currentClass, diningStatus, upcomingEvents, now }) {
   const fmtTime = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const list = []
 
   // Currently in class
   if (currentClass && freeMinutes === 0) {
-    list.push({ icon: 'book', text: `In ${currentClass.title} right now`, time: currentClass.endTime ? `Until ${fmtTime(currentClass.endTime)}` : 'In progress' })
-    if (nextClass) list.push({ icon: 'mapPin', text: `Next up: ${nextClass.title}${nextClass.location ? ` @ ${nextClass.location}` : ''}`, time: fmtTime(nextClass.startTime) })
-    list.push({ icon: 'coffee', text: 'Plan a break after class', time: 'Coming up' })
+    list.push({
+      icon: 'book',
+      text: `In ${currentClass.title} right now`,
+      time: currentClass.endTime ? `Until ${fmtTime(currentClass.endTime)}` : 'In progress',
+      variant: 'class',
+    })
+    if (nextClass) {
+      list.push({
+        icon: 'mapPin',
+        text: `Next: ${nextClass.title}${nextClass.location ? ` · ${nextClass.location}` : ''}`,
+        time: fmtTime(nextClass.startTime),
+        variant: 'nav',
+      })
+    }
+    list.push({ icon: 'coffee', text: 'Plan a break after class', time: 'Soon', variant: 'default' })
     return list.slice(0, 3)
   }
 
   // Tight gap — need to head to next class
   if (freeMinutes > 0 && freeMinutes < 20 && nextClass) {
-    list.push({ icon: 'mapPin', text: `Head to ${nextClass.location || 'your next class'} for ${nextClass.title}`, time: `Starts ${fmtTime(nextClass.startTime)}` })
-    list.push({ icon: 'book', text: 'Skim your notes on the way', time: formatDuration(freeMinutes) })
-    list.push({ icon: 'coffee', text: 'Quick water/coffee grab', time: 'Keep it short' })
+    list.push({
+      icon: 'mapPin',
+      text: `Head to ${nextClass.location || 'your next class'}`,
+      time: `${nextClass.title} · ${fmtTime(nextClass.startTime)}`,
+      variant: 'nav',
+    })
+    list.push({ icon: 'book', text: 'Skim notes en route', time: formatDuration(freeMinutes), variant: 'free' })
+    list.push({ icon: 'coffee', text: 'Quick water or coffee', time: 'Keep it short', variant: 'default' })
     return list.slice(0, 3)
   }
 
   // Good window — dining open?
   if (diningStatus?.is_open && freeMinutes >= 25) {
     const hrs = diningStatus.hours && diningStatus.hours !== 'Closed today' ? diningStatus.hours : 'Open now'
-    list.push({ icon: 'dining', text: `${diningStatus.name} is open`, time: hrs })
+    list.push({
+      icon: 'dining',
+      text: `${diningStatus.name} is open`,
+      time: hrs,
+      variant: 'dining-open',
+    })
   } else if (diningStatus && !diningStatus.is_open) {
-    list.push({ icon: 'dining', text: `${diningStatus.name} is closed right now`, time: diningStatus.hours || 'Check hours' })
+    const hoursLine = diningStatus.hours && diningStatus.hours !== 'Closed' ? diningStatus.hours : null
+    list.push({
+      icon: 'dining',
+      text: `${diningStatus.name} is closed right now`,
+      time: 'Closed',
+      variant: 'dining-closed',
+      sub: hoursLine || undefined,
+    })
   }
 
   // Upcoming event today?
   const nextEvent = upcomingEvents?.[0]
   if (nextEvent) {
-    list.push({ icon: 'calendar', text: nextEvent.title, time: `Today ${fmtTime(nextEvent.startTime)}` })
+    list.push({
+      icon: 'calendar',
+      text: nextEvent.title,
+      time: formatSuggestionEventTiming(nextEvent, now),
+      variant: 'event',
+    })
   }
 
   // Study suggestion
   if (freeMinutes >= 90) {
-    list.push({ icon: 'book', text: nextClass ? `Study before ${nextClass.title}` : 'Good time for a study block', time: formatDuration(freeMinutes) })
+    list.push({
+      icon: 'book',
+      text: nextClass ? `Study before ${nextClass.title}` : 'Good time for a study block',
+      time: formatDuration(freeMinutes),
+      variant: 'free',
+      sub: 'Free window',
+    })
   } else if (freeMinutes >= 30) {
-    list.push({ icon: 'coffee', text: 'Coffee + review notes', time: formatDuration(freeMinutes) })
+    list.push({
+      icon: 'coffee',
+      text: 'Coffee + review notes',
+      time: formatDuration(freeMinutes),
+      variant: 'free',
+      sub: 'Free window',
+    })
   } else if (freeMinutes > 0) {
-    list.push({ icon: 'book', text: 'Quick review before class', time: formatDuration(freeMinutes) })
+    list.push({
+      icon: 'book',
+      text: 'Quick review before class',
+      time: formatDuration(freeMinutes),
+      variant: 'free',
+      sub: 'Free window',
+    })
   }
 
   // Pad with fallbacks if under 3
   const fallbacks = [
-    { icon: 'coffee', text: 'Grab coffee at the Union', time: '5 min walk' },
-    { icon: 'book', text: 'Study at Cavanaugh Hall', time: 'Quiet floor' },
-    { icon: 'mapPin', text: 'Explore the Campus Center', time: 'Nearby' },
+    { icon: 'coffee', text: 'Grab coffee at the Union', time: '5 min walk', variant: 'default' },
+    { icon: 'book', text: 'Study at Cavanaugh Hall', time: 'Quiet floor', variant: 'default' },
+    { icon: 'mapPin', text: 'Explore the Campus Center', time: 'Nearby', variant: 'default' },
   ]
   let i = 0
   while (list.length < 3 && i < fallbacks.length) list.push(fallbacks[i++])
@@ -627,7 +701,8 @@ export default function Home() {
     currentClass: scheduleState.currentClass,
     diningStatus,
     upcomingEvents: cleanCalendarItems.filter(i => ['campus_event', 'event'].includes(i.category)),
-  }), [scheduleState, diningStatus, cleanCalendarItems])
+    now,
+  }), [scheduleState, diningStatus, cleanCalendarItems, now])
 
   const todayRelevantEvents = useMemo(
     () => filterTodayRelevantEvents(cleanCalendarItems, now),
@@ -958,37 +1033,89 @@ export default function Home() {
             {scheduleState.freeLabel}
           </p>
 
-          <div className="bg-[var(--color-stat)] rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-[10px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">
-                What you could do
+          <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-sm)] overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-stat)]/50">
+              <div>
+                <div className="text-[10px] font-bold text-[var(--color-txt-3)] uppercase tracking-wider">
+                  What you could do
+                </div>
+                <p className="text-[11px] text-[var(--color-txt-2)] mt-0.5 hidden sm:block">
+                  Ideas from your schedule, dining, and today&apos;s events
+                </p>
               </div>
               <button
+                type="button"
                 onClick={() => window.dispatchEvent(new CustomEvent('open-campus-assistant', {
                   detail: { message: 'What should I do right now? Consider my free time, dining hours, any upcoming events or classes, and give me a specific personalized suggestion.' }
                 }))}
-                className="flex items-center gap-1 text-[11px] text-[var(--color-gold-muted)] hover:text-[var(--color-gold)] transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 shrink-0 rounded-xl px-3.5 py-2 text-[12px] font-semibold bg-gradient-to-br from-[var(--color-gold)]/25 to-[var(--color-gold)]/10 text-[var(--color-gold-muted)] border border-[var(--color-gold)]/25 hover:from-[var(--color-gold)]/35 hover:border-[var(--color-gold)]/40 transition-all"
               >
-                <Icon name="sparkles" size={11} />
+                <Icon name="sparkles" size={14} />
                 Ask AI
               </button>
             </div>
-            <div className="space-y-2.5">
-              {suggestions.map(({ icon, text, time }, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-2 -mx-2 rounded-lg hover:bg-[var(--color-bg-2)] transition-colors cursor-pointer group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[var(--color-bg-2)] group-hover:bg-[var(--color-bg-3)] flex items-center justify-center transition-colors">
-                      <Icon name={icon} size={16} className="text-[var(--color-txt-2)]" />
+            <ul className="list-none m-0 divide-y divide-[var(--color-border)] p-2 sm:p-3 gap-0">
+              {suggestions.map(({ icon, text, time, variant = 'default', sub }, idx) => {
+                const iconWrap =
+                  variant === 'dining-open'
+                    ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/25'
+                    : variant === 'dining-closed'
+                      ? 'bg-[var(--color-bg-2)] text-[var(--color-txt-2)] ring-1 ring-[var(--color-border)]'
+                      : variant === 'event'
+                        ? 'bg-[var(--color-accent)]/12 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20'
+                        : variant === 'free'
+                          ? 'bg-[var(--color-gold)]/15 text-[var(--color-gold-muted)] ring-1 ring-[var(--color-gold)]/25'
+                          : variant === 'class' || variant === 'nav'
+                            ? 'bg-[var(--color-accent)]/10 text-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/15'
+                            : 'bg-[var(--color-stat)] text-[var(--color-txt-2)] ring-1 ring-[var(--color-border)]'
+                const timeIsShort = String(time).length <= 14
+                return (
+                  <li key={idx} className="list-none">
+                    <div className="flex gap-3 sm:gap-4 p-3 rounded-xl hover:bg-[var(--color-stat)]/80 transition-colors">
+                      <div className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${iconWrap}`}>
+                        <Icon name={icon} size={18} />
+                      </div>
+                      <div className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-4">
+                        <div className="min-w-0">
+                          {sub && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--color-txt-3)] block mb-0.5">
+                              {sub}
+                            </span>
+                          )}
+                          <p className="text-[14px] font-medium text-[var(--color-txt-0)] leading-snug line-clamp-3">
+                            {text}
+                          </p>
+                          {!timeIsShort && (
+                            <p className="text-[12px] text-[var(--color-txt-2)] mt-1 sm:hidden leading-snug">
+                              {time}
+                            </p>
+                          )}
+                        </div>
+                        <div
+                          className={`shrink-0 sm:text-right ${timeIsShort ? 'sm:self-center' : 'sm:max-w-[min(100%,12rem)]'}`}
+                        >
+                          <span
+                            className={`inline-block text-[11px] font-semibold tabular-nums px-2.5 py-1 rounded-lg whitespace-pre-wrap sm:whitespace-nowrap sm:text-right ${
+                              variant === 'dining-open'
+                                ? 'bg-emerald-500/12 text-emerald-800 dark:text-emerald-300'
+                                : variant === 'dining-closed'
+                                  ? 'bg-[var(--color-bg-2)] text-[var(--color-txt-2)]'
+                                  : variant === 'event'
+                                    ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)]'
+                                    : variant === 'free'
+                                      ? 'bg-[var(--color-gold)]/12 text-[var(--color-gold-muted)]'
+                                      : 'bg-[var(--color-stat)] text-[var(--color-txt-2)] border border-[var(--color-border)]'
+                            }`}
+                          >
+                            {time}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <span className="text-[13px] text-[var(--color-txt-0)]">{text}</span>
-                  </div>
-                  <span className="text-[11px] text-[var(--color-txt-3)]">{time}</span>
-                </div>
-              ))}
-            </div>
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         </div>
       </div>

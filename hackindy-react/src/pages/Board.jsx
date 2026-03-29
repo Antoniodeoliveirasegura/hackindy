@@ -17,6 +17,8 @@ export default function Board() {
   const [postError, setPostError] = useState('')
   const [filterTag, setFilterTag] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [liveCompose, setLiveCompose] = useState(null)
+  const [liveComposeLoading, setLiveComposeLoading] = useState(false)
 
   const handleImprovePost = async () => {
     if (!newTitle.trim() || improving) return
@@ -68,6 +70,56 @@ export default function Board() {
   }, [sort])
 
   useEffect(() => { fetchPosts() }, [fetchPosts])
+
+  // ── Live AI suggestions (debounced) while composing ─────────────────────
+  useEffect(() => {
+    let cancelled = false
+    if (!showForm) {
+      setLiveCompose(null)
+      setLiveComposeLoading(false)
+      return
+    }
+    const t = newTitle.trim()
+    const b = newBody.trim()
+    if (t.length < 6 && b.length < 20) {
+      setLiveCompose(null)
+      setLiveComposeLoading(false)
+      return
+    }
+    const ac = new AbortController()
+    setLiveComposeLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/board/ai-suggestions', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ context: 'compose', title: t, body: b }),
+          signal: ac.signal,
+        })
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok) {
+          setLiveCompose(null)
+          return
+        }
+        const has =
+          (data.betterTitle && String(data.betterTitle).trim()) ||
+          (data.bodyAddOn && String(data.bodyAddOn).trim()) ||
+          (Array.isArray(data.tags) && data.tags.length > 0)
+        setLiveCompose(has ? data : null)
+      } catch (e) {
+        if (e?.name !== 'AbortError' && !cancelled) setLiveCompose(null)
+      } finally {
+        if (!cancelled) setLiveComposeLoading(false)
+      }
+    }, 1000)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      ac.abort()
+    }
+  }, [newTitle, newBody, showForm])
 
   // ── Upvote ─────────────────────────────────────────────────────────────────
   const handleUpvote = async (id) => {
@@ -137,6 +189,7 @@ export default function Board() {
       })
       setNewTitle('')
       setNewBody('')
+      setLiveCompose(null)
       setShowForm(false)
       setFilterTag(null)
       await fetchPosts({ silent: true })
@@ -294,8 +347,79 @@ export default function Board() {
             value={newBody}
             onChange={(e) => setNewBody(e.target.value)}
             placeholder="Optional context — course, building, deadline…"
-            className="input w-full text-[14px] px-4 py-3.5 resize-y min-h-[108px] mb-5 rounded-xl border-[var(--color-border-2)] focus:border-[var(--color-accent)]/50"
+            className="input w-full text-[14px] px-4 py-3.5 resize-y min-h-[108px] mb-4 rounded-xl border-[var(--color-border-2)] focus:border-[var(--color-accent)]/50"
           />
+
+          {(liveComposeLoading || liveCompose) && (
+            <div className="mb-5 rounded-xl border border-[var(--color-accent)]/20 bg-[var(--color-accent-bg)]/40 px-4 py-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon name="sparkles" size={14} className="text-[var(--color-accent)] shrink-0" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-accent)]">
+                  Live suggestions
+                </span>
+                {liveComposeLoading && (
+                  <span className="text-[11px] text-[var(--color-txt-3)] ml-auto">Updating…</span>
+                )}
+              </div>
+              {liveComposeLoading && !liveCompose && (
+                <p className="text-[12px] text-[var(--color-txt-2)]">Checking title, details, and tags…</p>
+              )}
+              {liveCompose?.betterTitle && (
+                <div className="mt-2 pt-2 border-t border-[var(--color-border)]/60">
+                  <p className="text-[10px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wide mb-1">
+                    Clearer title
+                  </p>
+                  <p className="text-[13px] text-[var(--color-txt-1)] leading-snug mb-2">{liveCompose.betterTitle}</p>
+                  <button
+                    type="button"
+                    onClick={() => setNewTitle(liveCompose.betterTitle)}
+                    className="text-[12px] font-semibold text-[var(--color-accent)] hover:underline"
+                  >
+                    Use this title
+                  </button>
+                </div>
+              )}
+              {liveCompose?.bodyAddOn && (
+                <div className="mt-2 pt-2 border-t border-[var(--color-border)]/60">
+                  <p className="text-[10px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wide mb-1">
+                    Add context
+                  </p>
+                  <p className="text-[13px] text-[var(--color-txt-1)] leading-snug mb-2">{liveCompose.bodyAddOn}</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNewBody((prev) => {
+                        const add = liveCompose.bodyAddOn.trim()
+                        if (!prev.trim()) return add
+                        return `${prev.trim()}\n\n${add}`
+                      })
+                    }
+                    className="text-[12px] font-semibold text-[var(--color-accent)] hover:underline"
+                  >
+                    Append to details
+                  </button>
+                </div>
+              )}
+              {liveCompose?.tags?.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-[var(--color-border)]/60">
+                  <p className="text-[10px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wide mb-1.5">
+                    Likely tags after you post
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {liveCompose.tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-txt-2)]"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <label className="flex items-center gap-3 text-[13px] text-[var(--color-txt-1)] cursor-pointer select-none group">
               <div
@@ -568,7 +692,11 @@ export default function Board() {
                             </li>
                           ))}
                         </ul>
-                        <ReplyInput onSubmit={(text) => handleSubmitReply(post.id, text)} />
+                        <ReplyInput
+                          threadTitle={post.title}
+                          threadBody={post.body || ''}
+                          onSubmit={(text) => handleSubmitReply(post.id, text)}
+                        />
                       </div>
                     </div>
                   </div>
@@ -602,9 +730,55 @@ export default function Board() {
   )
 }
 
-function ReplyInput({ onSubmit }) {
+function ReplyInput({ onSubmit, threadTitle = '', threadBody = '' }) {
   const [text, setText] = useState('')
   const [replyError, setReplyError] = useState('')
+  const [replyTip, setReplyTip] = useState(null)
+  const [replyTipLoading, setReplyTipLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const d = text.trim()
+    if (d.length < 8) {
+      setReplyTip(null)
+      setReplyTipLoading(false)
+      return
+    }
+    const ac = new AbortController()
+    setReplyTipLoading(true)
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/board/ai-suggestions', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            context: 'reply',
+            postTitle: threadTitle,
+            postBody: threadBody,
+            draft: d,
+          }),
+          signal: ac.signal,
+        })
+        const data = await res.json()
+        if (cancelled) return
+        if (!res.ok) {
+          setReplyTip(null)
+          return
+        }
+        setReplyTip(data.replyTip?.trim() || null)
+      } catch (e) {
+        if (e?.name !== 'AbortError' && !cancelled) setReplyTip(null)
+      } finally {
+        if (!cancelled) setReplyTipLoading(false)
+      }
+    }, 1000)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      ac.abort()
+    }
+  }, [text, threadTitle, threadBody])
 
   const handleSubmit = async () => {
     if (!text.trim()) return
@@ -612,6 +786,7 @@ function ReplyInput({ onSubmit }) {
     try {
       await onSubmit(text)
       setText('')
+      setReplyTip(null)
     } catch (err) {
       console.error('Reply submit error', err)
       setReplyError(err?.message || 'Could not post your reply. Try again.')
@@ -625,6 +800,21 @@ function ReplyInput({ onSubmit }) {
         <p className="text-[12px] text-red-600 dark:text-red-400 mb-2" role="alert">
           {replyError}
         </p>
+      )}
+      {(replyTipLoading || replyTip) && (
+        <div className="flex items-start gap-2 mb-2 rounded-lg border border-[var(--color-accent)]/15 bg-[var(--color-accent-bg)]/30 px-3 py-2">
+          <Icon name="sparkles" size={12} className="text-[var(--color-accent)] mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--color-accent)] mb-0.5">
+              Suggestion
+            </p>
+            {replyTipLoading && !replyTip ? (
+              <p className="text-[11px] text-[var(--color-txt-3)]">Thinking…</p>
+            ) : (
+              <p className="text-[11px] text-[var(--color-txt-2)] leading-relaxed">{replyTip}</p>
+            )}
+          </div>
+        </div>
       )}
       <div className="flex flex-col sm:flex-row gap-2">
         <input
