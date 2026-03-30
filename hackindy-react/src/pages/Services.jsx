@@ -172,7 +172,7 @@ export default function Services() {
             <div className="flex-1 text-center sm:text-left">
               <div className="text-[15px] font-semibold text-[var(--color-gold)]">Need help finding something?</div>
               <div className="text-[13px] text-[var(--color-gold)]/70 mt-0.5">
-                Use the Campus Assistant to point students to the right official Purdue or Indianapolis resource.
+                Use IndyAssist to point students to the right official Purdue or Indianapolis resource.
               </div>
             </div>
             <button className="btn bg-[var(--color-gold)] text-[var(--color-gold-dark)] border-none text-[13px] px-5 py-2.5 font-medium hover:bg-[var(--color-gold-light)]">
