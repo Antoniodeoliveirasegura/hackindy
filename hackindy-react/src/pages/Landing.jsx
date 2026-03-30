@@ -48,7 +48,7 @@ const featCards = [
   },
   {
     icon: 'sparkles',
-    title: 'AI Campus Assistant',
+    title: 'IndyAssist',
     desc: 'Ask anything in natural language — classes, menus, bus times, deadlines. Instant answers powered by Gemini.',
     wrap: 'bg-[var(--color-gold)]/25 text-[var(--color-gold-dark)]',
   },
@@ -83,9 +83,9 @@ export default function Landing() {
       <nav className="sticky top-0 z-50 h-14 px-5 sm:px-8 flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)]/85 backdrop-blur-md">
         <Link to="/" className="flex items-center gap-2.5 text-[15px] font-semibold text-[var(--color-txt-0)] no-underline">
           <span className="bg-[var(--color-gold)] text-[var(--color-gold-dark)] text-[10px] font-bold px-2.5 py-1 rounded-md tracking-wide">
-            PIH
-          </span>
-          Purdue Indy Hub
+            IA
+</span>
+          IndyAssist
         </Link>
         <div className="hidden sm:flex items-center gap-0.5">
           <a href="#features" className="text-[13px] text-[var(--color-txt-1)] px-3.5 py-1.5 rounded-lg hover:bg-[var(--color-bg-2)] hover:text-[var(--color-txt-0)] flex items-center gap-1.5 no-underline">
@@ -278,7 +278,7 @@ export default function Landing() {
               One hub for campus life
             </h2>
             <p className="text-[15px] text-[var(--color-txt-1)] max-w-[540px] mx-auto leading-relaxed">
-              No more juggling a dozen different apps. Purdue Indy Hub brings it all together in a clean, fast interface.
+              No more juggling a dozen different apps. IndyAssist brings it all together in a clean, fast interface.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -307,7 +307,7 @@ export default function Landing() {
             Plugged into campus systems
           </h2>
           <p className="text-[15px] text-[var(--color-txt-1)] max-w-[540px] mx-auto leading-relaxed">
-            Purdue Indy Hub connects to the systems you already use, pulling in real data so you&apos;re never out of the loop.
+            IndyAssist connects to the systems you already use, pulling in real data so you&apos;re never out of the loop.
           </p>
         </div>
         <div className="flex flex-wrap gap-3 justify-center mt-8">
@@ -334,7 +334,7 @@ export default function Landing() {
           Ready to get started?
         </div>
         <h2 className="relative text-[clamp(1.6rem,3vw,2.4rem)] font-bold tracking-tight text-[var(--color-gold)] mb-3">
-          Join Purdue Indy Hub today
+          Join IndyAssist today
         </h2>
         <p className="relative text-[15px] text-[var(--color-gold)]/70 mb-8 max-w-md mx-auto">
           Free for all Purdue Indianapolis students. Sign in with your university account.
@@ -379,9 +379,9 @@ export default function Landing() {
       <footer className="bg-[var(--color-bg-0)] border-t border-[var(--color-border)] py-8 px-5 text-center">
         <div className="inline-flex items-center gap-2 text-[14px] font-semibold text-[var(--color-txt-0)] mb-2">
           <span className="bg-[var(--color-gold)] text-[var(--color-gold-dark)] text-[10px] font-bold px-2.5 py-1 rounded-md">
-            PIH
-          </span>
-          Purdue Indy Hub
+            IA
+</span>
+          IndyAssist
         </div>
         <div className="text-[12px] text-[var(--color-txt-2)]">
           Built for Purdue University Indianapolis students · Not an official Purdue product

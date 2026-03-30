@@ -16,7 +16,7 @@ import {
   haversineMeters,
   isRouteActiveNow,
 } from '../lib/transitShared'
-import { isOnlineMeetingNoise, getHomeClassItems, shouldExcludeFromSchedule } from '../lib/scheduleFilters'
+import { isOnlineMeetingNoise, getHomeClassItems, shouldExcludeFromSchedule, isLikelyExamItem } from '../lib/scheduleFilters'
 
 const quickActionTemplates = [
   { path: '/map', label: 'Campus Map', sub: 'Find any building', icon: 'mapPin', color: 'map' },
