@@ -1,4 +1,5 @@
 node_modules/
+.claude/
 data/
 
 # Environment variables (sensitive - never commit)
