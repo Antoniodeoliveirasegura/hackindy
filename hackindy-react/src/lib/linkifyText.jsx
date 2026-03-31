@@ -22,8 +22,9 @@ export function stripHtml(html) {
  * Clean AI-generated text: strip markdown formatting Gemini sometimes adds.
  */
 export function cleanAiText(text) {
-  if (!text) return ''
-  return text
+  if (text == null || text === '') return ''
+  const s = typeof text === 'string' ? text : String(text)
+  return s
     .replace(/^#+\s+/gm, '')
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')

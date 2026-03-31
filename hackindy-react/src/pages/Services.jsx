@@ -67,6 +67,17 @@ const colorConfig = {
   dining: { bg: 'bg-[var(--color-dining-bg)]', text: 'text-[var(--color-dining-color)]' },
 }
 
+function openCampusAssistantForResources() {
+  window.dispatchEvent(
+    new CustomEvent('open-campus-assistant', {
+      detail: {
+        message:
+          'I am on the Student Services page. Help me find the right official Purdue University or Indianapolis campus resource (writing help, advising, health, transit, dining, careers, etc.). Give a short answer with the best link or next step.',
+      },
+    }),
+  )
+}
+
 function ResourceCard({ item }) {
   const content = (
     <div className="flex items-start gap-3 p-3 -mx-2 rounded-xl hover:bg-[var(--color-stat)] transition-all duration-200 group">
@@ -163,20 +174,28 @@ export default function Services() {
         })}
       </div>
 
-      <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-4">
-        <div className="card p-6 bg-gradient-to-br from-[var(--color-gold-dark)] to-[#2A1E0A] border-[var(--color-gold)]/20 animate-fade-in-up stagger-6">
-          <div className="flex flex-col sm:flex-row items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--color-gold)]/20 flex items-center justify-center shrink-0">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.05fr_0.95fr] gap-4">
+        <div className="card p-5 sm:p-6 bg-gradient-to-br from-[var(--color-gold-dark)] to-[#2A1E0A] border-[var(--color-gold)]/20 animate-fade-in-up stagger-6">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--color-gold)]/20 flex items-center justify-center shrink-0 mx-auto sm:mx-0">
               <Icon name="sparkles" size={28} className="text-[var(--color-gold)]" />
             </div>
-            <div className="flex-1 text-center sm:text-left">
-              <div className="text-[15px] font-semibold text-[var(--color-gold)]">Need help finding something?</div>
-              <div className="text-[13px] text-[var(--color-gold)]/70 mt-0.5">
-                Use IndyAssist to point students to the right official Purdue or Indianapolis resource.
+            <div className="flex-1 min-w-0 text-center sm:text-left">
+              <div className="text-[15px] sm:text-[16px] font-semibold text-[var(--color-gold)] leading-snug">
+                Need help finding something?
               </div>
+              <p className="text-[13px] sm:text-[14px] text-[var(--color-gold)]/75 mt-1.5 leading-relaxed max-w-xl mx-auto sm:mx-0">
+                Open the Campus Assistant to get directed to official Purdue and Indianapolis resources—writing, advising,
+                health, transit, dining, careers, and more.
+              </p>
             </div>
-            <button className="btn bg-[var(--color-gold)] text-[var(--color-gold-dark)] border-none text-[13px] px-5 py-2.5 font-medium hover:bg-[var(--color-gold-light)]">
-              Open Assistant
+            <button
+              type="button"
+              onClick={openCampusAssistantForResources}
+              className="w-full sm:w-auto shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-gold)] text-[var(--color-gold-dark)] border border-[var(--color-gold)]/30 text-[13px] sm:text-[14px] px-5 py-3 sm:py-2.5 font-semibold hover:bg-[var(--color-gold-light)] active:scale-[0.98] transition-all min-h-[44px] sm:min-h-0"
+            >
+              <Icon name="sparkles" size={16} className="text-[var(--color-gold-dark)]" />
+              Open Campus Assistant
             </button>
           </div>
         </div>

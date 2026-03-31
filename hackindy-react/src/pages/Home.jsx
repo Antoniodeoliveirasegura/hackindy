@@ -16,7 +16,12 @@ import {
   haversineMeters,
   isRouteActiveNow,
 } from '../lib/transitShared'
-import { isOnlineMeetingNoise, getHomeClassItems, shouldExcludeFromSchedule, isLikelyExamItem } from '../lib/scheduleFilters'
+import {
+  getHomeClassItems,
+  isLikelyExamItem,
+  isOnlineMeetingNoise,
+  shouldExcludeFromSchedule,
+} from '../lib/scheduleFilters'
 
 const quickActionTemplates = [
   { path: '/map', label: 'Campus Map', sub: 'Find any building', icon: 'mapPin', color: 'map' },
@@ -70,7 +75,12 @@ function isStillRelevantToday(item, now) {
 
 function filterTodayRelevantEvents(items, now) {
   return (items || [])
-    .filter((item) => isSameLocalDay(item.startTime, now) && isStillRelevantToday(item, now))
+    .filter(
+      (item) =>
+        item?.startTime &&
+        isSameLocalDay(item.startTime, now) &&
+        isStillRelevantToday(item, now),
+    )
     .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
 }
 
@@ -134,12 +144,16 @@ function getMinutesBetween(later, earlier) {
 }
 
 function deriveScheduleState(items, now) {
-  const normalized = (items || [])
+  const safeItems = (items || []).filter(
+    (item) => item != null && typeof item === 'object' && item.startTime != null && item.startTime !== '',
+  )
+  const normalized = safeItems
     .map((item) => ({
       ...item,
       startDate: new Date(item.startTime),
       endDate: item.endTime ? new Date(item.endTime) : new Date(item.startTime),
     }))
+    .filter((item) => !Number.isNaN(item.startDate.getTime()))
     .sort((a, b) => a.startDate - b.startDate)
 
   const currentClass = normalized.find((item) => item.startDate <= now && item.endDate > now && !shouldExcludeFromSchedule(item)) || null
@@ -270,6 +284,7 @@ function describeBusEta(vehicle, route, nearestBusStop, routeStops, speed, movin
 
 /** Avoid "Today 12:00 AM" for calendar blocks that start at local midnight (common all-day pattern). */
 function formatSuggestionEventTiming(item, now) {
+  if (!item?.startTime) return 'Today'
   const start = new Date(item.startTime)
   const end = item.endTime ? new Date(item.endTime) : null
   const midnightStart = start.getHours() === 0 && start.getMinutes() === 0
@@ -349,10 +364,10 @@ function buildSuggestions({ freeMinutes, nextClass, currentClass, diningStatus, 
 
   // Upcoming event today?
   const nextEvent = upcomingEvents?.[0]
-  if (nextEvent) {
+  if (nextEvent && (nextEvent.title || nextEvent.startTime)) {
     list.push({
       icon: 'calendar',
-      text: nextEvent.title,
+      text: nextEvent.title || 'Event',
       time: formatSuggestionEventTiming(nextEvent, now),
       variant: 'event',
     })
@@ -440,7 +455,12 @@ export default function Home() {
     return `ai-week-digest-${monday.toISOString().slice(0, 10)}`
   }
   const [weekDigest, setWeekDigest] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(getWeekKey())) ?? null } catch { return null }
+    try {
+      const raw = JSON.parse(localStorage.getItem(getWeekKey()))
+      return typeof raw === 'string' && raw.trim() ? raw : null
+    } catch {
+      return null
+    }
   })
   const [digestLoading, setDigestLoading] = useState(false)
 
@@ -470,8 +490,9 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const looksIncomplete = weekDigest && !weekDigest.trim().endsWith('.')
-    if (!weekDigest || looksIncomplete) generateDigest()
+    const text = typeof weekDigest === 'string' ? weekDigest : ''
+    const looksIncomplete = text && !text.trim().endsWith('.')
+    if (!text || looksIncomplete) generateDigest()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -618,7 +639,7 @@ export default function Home() {
   }, [])
 
   const cleanCalendarItems = useMemo(
-    () => calendarItems.filter(i => !isOnlineMeetingNoise(i)),
+    () => calendarItems.filter((i) => i && !isOnlineMeetingNoise(i)),
     [calendarItems],
   )
   const homeClasses = useMemo(() => getHomeClassItems(classes), [classes])
@@ -695,6 +716,7 @@ export default function Home() {
 
     // Assignment due within 24 hours
     const urgentItems = (calendarItems || []).filter((item) => {
+      if (!item || !item.startTime) return false
       if (['campus_event', 'event', 'class'].includes(item.category)) return false
       const due = new Date(item.startTime).getTime()
       return due > nowMs && due - nowMs < 24 * 60 * 60 * 1000
@@ -841,7 +863,7 @@ export default function Home() {
             <div className="w-3.5 h-3.5 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin shrink-0" />
             Generating your week summary…
           </div>
-        ) : weekDigest ? (
+        ) : typeof weekDigest === 'string' && weekDigest ? (
           <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed whitespace-pre-line">{weekDigest}</p>
         ) : null}
       </div>
