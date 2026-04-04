@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
 import { parseNextPath, registerSupabaseUser } from '../lib/authApi'
 import { signInWithEmail } from '../lib/supabase'
@@ -14,7 +13,6 @@ const asideFeatures = [
 ]
 
 export default function Login() {
-  const { dark, toggleTheme } = useTheme()
   const { user, loading, refreshSession } = useAuth()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -139,7 +137,7 @@ export default function Login() {
 
   const isSignup = tab === 'signup'
   const inputBase =
-    'w-full py-2.5 px-3.5 rounded-lg border border-[var(--color-border-2)] bg-[var(--color-bg-0)] dark:bg-[var(--color-bg-2)] text-[var(--color-txt-0)] text-sm outline-none transition-shadow focus:border-[var(--color-gold)] focus:shadow-[var(--shadow-glow)] placeholder:text-[var(--color-txt-3)]'
+    'w-full py-2.5 px-3.5 rounded-lg border border-[var(--color-border-2)] bg-[var(--color-bg-2)] text-[var(--color-txt-0)] text-sm outline-none transition-shadow focus:border-[var(--color-gold)] focus:shadow-[var(--shadow-glow)] placeholder:text-[var(--color-txt-3)]'
 
   if (loading) {
     return (
@@ -187,9 +185,6 @@ export default function Login() {
               <span className="inline-flex rotate-[225deg]"><Icon name="arrowUpRight" size={14} /></span>
               Back
             </Link>
-            <button type="button" onClick={toggleTheme} className="w-[34px] h-[34px] rounded-lg border border-[var(--color-border-2)] bg-[var(--color-bg-2)] flex items-center justify-center" aria-label={dark ? 'Dark mode' : 'Light mode'}>
-              {dark ? <Icon name="moon" size={16} /> : <Icon name="sun" size={16} />}
-            </button>
           </div>
 
           <div className="w-full max-w-[420px]">

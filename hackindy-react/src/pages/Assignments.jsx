@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { authRequest } from '../lib/authApi'
 import { linkifyText, stripHtml, cleanAiText } from '../lib/linkifyText'
 import Icon from '../components/Icons'
+import { loadLocalTasks, saveLocalTasks, taskMetaFromLocalStore } from '../lib/taskLocalStore'
 
 const categoryConfig = {
   exam: { 
@@ -51,7 +52,7 @@ const categoryConfig = {
   resource: { 
     label: 'Resources',
     bg: 'bg-gray-50 dark:bg-gray-800/50', 
-    text: 'text-gray-600 dark:text-gray-400', 
+    text: 'text-gray-600 dark:text-gray-300', 
     border: 'border-gray-200 dark:border-gray-700',
     icon: 'document'
   },
@@ -68,6 +69,13 @@ const categoryConfig = {
     text: 'text-[var(--color-txt-1)]', 
     border: 'border-[var(--color-border)]',
     icon: 'calendar'
+  },
+  manual_task: {
+    label: 'My tasks',
+    bg: 'bg-teal-50 dark:bg-teal-900/20',
+    text: 'text-teal-700 dark:text-teal-400',
+    border: 'border-teal-200 dark:border-teal-800',
+    icon: 'check',
   },
 }
 
@@ -120,7 +128,7 @@ function getInsightsCacheKey(mode) {
 }
 
 export default function Assignments() {
-  const { onboarding } = useAuth()
+  const { user, onboarding } = useAuth()
   const [items, setItems] = useState([])
   const [categories, setCategories] = useState([])
   const [selectedCategories, setSelectedCategories] = useState([])
@@ -137,6 +145,13 @@ export default function Assignments() {
   })
   const [insightsLoading, setInsightsLoading] = useState(false)
   const [insightsOpen, setInsightsOpen] = useState(true)
+
+  const [taskMeta, setTaskMeta] = useState({ completions: [], manualTasks: [] })
+  const [hideCompleted, setHideCompleted] = useState(false)
+  const [newTitle, setNewTitle] = useState('')
+  const [newDueDate, setNewDueDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [addSubmitting, setAddSubmitting] = useState(false)
+  const [taskError, setTaskError] = useState('')
 
   const generateInsights = (mode) => {
     setInsightsLoading(true)
@@ -168,9 +183,28 @@ export default function Assignments() {
 
   const activeInsight = insightsMode === 'study' ? studyPlan : insightsText
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  const loadTaskMeta = useCallback(async () => {
+    const uid = user?.id
+    setTaskError('')
+    try {
+      const meta = await authRequest('/api/me/tasks/meta')
+      if (meta.unavailable) {
+        if (uid) {
+          setTaskMeta(taskMetaFromLocalStore(uid))
+        } else {
+          setTaskMeta({ completions: [], manualTasks: [], unavailable: true, local: false })
+        }
+        return
+      }
+      setTaskMeta({ ...meta, unavailable: false, local: false })
+    } catch {
+      if (uid) {
+        setTaskMeta(taskMetaFromLocalStore(uid))
+      } else {
+        setTaskMeta({ completions: [], manualTasks: [], unavailable: true, local: false })
+      }
+    }
+  }, [user?.id])
 
   async function loadData() {
     setLoading(true)
@@ -184,6 +218,7 @@ export default function Assignments() {
       ])
       setItems(calRes.items || [])
       setCategories(catRes.categories || [])
+      await loadTaskMeta()
     } catch (error) {
       console.error('Failed to load assignments:', error)
     } finally {
@@ -191,22 +226,60 @@ export default function Assignments() {
     }
   }
 
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  useEffect(() => {
+    if (user?.id) loadTaskMeta()
+  }, [user?.id, loadTaskMeta])
+
+  const mergedItems = useMemo(() => {
+    const completionById = {}
+    for (const c of taskMeta?.completions || []) {
+      completionById[c.calendar_item_id] = c.completed_at
+    }
+    const cal = (items || []).map((item) => ({
+      ...item,
+      completed: !!completionById[item.id],
+      isManual: false,
+    }))
+    const manual = (taskMeta?.manualTasks || []).map((t) => ({
+      ...t,
+      completed: !!t.completedAt,
+      isManual: true,
+    }))
+    return [...cal, ...manual]
+  }, [items, taskMeta])
+
+  const categoriesWithManual = useMemo(() => {
+    const n = mergedItems.filter((i) => i.isManual).length
+    const extra = n > 0 ? [{ id: 'manual_task', label: 'My tasks', count: n }] : []
+    return [...(categories || []), ...extra]
+  }, [categories, mergedItems])
+
   const filteredItems = useMemo(() => {
-    // Filter out class and event-type categories (those go to Events page)
-    let filtered = items.filter(item => 
-      item.category !== 'class' && !eventCategories.includes(item.category)
+    let filtered = mergedItems.filter(
+      (item) => item.category !== 'class' && !eventCategories.includes(item.category),
     )
-    
+
     if (selectedCategories.length > 0) {
-      filtered = filtered.filter(item => selectedCategories.includes(item.category))
+      filtered = filtered.filter((item) => selectedCategories.includes(item.category))
     }
-    
+
     if (!showPast) {
-      filtered = filtered.filter(item => !isPastDue(item.startTime))
+      filtered = filtered.filter((item) => !isPastDue(item.startTime))
     }
-    
-    return filtered.sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
-  }, [items, selectedCategories, showPast])
+
+    if (hideCompleted) {
+      filtered = filtered.filter((item) => !item.completed)
+    }
+
+    return filtered.sort((a, b) => {
+      if (!!a.completed !== !!b.completed) return a.completed ? 1 : -1
+      return new Date(a.startTime) - new Date(b.startTime)
+    })
+  }, [mergedItems, selectedCategories, showPast, hideCompleted])
 
   const groupedItems = useMemo(() => {
     const groups = {}
@@ -226,6 +299,143 @@ export default function Assignments() {
     )
   }
 
+  function applyLocalToggle(uid, item, nextDone) {
+    const raw = loadLocalTasks(uid)
+    if (item.isManual) {
+      raw.manualTasks = raw.manualTasks.map((t) =>
+        t.id === item.id ? { ...t, completedAt: nextDone ? new Date().toISOString() : null } : t,
+      )
+    } else if (nextDone) {
+      raw.completions[item.id] = new Date().toISOString()
+    } else {
+      delete raw.completions[item.id]
+    }
+    saveLocalTasks(uid, raw)
+    setTaskMeta(taskMetaFromLocalStore(uid))
+  }
+
+  async function toggleItemComplete(item, nextDone, e) {
+    e?.preventDefault()
+    e?.stopPropagation()
+    setTaskError('')
+    const uid = user?.id
+    if (!uid) {
+      setTaskError('Sign in to save tasks.')
+      return
+    }
+
+    const useLocalOnly = taskMeta.local === true || taskMeta.unavailable === true
+    if (useLocalOnly) {
+      applyLocalToggle(uid, item, nextDone)
+      return
+    }
+
+    try {
+      if (item.isManual) {
+        await authRequest(`/api/me/tasks/manual/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ completed: nextDone }),
+        })
+      } else {
+        await authRequest('/api/me/tasks/calendar/complete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ calendarItemId: item.id, completed: nextDone }),
+        })
+      }
+      await loadTaskMeta()
+    } catch (err) {
+      console.error(err)
+      setTaskError(err?.message || 'Server sync failed — saved on this device.')
+      applyLocalToggle(uid, item, nextDone)
+    }
+  }
+
+  async function deleteManualTask(id) {
+    const uid = user?.id
+    if (!uid) return
+    setTaskError('')
+    const useLocalOnly = taskMeta.local === true || taskMeta.unavailable === true
+    if (useLocalOnly) {
+      const raw = loadLocalTasks(uid)
+      raw.manualTasks = raw.manualTasks.filter((t) => t.id !== id)
+      saveLocalTasks(uid, raw)
+      setTaskMeta(taskMetaFromLocalStore(uid))
+      setSelectedItem(null)
+      return
+    }
+    try {
+      await authRequest(`/api/me/tasks/manual/${id}`, { method: 'DELETE' })
+      setSelectedItem(null)
+      await loadTaskMeta()
+    } catch (e) {
+      console.error(e)
+      setTaskError(e?.message || 'Could not delete on server — removed on this device only.')
+      const raw = loadLocalTasks(uid)
+      raw.manualTasks = raw.manualTasks.filter((t) => t.id !== id)
+      saveLocalTasks(uid, raw)
+      setTaskMeta(taskMetaFromLocalStore(uid))
+      setSelectedItem(null)
+    }
+  }
+
+  async function handleAddManualTask(e) {
+    e.preventDefault()
+    const t = newTitle.trim()
+    if (!t || !newDueDate || addSubmitting) return
+    const due = new Date(`${newDueDate}T12:00:00`)
+    due.setHours(23, 59, 59, 999)
+    const uid = user?.id
+    if (!uid) {
+      setTaskError('Sign in to add tasks.')
+      return
+    }
+    setAddSubmitting(true)
+    setTaskError('')
+
+    const useLocalOnly = taskMeta.local === true || taskMeta.unavailable === true
+    if (useLocalOnly) {
+      const raw = loadLocalTasks(uid)
+      raw.manualTasks.push({
+        id: crypto.randomUUID(),
+        title: t,
+        startTime: due.toISOString(),
+        completedAt: null,
+      })
+      saveLocalTasks(uid, raw)
+      setTaskMeta(taskMetaFromLocalStore(uid))
+      setNewTitle('')
+      setAddSubmitting(false)
+      return
+    }
+
+    try {
+      await authRequest('/api/me/tasks/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: t, dueAt: due.toISOString() }),
+      })
+      setNewTitle('')
+      await loadTaskMeta()
+    } catch (err) {
+      console.error(err)
+      setTaskError(err?.message || 'Could not save to server — saved on this device.')
+      const raw = loadLocalTasks(uid)
+      raw.manualTasks.push({
+        id: crypto.randomUUID(),
+        title: t,
+        startTime: due.toISOString(),
+        completedAt: null,
+      })
+      saveLocalTasks(uid, raw)
+      setTaskMeta(taskMetaFromLocalStore(uid))
+      setNewTitle('')
+    } finally {
+      setAddSubmitting(false)
+    }
+  }
+
   const hasNoSources = onboarding?.linkedSourceCount === 0
 
   return (
@@ -234,10 +444,22 @@ export default function Assignments() {
         <div>
           <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Assignments</h1>
           <p className="text-[14px] text-[var(--color-txt-2)] mt-1">
-            {filteredItems.length} upcoming items from Brightspace
+            {filteredItems.length} item{filteredItems.length === 1 ? '' : 's'} · Brightspace imports and tasks you add
           </p>
+          {taskError ? (
+            <p className="text-[13px] text-red-600 dark:text-red-400 mt-2">{taskError}</p>
+          ) : null}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)] cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hideCompleted}
+              onChange={(e) => setHideCompleted(e.target.checked)}
+              className="w-4 h-4 rounded border-[var(--color-border-2)]"
+            />
+            Hide done
+          </label>
           <label className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)] cursor-pointer">
             <input 
               type="checkbox" 
@@ -252,6 +474,55 @@ export default function Assignments() {
             Refresh
           </button>
         </div>
+      </div>
+
+      {taskMeta.unavailable && (
+        <div className="card p-4 mb-4 border-amber-500/30 bg-amber-500/5 text-[13px] text-[var(--color-txt-2)] animate-fade-in-up leading-relaxed">
+          <span className="font-medium text-[var(--color-txt-1)]">Tasks work in this browser: </span>
+          checkboxes and &ldquo;My tasks&rdquo; are saved locally until the database is set up. Run{' '}
+          <code className="text-[12px] px-1 rounded bg-[var(--color-stat)]">supabase-user-tasks.sql</code>{' '}
+          in the Supabase SQL Editor so completions sync to your account across devices.
+        </div>
+      )}
+
+      <div className="card p-4 sm:p-5 mb-6 border-[var(--color-border)] animate-fade-in-up stagger-1">
+        <div className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-3">
+          Add a task
+        </div>
+        <form onSubmit={handleAddManualTask} className="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <div className="flex-1 min-w-0">
+            <label htmlFor="new-task-title" className="text-[11px] text-[var(--color-txt-3)] block mb-1">
+              Title
+            </label>
+            <input
+              id="new-task-title"
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="e.g. Finish lab write-up"
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[14px] text-[var(--color-txt-0)] placeholder:text-[var(--color-txt-3)]"
+            />
+          </div>
+          <div className="w-full sm:w-44 shrink-0">
+            <label htmlFor="new-task-due" className="text-[11px] text-[var(--color-txt-3)] block mb-1">
+              Due date
+            </label>
+            <input
+              id="new-task-due"
+              type="date"
+              value={newDueDate}
+              onChange={(e) => setNewDueDate(e.target.value)}
+              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[14px] text-[var(--color-txt-0)]"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={addSubmitting || !newTitle.trim()}
+            className="btn btn-primary text-[13px] px-5 py-2.5 w-full sm:w-auto shrink-0 disabled:opacity-40"
+          >
+            {addSubmitting ? 'Adding…' : 'Add task'}
+          </button>
+        </form>
       </div>
 
       {hasNoSources && (
@@ -273,15 +544,15 @@ export default function Assignments() {
         </div>
       )}
 
-      {categories.length > 0 && (
+      {categoriesWithManual.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-6 animate-fade-in-up stagger-1">
           <button
             onClick={() => setSelectedCategories([])}
             className={`pill whitespace-nowrap ${selectedCategories.length === 0 ? 'pill-active' : ''}`}
           >
-            All ({items.filter(i => i.category !== 'class' && !eventCategories.includes(i.category)).length})
+            All ({mergedItems.filter((i) => i.category !== 'class' && !eventCategories.includes(i.category)).length})
           </button>
-          {categories.filter(c => c.id !== 'class' && !eventCategories.includes(c.id)).map(cat => {
+          {categoriesWithManual.filter((c) => c.id !== 'class' && !eventCategories.includes(c.id)).map((cat) => {
             const isActive = selectedCategories.includes(cat.id)
             return (
               <button
@@ -383,18 +654,44 @@ export default function Assignments() {
                     const past = isPastDue(item.startTime)
                     
                     return (
-                      <button
+                      <div
                         key={item.id}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedItem(item)}
-                        className={`w-full text-left card-interactive p-4 transition-all ${
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            setSelectedItem(item)
+                          }
+                        }}
+                        className={`w-full text-left card-interactive p-4 transition-all cursor-pointer ${
                           isSelected ? 'ring-2 ring-[var(--color-gold)]' : ''
-                        } ${past ? 'opacity-60' : ''}`}
+                        } ${past && !item.completed ? 'opacity-60' : ''} ${item.completed ? 'opacity-90' : ''}`}
                       >
                         <div className="flex items-start gap-3">
+                          <button
+                            type="button"
+                            onClick={(e) => toggleItemComplete(item, !item.completed, e)}
+                            className={`shrink-0 mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors ${
+                              item.completed
+                                ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-[var(--color-bg-0)]'
+                                : 'border-[var(--color-border-2)] hover:border-[var(--color-accent)] bg-[var(--color-surface)]'
+                            }`}
+                            aria-label={item.completed ? 'Mark as not done' : 'Mark as done'}
+                          >
+                            {item.completed ? <Icon name="check" size={14} /> : null}
+                          </button>
                           <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${config.text.replace('text-', 'bg-')}`} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
-                              <div className="font-medium text-[var(--color-txt-0)] text-[14px] line-clamp-2">
+                              <div
+                                className={`font-medium text-[14px] line-clamp-2 ${
+                                  item.completed
+                                    ? 'line-through text-[var(--color-txt-3)]'
+                                    : 'text-[var(--color-txt-0)]'
+                                }`}
+                              >
                                 {item.title}
                               </div>
                               <span className={`shrink-0 text-[11px] px-2 py-0.5 rounded-full ${config.bg} ${config.text}`}>
@@ -415,7 +712,7 @@ export default function Assignments() {
                             </div>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -442,9 +739,32 @@ export default function Assignments() {
                   </button>
                 </div>
                 
-                <h3 className="text-[18px] font-semibold text-[var(--color-txt-0)] mb-4">
+                <h3
+                  className={`text-[18px] font-semibold mb-4 ${
+                    selectedItem.completed ? 'line-through text-[var(--color-txt-3)]' : 'text-[var(--color-txt-0)]'
+                  }`}
+                >
                   {selectedItem.title}
                 </h3>
+
+                <div className="flex flex-wrap gap-2 mb-5">
+                  <button
+                    type="button"
+                    onClick={() => toggleItemComplete(selectedItem, !selectedItem.completed)}
+                    className="btn btn-secondary text-[12px] px-3 py-1.5"
+                  >
+                    {selectedItem.completed ? 'Mark not done' : 'Mark done'}
+                  </button>
+                  {selectedItem.isManual && (
+                    <button
+                      type="button"
+                      onClick={() => deleteManualTask(selectedItem.id)}
+                      className="text-[12px] px-3 py-1.5 rounded-xl border border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                    >
+                      Delete task
+                    </button>
+                  )}
+                </div>
                 
                 <div className="space-y-3 mb-5">
                   <div className="flex items-center gap-3 text-[13px]">

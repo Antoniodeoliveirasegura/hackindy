@@ -77,6 +77,8 @@
    DARK MODE
 ═══════════════════════════════════════════════════════════════════════════ */
 .dark {
+  color-scheme: dark;
+
   --color-gold: #E8C878;
   --color-gold-light: #F2D98C;
   --color-gold-dark: #2A1E0A;
@@ -87,10 +89,11 @@
   --color-bg-2: #1C1C1A;
   --color-bg-3: #252523;
   
+  /* Muted text: lifted from older values so body copy, labels, and hints stay readable on #0F0F0E */
   --color-txt-0: #F5F4F1;
-  --color-txt-1: #B8B5AD;
-  --color-txt-2: #7A776F;
-  --color-txt-3: #4A4844;
+  --color-txt-1: #C9C6BE;
+  --color-txt-2: #A9A6A0;
+  --color-txt-3: #8F8B84;
   
   --color-border: rgba(255, 255, 255, 0.06);
   --color-border-2: rgba(255, 255, 255, 0.10);
@@ -684,6 +687,14 @@ body {
 .dark-purdue-map .leaflet-marker-pane,
 .dark-purdue-map .leaflet-popup-pane {
   filter: none !important;
+}
+
+.dark-purdue-map .leaflet-popup-content-wrapper,
+.dark-purdue-map .leaflet-popup-tip {
+  background: var(--color-surface);
+  color: var(--color-txt-0);
+  border: 1px solid var(--color-border-2);
+  box-shadow: var(--shadow-lg);
 }
 
 /* Make the GeoJSON building outlines pop in dark mode */

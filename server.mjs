@@ -1364,6 +1364,176 @@ app.get('/api/me/calendar/categories', requireAuth, async (req, res) => {
   res.json({ categories })
 })
 
+// ── Tasks: mark calendar rows done + user-created dated tasks (see supabase-user-tasks.sql) ──
+
+function mapManualTaskRow(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    startTime: row.due_at,
+    endTime: null,
+    category: 'manual_task',
+    sourceType: 'manual',
+    description: null,
+    location: null,
+    externalUid: null,
+    sourceId: null,
+    completedAt: row.completed_at,
+    isManual: true,
+  }
+}
+
+app.get('/api/me/tasks/meta', requireAuth, async (req, res) => {
+  const userId = req.currentUser.id
+  try {
+    const [compRes, manualRes] = await Promise.all([
+      supabase
+        .from('user_task_completions')
+        .select('calendar_item_id, completed_at')
+        .eq('user_id', userId),
+      supabase.from('user_manual_tasks').select('*').eq('user_id', userId).order('due_at', { ascending: true }),
+    ])
+    if (compRes.error) throw compRes.error
+    if (manualRes.error) throw manualRes.error
+    res.json({
+      completions: compRes.data || [],
+      manualTasks: (manualRes.data || []).map(mapManualTaskRow),
+    })
+  } catch (e) {
+    console.error('GET /api/me/tasks/meta:', e?.message || e)
+    res.json({ completions: [], manualTasks: [], unavailable: true })
+  }
+})
+
+app.post('/api/me/tasks/calendar/complete', requireAuth, async (req, res) => {
+  const userId = req.currentUser.id
+  const { calendarItemId, completed } = req.body || {}
+  if (!calendarItemId || typeof completed !== 'boolean') {
+    return res.status(400).json({ error: { message: 'calendarItemId and completed (boolean) required' } })
+  }
+  const { data: row, error: findErr } = await supabase
+    .from('calendar_items')
+    .select('id')
+    .eq('id', calendarItemId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (findErr || !row) {
+    return res.status(404).json({ error: { message: 'Calendar item not found' } })
+  }
+  try {
+    if (completed) {
+      const { error: insErr } = await supabase.from('user_task_completions').insert({
+        user_id: userId,
+        calendar_item_id: calendarItemId,
+        completed_at: nowIso(),
+      })
+      if (insErr) {
+        if (insErr.code === '23505') {
+          const { error: updErr } = await supabase
+            .from('user_task_completions')
+            .update({ completed_at: nowIso() })
+            .eq('user_id', userId)
+            .eq('calendar_item_id', calendarItemId)
+          if (updErr) throw updErr
+        } else {
+          throw insErr
+        }
+      }
+    } else {
+      const { error } = await supabase
+        .from('user_task_completions')
+        .delete()
+        .eq('user_id', userId)
+        .eq('calendar_item_id', calendarItemId)
+      if (error) throw error
+    }
+    res.json({ ok: true })
+  } catch (e) {
+    console.error('POST /api/me/tasks/calendar/complete:', e)
+    res.status(500).json({ error: { message: e.message || 'Could not update completion' } })
+  }
+})
+
+app.post('/api/me/tasks/manual', requireAuth, async (req, res) => {
+  const userId = req.currentUser.id
+  const { title, dueAt } = req.body || {}
+  const t = String(title || '').trim()
+  if (!t || t.length > 500) {
+    return res.status(400).json({ error: { message: 'Title is required (max 500 characters)' } })
+  }
+  if (!dueAt || typeof dueAt !== 'string') {
+    return res.status(400).json({ error: { message: 'dueAt ISO timestamp is required' } })
+  }
+  const due = new Date(dueAt)
+  if (Number.isNaN(due.getTime())) {
+    return res.status(400).json({ error: { message: 'Invalid dueAt date' } })
+  }
+  try {
+    const { data, error } = await supabase
+      .from('user_manual_tasks')
+      .insert({
+        user_id: userId,
+        title: t,
+        due_at: due.toISOString(),
+      })
+      .select()
+      .single()
+    if (error) throw error
+    res.json({ task: mapManualTaskRow(data) })
+  } catch (e) {
+    console.error('POST /api/me/tasks/manual:', e)
+    res.status(500).json({ error: { message: e.message || 'Could not create task' } })
+  }
+})
+
+app.patch('/api/me/tasks/manual/:id', requireAuth, async (req, res) => {
+  const userId = req.currentUser.id
+  const { id } = req.params
+  const { completed, title, dueAt } = req.body || {}
+  const updates = {}
+  if (typeof completed === 'boolean') {
+    updates.completed_at = completed ? nowIso() : null
+  }
+  if (typeof title === 'string' && title.trim()) {
+    updates.title = title.trim().slice(0, 500)
+  }
+  if (typeof dueAt === 'string') {
+    const due = new Date(dueAt)
+    if (!Number.isNaN(due.getTime())) updates.due_at = due.toISOString()
+  }
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: { message: 'No valid fields to update' } })
+  }
+  try {
+    const { data, error } = await supabase
+      .from('user_manual_tasks')
+      .update(updates)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single()
+    if (error) throw error
+    if (!data) return res.status(404).json({ error: { message: 'Task not found' } })
+    res.json({ task: mapManualTaskRow(data) })
+  } catch (e) {
+    console.error('PATCH /api/me/tasks/manual:', e)
+    res.status(500).json({ error: { message: e.message || 'Could not update task' } })
+  }
+})
+
+app.delete('/api/me/tasks/manual/:id', requireAuth, async (req, res) => {
+  const userId = req.currentUser.id
+  const { id } = req.params
+  try {
+    const { error } = await supabase.from('user_manual_tasks').delete().eq('id', id).eq('user_id', userId)
+    if (error) throw error
+    res.json({ ok: true })
+  } catch (e) {
+    console.error('DELETE /api/me/tasks/manual:', e)
+    res.status(500).json({ error: { message: e.message || 'Could not delete task' } })
+  }
+})
+
 app.get('/api/me/classes', requireAuth, async (req, res) => {
   const limit = typeof req.query.limit === 'string' ? Number(req.query.limit) : 20
   const term = typeof req.query.term === 'string' ? req.query.term : 'auto'
@@ -1388,22 +1558,26 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
 const TZ = 'America/Indiana/Indianapolis'
 
-const CAMPUS_SYSTEM_PROMPT = `You are a helpful campus assistant for Purdue University Indianapolis (Purdue Indy / IUPUI).
+const CAMPUS_SYSTEM_PROMPT = `You are Indy Assist — a helpful campus assistant for Purdue University Indianapolis (Purdue Indy / IUPUI).
 You have access to real-time data about the student's schedule, dining, and campus events — all provided in the context block below.
 Use that data to answer questions directly and accurately. Do not tell the student to "check the app" or "check the tab" when the answer is already in the context.
 
 You help students with:
-- Their personal class schedule, upcoming assignments, and due dates (from context)
+- Their personal class schedule (including earlier today and what's in session), upcoming assignments, exams, and due dates (from context)
 - Dining hours and today's menu at each location (from context)
-- Upcoming campus events (from context)
+- Campus / career / optional events (from context)
+- Where to study and get help on campus (use the ON-CAMPUS STUDY & HELP section when relevant)
 - Campus transit/buses: Crimson & Gray routes run Mon–Fri 6:30am–10pm; Yellow & Blue run Mon–Fri 5:30am–midnight; Purple runs Mon–Fri 7am–10pm; Orange runs Sat–Sun 9am–8pm
 - Buildings: ET Building (engineering/tech), Campus Center (dining, student services), University Library, Science & Engineering Lab Building (SL), Cavanaugh Hall (CA), Hine Hall (HH), Madam Walker Legacy Center, IUPUI Tower
 - Student services: ASC tutoring (Campus Center 2nd floor), printing (library 25 free pages/day), Health & Wellness Center, Financial Aid (Cavanaugh Hall), Registrar (Cavanaugh Hall)
 - General student life at Purdue Indy
 
 Rules:
-- Be concise and friendly. 2–4 sentences unless a list is clearly better.
+- Be concise and friendly. For simple questions: 2–4 sentences. For "what should I do now?", "plan my afternoon", or similar planning questions: give a short prioritized plan (3–6 sentences or brief bullets), because multiple commitments may apply.
 - Answer directly from the context data when available — do not hedge or defer.
+- When the student asks what to do *now*, *next*, or how to balance their time: anchor on CURRENT DATE & TIME. Weigh together: (1) anything in HAPPENING NOW, (2) classes or exams starting within the next ~2 hours, (3) homework or projects due in the next 24–48 hours (especially tonight), (4) upcoming exams/quizzes that need prep time, (5) optional campus events. Do **not** push optional events over urgent coursework or tight deadlines unless they are clearly free.
+- If homework is due tonight, say so and suggest when to work on it relative to class, meals, and events already on their calendar.
+- For exam prep or heavy homework blocks, suggest concrete on-campus options from the STUDY & HELP section (e.g. library quiet floors, ET/SL for STEM, ASC tutoring for support — match to subject when possible).
 - For "next class" questions only count regular lectures/labs/discussions, not exams or office hours (unless asked).
 - If something is genuinely unknown (not in context and not general knowledge), say so briefly.
 - If asked about something totally unrelated to campus life, briefly redirect.`
@@ -1453,26 +1627,118 @@ function summarizeClassSchedule(classes) {
     .join('; ')
 }
 
-function buildCalendarContext(classes, assignments, events) {
+const ASSISTANT_ASSIGNMENT_CATEGORIES = new Set([
+  'assignment', 'task', 'homework', 'submission', 'deadline', 'quiz', 'project',
+  'paper', 'presentation', 'lab', 'midterm',
+])
+
+function isExamLikeCalendarRow(r) {
+  const t = `${r.title || ''}`
+  if (/\b(midterm|final|exam|quiz|test)\b/i.test(t)) return true
+  return ['exam', 'quiz', 'midterm'].includes(r.category)
+}
+
+function isSameZonedCalendarDay(isoStr, refDate, timeZone) {
+  const d = new Date(isoStr)
+  if (Number.isNaN(d.getTime())) return false
+  const a = d.toLocaleDateString('en-CA', { timeZone })
+  const b = refDate.toLocaleDateString('en-CA', { timeZone })
+  return a === b
+}
+
+/** Rich calendar context for /api/assistant: today, ongoing, exams, assignments, events, study hints. */
+function buildAssistantCalendarContext(calendarData, now) {
+  if (!calendarData?.length) {
+    return '=== CALENDAR ===\nNo calendar items in the fetched window.'
+  }
+
+  const examTitleRe = /\b(midterm|final|exam|quiz|test)\b/i
+  const nowMs = now.getTime()
+
+  const classRows = calendarData.filter((r) => r.category === 'class' && !examTitleRe.test(r.title || ''))
+  const assignmentRows = calendarData.filter((r) => ASSISTANT_ASSIGNMENT_CATEGORIES.has(r.category))
+  const examRows = calendarData.filter((r) => isExamLikeCalendarRow(r))
+  const eventRows = calendarData.filter((r) => ['event', 'campus_event', 'activity'].includes(r.category))
+
+  const ongoing = calendarData.filter((r) => {
+    if (!r.start_time || !r.end_time) return false
+    const s = new Date(r.start_time).getTime()
+    const e = new Date(r.end_time).getTime()
+    return s <= nowMs && e > nowMs
+  })
+
+  const todayRows = calendarData
+    .filter((r) => r.start_time && isSameZonedCalendarDay(r.start_time, now, TZ))
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+
   const parts = []
 
-  parts.push(`=== COURSES THIS WEEK ===\n${summarizeClassSchedule(classes)}`)
+  parts.push(`=== COURSES (meeting pattern from upcoming instances) ===\n${summarizeClassSchedule(classRows)}`)
 
-  if (assignments.length) {
-    parts.push('=== UPCOMING ASSIGNMENTS / DEADLINES ===')
-    parts.push(assignments.map(i =>
-      `- Due ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}: ${i.title}${i.location ? ` (${i.location})` : ''}`
-    ).join('\n'))
+  if (ongoing.length) {
+    parts.push('=== HAPPENING NOW (in session) ===')
+    parts.push(
+      ongoing
+        .map((i) => `- Until ${fmtTime(i.end_time)}: ${i.title} [${i.category}]${i.location ? ` @ ${i.location}` : ''}`)
+        .join('\n'),
+    )
+  }
+
+  if (todayRows.length) {
+    const dayLabel = now.toLocaleDateString('en-US', {
+      timeZone: TZ,
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric',
+    })
+    parts.push(`=== TODAY (${dayLabel}) — everything with times (Eastern) ===`)
+    parts.push(
+      todayRows
+        .map((i) => {
+          const range = i.end_time
+            ? `${fmtTime(i.start_time)}–${fmtTime(i.end_time)}`
+            : fmtTime(i.start_time)
+          return `- ${range}: ${i.title} [${i.category}]${i.location ? ` @ ${i.location}` : ''}`
+        })
+        .join('\n'),
+    )
+  }
+
+  if (assignmentRows.length) {
+    parts.push('=== UPCOMING ASSIGNMENTS / HOMEWORK / DEADLINES ===')
+    parts.push(
+      assignmentRows
+        .map((i) => `- Due ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}: ${i.title}${i.location ? ` (${i.location})` : ''} [${i.category}]`)
+        .join('\n'),
+    )
   } else {
-    parts.push('=== UPCOMING ASSIGNMENTS / DEADLINES ===\nNo upcoming assignments found.')
+    parts.push('=== UPCOMING ASSIGNMENTS / HOMEWORK / DEADLINES ===\nNone in the fetched window.')
   }
 
-  if (events.length) {
-    parts.push('=== UPCOMING CAMPUS EVENTS ===')
-    parts.push(events.map(i =>
-      `- ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}${i.location ? ` @ ${i.location}` : ''}: ${i.title}`
-    ).join('\n'))
+  if (examRows.length) {
+    parts.push('=== UPCOMING EXAMS, QUIZZES & HIGH-STAKES DATES ===')
+    parts.push(
+      examRows
+        .map((i) => `- ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}: ${i.title}${i.location ? ` @ ${i.location}` : ''} [${i.category}]`)
+        .join('\n'),
+    )
   }
+
+  if (eventRows.length) {
+    parts.push('=== CAMPUS / CAREER / OPTIONAL EVENTS ===')
+    parts.push(
+      eventRows
+        .map((i) => `- ${fmtDate(i.start_time)} ${fmtTime(i.start_time)}${i.location ? ` @ ${i.location}` : ''}: ${i.title}`)
+        .join('\n'),
+    )
+  }
+
+  parts.push(`=== ON-CAMPUS STUDY & HELP (suggest when relevant) ===
+- University Library: quiet floors, study rooms, printing (25 free pages/day).
+- ET Building & Science/Engineering Lab (SL): strong for STEM work between classes.
+- Cavanaugh Hall & Hine Hall: lounges for shorter sessions.
+- ASC tutoring: Campus Center 2nd floor — math, writing, coaching (check hours).
+- Campus Center: food and space to regroup before/after events.`)
 
   return parts.join('\n\n')
 }
@@ -1500,32 +1766,39 @@ app.post('/api/assistant', async (req, res) => {
       try {
         const user = await getCurrentUser(req)
         if (!user) return null
-        const { data } = await supabase
-          .from('calendar_items')
-          .select('title, start_time, end_time, location, category')
-          .eq('user_id', user.id)
-          .gte('start_time', nowISOStr)
-          .lte('start_time', fourWeeksOut)
-          .order('start_time', { ascending: true })
-          .limit(60)
-        return data || null
-      } catch { return null }
+        const lowerBound = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString()
+        const sel = 'id, title, start_time, end_time, location, category'
+        const [upcomingRes, ongoingRes] = await Promise.all([
+          supabase
+            .from('calendar_items')
+            .select(sel)
+            .eq('user_id', user.id)
+            .gte('start_time', lowerBound)
+            .lte('start_time', fourWeeksOut)
+            .order('start_time', { ascending: true })
+            .limit(100),
+          supabase
+            .from('calendar_items')
+            .select(sel)
+            .eq('user_id', user.id)
+            .lt('start_time', nowISOStr)
+            .gt('end_time', nowISOStr)
+            .limit(25),
+        ])
+        const upcoming = upcomingRes.data || []
+        const ongoingRows = ongoingRes.data || []
+        const byId = new Map()
+        for (const r of ongoingRows) byId.set(r.id, r)
+        for (const r of upcoming) byId.set(r.id, r)
+        return [...byId.values()].sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+      } catch {
+        return null
+      }
     })(),
   ])
 
-  // Split calendar items by category
-  const examRe = /\b(midterm|final|exam|quiz|test)\b/i
-  const classes     = (calendarData || []).filter(r => r.category === 'class' && !examRe.test(r.title)).slice(0, 15)
-  const assignments = (calendarData || []).filter(r => ['assignment', 'task', 'homework', 'submission'].includes(r.category)).slice(0, 15)
-  const events      = (calendarData || []).filter(r => ['event', 'campus_event', 'activity'].includes(r.category)).slice(0, 10)
-
-  // If no dedicated event category, pull from any non-class items that look like events
-  const calendarEvents = events.length
-    ? events
-    : (calendarData || []).filter(r => r.category !== 'class' && !['assignment','task','homework','submission'].includes(r.category)).slice(0, 10)
-
-  const diningCtx   = buildDiningContext(diningData)
-  const calendarCtx = calendarData ? buildCalendarContext(classes, assignments, calendarEvents) : ''
+  const diningCtx = buildDiningContext(diningData)
+  const calendarCtx = calendarData ? buildAssistantCalendarContext(calendarData, now) : ''
 
   const contextBlock = [
     `=== CURRENT DATE & TIME ===\n${nowLabel} at ${timeLabel} (Eastern)`,
@@ -1549,7 +1822,7 @@ app.post('/api/assistant', async (req, res) => {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
-        generationConfig: { maxOutputTokens: 2500, temperature: 0.65 },
+        generationConfig: { maxOutputTokens: 2800, temperature: 0.52 },
       }),
     })
 

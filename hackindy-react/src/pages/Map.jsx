@@ -3,14 +3,12 @@ import { useSearchParams } from 'react-router-dom'
 import { MapContainer, TileLayer, useMap, GeoJSON, Marker } from 'react-leaflet'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useTheme } from '../context/ThemeContext'
 import Icon from '../components/Icons'
 
 const CAMPUS_CENTER = [39.7740, -86.1720]
 const DEFAULT_ZOOM = 16
 const FLY_ZOOM = 18
 
-const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 const TILE_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 
 // Official Purdue Indianapolis Building Shapes - has BUILDING_NAME, PU_ABBR, BuildingLabels
@@ -161,7 +159,6 @@ function MapController({ flyRequest }) {
 }
 
 export default function Map() {
-  const { dark, toggleTheme } = useTheme()
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
@@ -251,10 +248,10 @@ export default function Map() {
     const isSelected = selectedBuilding && selectedBuilding.abbr === featureAbbr
     
     return {
-      color: isSelected ? '#FFD700' : (dark ? '#E8C878' : '#5C4A1F'),
-      weight: isSelected ? 3 : (dark ? 1.5 : 1),
-      fillOpacity: isSelected ? 0.5 : (dark ? 0.25 : 0.18),
-      fillColor: isSelected ? '#FFD700' : (dark ? '#C9A227' : '#D4A84B'),
+      color: isSelected ? '#FFD700' : '#E8C878',
+      weight: isSelected ? 3 : 1.5,
+      fillOpacity: isSelected ? 0.5 : 0.25,
+      fillColor: isSelected ? '#FFD700' : '#C9A227',
       opacity: 1,
     }
   }
@@ -266,10 +263,10 @@ export default function Map() {
     const address = props.add_full || ''
     
     const popupContent = `
-      <div style="color:#1a1918;min-width:180px;">
+      <div style="color:#F5F4F1;min-width:180px;">
         <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${name}</div>
-        ${code ? `<div style="font-size:12px;color:#666;margin-bottom:2px;">Code: <strong>${code}</strong></div>` : ''}
-        ${address ? `<div style="font-size:11px;color:#888;">${address}</div>` : ''}
+        ${code ? `<div style="font-size:12px;color:#A9A6A0;margin-bottom:2px;">Code: <strong style="color:#E8C878;">${code}</strong></div>` : ''}
+        ${address ? `<div style="font-size:11px;color:#8F8B84;">${address}</div>` : ''}
       </div>
     `
     layer.bindPopup(popupContent)
@@ -290,13 +287,6 @@ export default function Map() {
         <div className="p-4 border-b border-[var(--color-border)] space-y-3 shrink-0">
           <div className="flex items-center justify-between">
             <h1 className="text-lg font-bold">Campus Map</h1>
-            <button 
-              onClick={toggleTheme} 
-              className="p-2 rounded-xl bg-[var(--color-bg-2)] hover:bg-[var(--color-bg-3)] transition-colors"
-              aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {dark ? <Icon name="moon" size={18} /> : <Icon name="sun" size={18} />}
-            </button>
           </div>
           <input
             type="search"
@@ -344,7 +334,7 @@ export default function Map() {
                           {b.name}
                         </span>
                         {b.displayCode && (
-                          <span className="inline-block mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--color-gold)]/20 text-[var(--color-gold-dark)] dark:text-[var(--color-gold)]">
+                          <span className="inline-block mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--color-gold)]/20 text-[var(--color-gold)]">
                             {b.displayCode}
                           </span>
                         )}
@@ -359,20 +349,20 @@ export default function Map() {
       </aside>
 
       <div className="relative p-2 lg:p-3 bg-[var(--color-bg-2)]">
-        <div className={`h-full w-full rounded-2xl overflow-hidden border shadow-lg ${dark ? 'dark-purdue-map border-[#2A1E0A]' : 'border-white'}`}>
+        <div className="h-full w-full rounded-2xl overflow-hidden border shadow-lg dark-purdue-map border-[#2A1E0A]">
           <MapContainer center={CAMPUS_CENTER} zoom={DEFAULT_ZOOM} className="h-full w-full">
-            <TileLayer key={dark ? 'dark' : 'light'} url={dark ? TILE_DARK : TILE_LIGHT} />
+            <TileLayer url={TILE_DARK} />
             
             {geoData && (
               <GeoJSON
-                key={`geojson-${selectedId}-${dark}`}
+                key={`geojson-${selectedId}`}
                 data={geoData}
                 style={geoJsonStyle}
                 onEachFeature={onEachFeature}
               />
             )}
             
-            <BuildingLabels buildings={buildings} dark={dark} selectedId={selectedId} />
+            <BuildingLabels buildings={buildings} dark selectedId={selectedId} />
             <MapController flyRequest={flyRequest} />
           </MapContainer>
         </div>

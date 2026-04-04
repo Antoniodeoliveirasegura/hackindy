@@ -36,7 +36,20 @@ const fallbackSuggestions = [
   { icon: 'dining', text: 'Lunch at Tower Dining', time: 'Opens 11 AM' },
 ]
 
-const CALENDAR_EVENT_CATEGORIES = 'campus_event,event,deadline'
+/** Broader fetch for Home: dues + events (today's event strip still filters to event-like categories). */
+const HOME_CALENDAR_CATEGORIES =
+  'campus_event,event,deadline,activity,assignment,task,homework,submission,quiz,project,exam,lab,midterm,paper,presentation'
+
+/** User message for /api/assistant — server already attaches schedule & calendar context. */
+const WEEK_AHEAD_GEMINI_PROMPT = `Write a concise "Week Ahead" summary for my dashboard using ONLY the class schedule, assignments, deadlines, and events in your context. Do not invent courses, due dates, or events.
+
+Requirements:
+- Plain text only. No markdown, no bullets, no numbered lists, no emoji.
+- Use 2–4 short paragraphs separated by a blank line between each.
+- First paragraph: my weekly class rhythm — each course and which days it meets.
+- Next: assignments, exams, or deadlines due this calendar week, or clearly say nothing major is due.
+- Last: notable campus or career events this week, or say none scheduled.
+- Stay under 160 words. Write in second person ("you"). Be warm and skimmable.`
 
 const homeEventCategory = {
   campus_event: {
@@ -446,54 +459,53 @@ export default function Home() {
   const [boardLoading, setBoardLoading] = useState(true)
   const [boardError, setBoardError] = useState('')
 
-  // ── AI Week Digest ──────────────────────────────────────────────────────────
-  function getWeekKey() {
+  function getWeekDigestStorageKey() {
     const d = new Date()
     const day = d.getDay()
     const monday = new Date(d)
     monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
-    return `ai-week-digest-${monday.toISOString().slice(0, 10)}`
+    return `ai-week-ahead-${monday.toISOString().slice(0, 10)}`
   }
-  const [weekDigest, setWeekDigest] = useState(() => {
+
+  const [weekAheadText, setWeekAheadText] = useState(() => {
     try {
-      const raw = JSON.parse(localStorage.getItem(getWeekKey()))
+      const raw = JSON.parse(localStorage.getItem(getWeekDigestStorageKey()))
       return typeof raw === 'string' && raw.trim() ? raw : null
     } catch {
       return null
     }
   })
-  const [digestLoading, setDigestLoading] = useState(false)
+  const [weekAheadLoading, setWeekAheadLoading] = useState(false)
 
-  const generateDigest = () => {
-    setDigestLoading(true)
+  const generateWeekAheadSummary = () => {
+    setWeekAheadLoading(true)
     fetch('/api/assistant', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        messages: [{
-          role: 'user',
-          content: 'Give me a 3-sentence weekly briefing as plain text. Sentence 1: list each course name and the days it meets (e.g. "TDM 20200 meets Mon/Wed/Fri, ECE 2940 meets Tue/Thu"). Sentence 2: any assignments, exams, or deadlines due this week with the day, or say none. Sentence 3: any campus events worth noting, or say the week looks clear. Plain text only — absolutely no markdown, no asterisks, no bullet points, no headers. Complete every sentence.',
-        }],
+        messages: [{ role: 'user', content: WEEK_AHEAD_GEMINI_PROMPT }],
       }),
     })
-      .then(r => r.json())
-      .then(d => {
+      .then((r) => r.json())
+      .then((d) => {
         if (d.reply) {
           const clean = cleanAiText(d.reply)
-          setWeekDigest(clean)
-          try { localStorage.setItem(getWeekKey(), JSON.stringify(clean)) } catch {}
+          setWeekAheadText(clean)
+          try {
+            localStorage.setItem(getWeekDigestStorageKey(), JSON.stringify(clean))
+          } catch {
+            /* ignore */
+          }
         }
       })
       .catch(() => {})
-      .finally(() => setDigestLoading(false))
+      .finally(() => setWeekAheadLoading(false))
   }
 
   useEffect(() => {
-    const text = typeof weekDigest === 'string' ? weekDigest : ''
-    const looksIncomplete = text && !text.trim().endsWith('.')
-    if (!text || looksIncomplete) generateDigest()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!weekAheadText) generateWeekAheadSummary()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -560,7 +572,7 @@ export default function Home() {
       setCalendarLoading(true)
       const [classesResult, calResult] = await Promise.allSettled([
         authRequest('/api/me/classes?limit=200&mode=display'),
-        authRequest(`/api/me/calendar?categories=${CALENDAR_EVENT_CATEGORIES}&limit=200`),
+        authRequest(`/api/me/calendar?categories=${HOME_CALENDAR_CATEGORIES}&limit=200`),
       ])
       if (cancelled) return
       if (classesResult.status === 'fulfilled') {
@@ -649,12 +661,16 @@ export default function Home() {
     nextClass: scheduleState.nextClass,
     currentClass: scheduleState.currentClass,
     diningStatus,
-    upcomingEvents: cleanCalendarItems.filter(i => ['campus_event', 'event'].includes(i.category)),
+    upcomingEvents: cleanCalendarItems.filter((i) => ['campus_event', 'event', 'activity'].includes(i.category)),
     now,
   }), [scheduleState, diningStatus, cleanCalendarItems, now])
 
   const todayRelevantEvents = useMemo(
-    () => filterTodayRelevantEvents(cleanCalendarItems, now),
+    () =>
+      filterTodayRelevantEvents(
+        cleanCalendarItems.filter((i) => ['campus_event', 'event', 'activity'].includes(i.category)),
+        now,
+      ),
     [cleanCalendarItems, now],
   )
   const todayEventsPreview = useMemo(() => todayRelevantEvents.slice(0, 6), [todayRelevantEvents])
@@ -796,9 +812,8 @@ export default function Home() {
       <div className="mb-8 transition-all duration-700 opacity-100 translate-y-0">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-txt-0)] flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-txt-0)]">
               {getGreeting(now)}, {firstName}
-              <span className="animate-wave text-2xl">👋</span>
             </h1>
             <p className="text-[14px] text-[var(--color-txt-2)] mt-2">
               Here's what's happening on campus today.
@@ -835,37 +850,53 @@ export default function Home() {
         </div>
       )}
 
-      {/* AI Week Digest — more prominent on Mondays */}
-      <div className={`card p-4 mb-6 transition-all duration-700 delay-75 opacity-100 translate-y-0 ${
-        now.getDay() === 1
-          ? 'border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 ring-1 ring-[var(--color-gold)]/15'
-          : 'border-[var(--color-gold)]/20'
-      }`}>
-        <div className="flex items-center justify-between gap-3 mb-2">
+      {/* Week ahead — Gemini summary (calendar context is attached server-side on /api/assistant) */}
+      <div
+        className={`card p-4 sm:p-5 mb-6 overflow-hidden transition-all duration-700 delay-75 opacity-100 translate-y-0 ${
+          now.getDay() === 1
+            ? 'border-[var(--color-gold)]/40 bg-[var(--color-gold)]/5 ring-1 ring-[var(--color-gold)]/15'
+            : 'border-[var(--color-gold)]/20'
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-1">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[var(--color-gold)] to-[var(--color-gold-muted)] flex items-center justify-center shrink-0">
               <Icon name="sparkles" size={12} className="text-[var(--color-gold-dark)]" />
             </div>
-            <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">
-              {now.getDay() === 1 ? 'Monday Briefing' : 'AI · Week Ahead'}
-            </span>
+            <div>
+              <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">
+                {now.getDay() === 1 ? 'Monday briefing' : 'Week ahead'}
+              </span>
+              <p className="text-[11px] text-[var(--color-txt-3)] mt-0.5">
+                Gemini · from your linked schedule & calendar
+              </p>
+            </div>
           </div>
           <button
-            onClick={generateDigest}
-            disabled={digestLoading}
-            className="text-[11px] text-[var(--color-accent)] hover:underline disabled:opacity-40 shrink-0"
+            type="button"
+            onClick={generateWeekAheadSummary}
+            disabled={weekAheadLoading}
+            className="text-[11px] text-[var(--color-accent)] hover:underline disabled:opacity-40 shrink-0 self-start sm:self-auto"
           >
-            {digestLoading ? 'Generating…' : 'Refresh'}
+            {weekAheadLoading ? 'Generating…' : 'Refresh'}
           </button>
         </div>
-        {digestLoading && !weekDigest ? (
-          <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)]">
-            <div className="w-3.5 h-3.5 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin shrink-0" />
-            Generating your week summary…
-          </div>
-        ) : typeof weekDigest === 'string' && weekDigest ? (
-          <p className="text-[13px] text-[var(--color-txt-1)] leading-relaxed whitespace-pre-line">{weekDigest}</p>
-        ) : null}
+        <div className="mt-4">
+          {weekAheadLoading && !weekAheadText ? (
+            <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)]">
+              <div className="w-3.5 h-3.5 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin shrink-0" />
+              Generating your week summary…
+            </div>
+          ) : typeof weekAheadText === 'string' && weekAheadText ? (
+            <div className="text-[13px] text-[var(--color-txt-1)] leading-relaxed space-y-3 whitespace-pre-line">
+              {weekAheadText.split(/\n\n+/).map((para, i) => (
+                <p key={i} className="m-0">
+                  {para.trim()}
+                </p>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Smart Alerts */}
