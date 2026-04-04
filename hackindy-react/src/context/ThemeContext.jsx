@@ -1,25 +1,15 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useEffect } from 'react'
 
 const ThemeContext = createContext()
 
 export function ThemeProvider({ children }) {
-  const [dark, setDark] = useState(() => {
-    return localStorage.getItem('pih-dark') === '1'
-  })
-
   useEffect(() => {
-    localStorage.setItem('pih-dark', dark ? '1' : '0')
-    if (dark) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }, [dark])
-
-  const toggleTheme = () => setDark(prev => !prev)
+    document.documentElement.classList.add('dark')
+    localStorage.setItem('pih-dark', '1')
+  }, [])
 
   return (
-    <ThemeContext.Provider value={{ dark, toggleTheme }}>
+    <ThemeContext.Provider value={{ dark: true }}>
       {children}
     </ThemeContext.Provider>
   )

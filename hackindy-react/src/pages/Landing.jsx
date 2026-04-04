@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom'
-import { useTheme } from '../context/ThemeContext'
 import { useAuth, useSignOutAndRedirect } from '../context/AuthContext'
 import Icon from '../components/Icons'
 
@@ -74,7 +73,6 @@ const integrations = [
 ]
 
 export default function Landing() {
-  const { dark, toggleTheme } = useTheme()
   const { user, loading } = useAuth()
   const signOutAndRedirect = useSignOutAndRedirect()
 
@@ -102,14 +100,6 @@ export default function Landing() {
           </Link>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="w-[34px] h-[34px] rounded-lg border border-[var(--color-border-2)] bg-[var(--color-bg-2)] flex items-center justify-center text-[var(--color-txt-0)] hover:bg-[var(--color-bg-3)] transition-colors"
-            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {dark ? <Icon name="moon" size={16} /> : <Icon name="sun" size={16} />}
-          </button>
           {!loading && user ? (
             <>
               <Link

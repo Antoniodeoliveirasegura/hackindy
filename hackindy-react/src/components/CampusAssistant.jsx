@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import Icon from './Icons'
 
 const quickQuestions = [
+  'What should I do right now?',
   "What's for lunch today?",
   "What's my next assignment due?",
   'What events are coming up?',
@@ -18,7 +19,7 @@ export default function CampusAssistant() {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Hey ${firstName}! 👋 Ask me anything about Purdue Indy — dining, buses, buildings, or campus life.`,
+      content: `Hey ${firstName}! Ask me anything — e.g. what to do right now with your classes and homework, dining, buses, or where to study.`,
     },
   ])
   const [input, setInput] = useState('')

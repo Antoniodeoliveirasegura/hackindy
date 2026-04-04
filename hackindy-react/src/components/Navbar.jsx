@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useTheme } from '../context/ThemeContext'
 import { useAuth, useSignOutAndRedirect } from '../context/AuthContext'
 import Icon from './Icons'
 
@@ -15,7 +14,6 @@ const navItems = [
 
 export default function Navbar() {
   const location = useLocation()
-  const { dark, toggleTheme } = useTheme()
   const { user, getInitials, getDisplayName } = useAuth()
   const signOutAndRedirect = useSignOutAndRedirect()
   const [scrolled, setScrolled] = useState(false)
@@ -81,19 +79,6 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={toggleTheme}
-              className="relative w-10 h-10 rounded-xl bg-[var(--color-bg-2)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-txt-1)] hover:text-[var(--color-txt-0)] hover:border-[var(--color-border-2)] hover:bg-[var(--color-bg-3)] transition-all duration-300 overflow-hidden group"
-              aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              <div className={`absolute transition-all duration-500 ${dark ? 'rotate-0 scale-100 opacity-100' : '-rotate-90 scale-0 opacity-0'}`}>
-                <Icon name="moon" size={18} />
-              </div>
-              <div className={`absolute transition-all duration-500 ${dark ? 'rotate-90 scale-0 opacity-0' : 'rotate-0 scale-100 opacity-100'}`}>
-                <Icon name="sun" size={18} />
-              </div>
-            </button>
-
             <div className="relative hidden md:block">
               <button
                 type="button"
