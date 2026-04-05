@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
 import AppLayout from './components/AppLayout'
@@ -120,6 +121,7 @@ export default function App() {
           </Routes>
         </AuthProvider>
       </BrowserRouter>
+      <SpeedInsights />
     </ThemeProvider>
   )
 }
