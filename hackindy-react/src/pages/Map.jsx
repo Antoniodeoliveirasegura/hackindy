@@ -168,6 +168,7 @@ export default function Map() {
   const [initialFlyDone, setInitialFlyDone] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false) // For mobile
 
   // Fetch official Purdue Indianapolis building data
   useEffect(() => {
@@ -281,9 +282,17 @@ export default function Map() {
     })
   }
 
+  // Close sidebar when a building is selected on mobile
+  const handleBuildingSelect = (b) => {
+    setSelectedId(b.id)
+    setFlyRequest(fr => ({ lat: b.lat, lng: b.lng, zoom: FLY_ZOOM, seq: fr.seq + 1 }))
+    setSidebarOpen(false) // Close on mobile after selection
+  }
+
   return (
-    <div className="grid lg:grid-cols-[320px_1fr] h-[calc(100dvh-3.5rem)] overflow-hidden bg-[var(--color-bg-1)]">
-      <aside className="flex flex-col z-10 border-r border-[var(--color-border-2)] bg-[var(--color-surface)] shadow-md min-h-0">
+    <div className="flex flex-col lg:grid lg:grid-cols-[320px_1fr] h-[calc(100dvh-3.5rem)] overflow-hidden bg-[var(--color-bg-1)]">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex flex-col z-10 border-r border-[var(--color-border-2)] bg-[var(--color-surface)] shadow-md min-h-0">
         <div className="p-4 border-b border-[var(--color-border)] space-y-3 shrink-0">
           <div className="flex items-center justify-between">
             <h1 className="text-lg font-bold">Campus Map</h1>
@@ -316,10 +325,7 @@ export default function Map() {
                 {section.items.map((b) => (
                   <li key={b.id}>
                     <button
-                      onClick={() => {
-                        setSelectedId(b.id)
-                        setFlyRequest(fr => ({ lat: b.lat, lng: b.lng, zoom: FLY_ZOOM, seq: fr.seq + 1 }))
-                      }}
+                      onClick={() => handleBuildingSelect(b)}
                       className={`w-full text-left px-3 py-2.5 rounded-xl transition-all flex gap-3 ${
                         selectedId === b.id
                           ? 'bg-[var(--color-gold)]/15 ring-1 ring-[var(--color-gold)]'
@@ -348,7 +354,8 @@ export default function Map() {
         </div>
       </aside>
 
-      <div className="relative p-2 lg:p-3 bg-[var(--color-bg-2)]">
+      {/* Map Container */}
+      <div className="relative flex-1 p-2 lg:p-3 bg-[var(--color-bg-2)] min-h-0">
         <div className="h-full w-full rounded-2xl overflow-hidden border shadow-lg dark-purdue-map border-[#2A1E0A]">
           <MapContainer center={CAMPUS_CENTER} zoom={DEFAULT_ZOOM} className="h-full w-full">
             <TileLayer url={TILE_DARK} />
@@ -367,30 +374,119 @@ export default function Map() {
           </MapContainer>
         </div>
         
+        {/* Mobile: Search FAB */}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="lg:hidden absolute top-4 left-4 w-12 h-12 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-lg flex items-center justify-center text-[var(--color-txt-1)] z-[1000]"
+          aria-label="Search buildings"
+        >
+          <Icon name="search" size={20} />
+        </button>
+        
         {/* Selected building info card */}
         {selectedBuilding && (
-          <div className="absolute bottom-6 left-6 right-6 lg:left-auto lg:right-6 lg:w-80 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-lg p-4 animate-fade-in-up">
+          <div className="absolute bottom-4 left-4 right-4 lg:left-auto lg:right-6 lg:bottom-6 lg:w-80 bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-lg p-4 animate-fade-in-up z-[1000]">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-semibold text-[var(--color-txt-0)]">{selectedBuilding.name}</h3>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-semibold text-[var(--color-txt-0)] text-[15px]">{selectedBuilding.name}</h3>
                 {selectedBuilding.displayCode && (
-                  <span className="inline-block mt-1 text-[11px] font-bold px-2 py-0.5 rounded bg-[var(--color-gold)] text-[var(--color-gold-dark)]">
+                  <span className="inline-block mt-1.5 text-[11px] font-bold px-2 py-0.5 rounded bg-[var(--color-gold)] text-[var(--color-gold-dark)]">
                     {selectedBuilding.displayCode}
                   </span>
                 )}
                 {selectedBuilding.address && (
-                  <p className="text-[12px] text-[var(--color-txt-2)] mt-2">{selectedBuilding.address}</p>
+                  <p className="text-[12px] text-[var(--color-txt-2)] mt-2 leading-relaxed">{selectedBuilding.address}</p>
                 )}
               </div>
               <button 
                 onClick={() => setSelectedId(null)}
-                className="p-1.5 rounded-lg hover:bg-[var(--color-bg-2)] text-[var(--color-txt-2)]"
+                className="p-2 rounded-lg hover:bg-[var(--color-bg-2)] text-[var(--color-txt-2)] shrink-0"
               >
-                <Icon name="close" size={16} />
+                <Icon name="close" size={18} />
               </button>
             </div>
           </div>
         )}
+      </div>
+
+      {/* Mobile: Bottom Sheet Sidebar */}
+      {sidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/40 z-[1001]"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      <div className={`lg:hidden fixed bottom-0 left-0 right-0 bg-[var(--color-surface)] rounded-t-2xl shadow-xl z-[1002] transition-transform duration-300 ${
+        sidebarOpen ? 'translate-y-0' : 'translate-y-full'
+      }`} style={{ maxHeight: '75vh' }}>
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 bg-[var(--color-border-2)] rounded-full" />
+        </div>
+        
+        {/* Search Header */}
+        <div className="px-4 pb-3 border-b border-[var(--color-border)]">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[16px] font-semibold text-[var(--color-txt-0)]">Find Building</h2>
+            <button 
+              onClick={() => setSidebarOpen(false)}
+              className="p-2 rounded-lg hover:bg-[var(--color-bg-2)] text-[var(--color-txt-2)]"
+            >
+              <Icon name="close" size={20} />
+            </button>
+          </div>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search buildings..."
+            className="w-full px-4 py-3 rounded-xl text-[15px] bg-[var(--color-bg-2)] border border-[var(--color-border-2)] outline-none focus:border-[var(--color-gold)] transition-colors"
+            autoFocus={sidebarOpen}
+          />
+        </div>
+        
+        {/* Building List */}
+        <div className="overflow-y-auto px-2 pb-8" style={{ maxHeight: 'calc(75vh - 120px)' }}>
+          {grouped.map((section) => section.items.length > 0 && (
+            <div key={section.key} className="mt-4 first:mt-2">
+              <div className="flex items-center gap-2 px-2 pb-2 border-b border-[var(--color-border)] mb-1">
+                <span className="text-[var(--color-gold-muted)]"><Icon name={section.icon} size={16} /></span>
+                <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-txt-2)] m-0">
+                  {section.label} ({section.items.length})
+                </h3>
+              </div>
+              <ul className="list-none m-0 p-0">
+                {section.items.map((b) => (
+                  <li key={b.id}>
+                    <button
+                      onClick={() => handleBuildingSelect(b)}
+                      className={`w-full text-left px-4 py-3.5 rounded-xl transition-all flex gap-3 active:scale-[0.98] ${
+                        selectedId === b.id
+                          ? 'bg-[var(--color-gold)]/15 ring-1 ring-[var(--color-gold)]'
+                          : 'hover:bg-[var(--color-surface-hover)] active:bg-[var(--color-bg-2)]'
+                      }`}
+                    >
+                      <span className="text-[var(--color-txt-3)] mt-0.5 shrink-0">
+                        <Icon name="mapPin" size={16} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-medium leading-tight">
+                          {b.name}
+                        </span>
+                        {b.displayCode && (
+                          <span className="inline-block mt-1.5 text-[11px] font-bold px-2 py-0.5 rounded bg-[var(--color-gold)]/20 text-[var(--color-gold)]">
+                            {b.displayCode}
+                          </span>
+                        )}
+                      </span>
+                      <Icon name="arrowUpRight" size={16} className="text-[var(--color-txt-3)] shrink-0 mt-0.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

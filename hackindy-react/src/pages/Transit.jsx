@@ -315,7 +315,7 @@ function LiveMap({
   }, [vehicles, selectedBus, selectedRoute, onSelectBus, canonicalRouteId])
 
   return (
-    <div className="relative w-full h-[450px] rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-lg">
+    <div className="relative w-full h-[280px] sm:h-[380px] lg:h-[450px] rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-lg">
       <style>{`
         @keyframes transit-pulse {
           0%, 100% { transform: scale(1); opacity: 1; }
@@ -325,24 +325,24 @@ function LiveMap({
       `}</style>
       <div ref={mapRef} className="w-full h-full" />
 
-      <div className="absolute top-3 left-3 bg-white/95 dark:bg-[var(--color-bg-2)]/95 backdrop-blur-sm rounded-xl p-3 shadow-lg z-[1000]">
-        <div className="text-[10px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-2">
+      <div className="absolute top-3 left-3 bg-white/95 dark:bg-[var(--color-bg-2)]/95 backdrop-blur-sm rounded-xl p-2 sm:p-3 shadow-lg z-[1000] max-w-[140px] sm:max-w-none">
+        <div className="text-[9px] sm:text-[10px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider mb-1.5 sm:mb-2">
           Active Routes
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-1 sm:space-y-1.5">
           {routes.map((route) => {
             const count = vehicles.filter((v) => canonicalRouteId(v.RouteID) === route.id).length
             if (count === 0) return null
             return (
-              <div key={route.id} className="flex items-center gap-2">
+              <div key={route.id} className="flex items-center gap-1.5 sm:gap-2">
                 <div
-                  className="w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold text-white"
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded flex items-center justify-center text-[8px] sm:text-[9px] font-bold text-white shrink-0"
                   style={{ backgroundColor: route.color }}
                 >
                   {route.num}
                 </div>
-                <span className="text-[11px] text-[var(--color-txt-1)]">{route.shortName}</span>
-                <span className="text-[10px] text-[var(--color-txt-3)]">({count})</span>
+                <span className="text-[10px] sm:text-[11px] text-[var(--color-txt-1)] truncate">{route.shortName}</span>
+                <span className="text-[9px] sm:text-[10px] text-[var(--color-txt-3)]">({count})</span>
               </div>
             )
           })}
@@ -351,9 +351,9 @@ function LiveMap({
 
       {vehicles.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-bg-1)]/50 backdrop-blur-sm z-[1000]">
-          <div className="text-center">
-            <Icon name="bus" size={32} className="mx-auto mb-2 text-[var(--color-txt-3)]" />
-            <p className="text-[13px] text-[var(--color-txt-2)]">No buses currently active</p>
+          <div className="text-center px-4">
+            <Icon name="bus" size={28} className="mx-auto mb-2 text-[var(--color-txt-3)]" />
+            <p className="text-[12px] sm:text-[13px] text-[var(--color-txt-2)]">No buses currently active</p>
           </div>
         </div>
       )}
@@ -568,32 +568,32 @@ export default function Transit() {
   }, [orderedStops, hereStopId, visitedStopIds])
 
   return (
-    <div className="max-w-[1000px] mx-auto px-6 py-8 pb-24">
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6 animate-fade-in-up">
+    <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4 mb-5 sm:mb-6 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-semibold text-[var(--color-txt-0)]">Campus Transit</h1>
-          <p className="text-[14px] text-[var(--color-txt-2)] mt-1">
+          <h1 className="text-xl sm:text-2xl font-semibold text-[var(--color-txt-0)]">Campus Transit</h1>
+          <p className="text-[13px] sm:text-[14px] text-[var(--color-txt-2)] mt-1">
             JAGLINE shuttle live tracking
             {lastUpdate && (
-              <span className="text-[var(--color-txt-3)]"> · Updated {lastUpdate.toLocaleTimeString()}</span>
+              <span className="text-[var(--color-txt-3)] hidden sm:inline"> · Updated {lastUpdate.toLocaleTimeString()}</span>
             )}
           </p>
         </div>
         <button
           onClick={fetchVehicles}
-          className="text-[13px] text-[var(--color-accent)] flex items-center gap-1.5 hover:gap-2 transition-all font-medium"
+          className="text-[13px] text-[var(--color-accent)] flex items-center gap-1.5 hover:gap-2 transition-all font-medium self-start sm:self-auto py-2 px-3 -mx-3 sm:mx-0 sm:p-0 rounded-lg active:bg-[var(--color-accent)]/10"
         >
           <Icon name="refresh" size={14} />
           Refresh
         </button>
       </div>
 
-      {/* Route filter pills — split into today's routes vs not-running-today */}
-      <div className="mb-6 animate-fade-in-up stagger-1">
-        <div className="flex flex-wrap gap-2">
+      {/* Route filter pills — horizontal scroll on mobile */}
+      <div className="mb-5 sm:mb-6 animate-fade-in-up stagger-1">
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible scrollbar-hide">
           <button
             onClick={() => setSelectedRoute(null)}
-            className={`pill whitespace-nowrap ${!selectedRoute ? 'pill-active' : ''}`}
+            className={`pill whitespace-nowrap shrink-0 min-h-[40px] sm:min-h-0 ${!selectedRoute ? 'pill-active' : ''}`}
           >
             All Routes ({vehicles.length})
           </button>
@@ -604,29 +604,30 @@ export default function Transit() {
               <button
                 key={route.id}
                 onClick={() => setSelectedRoute(selectedRoute?.id === route.id ? null : route)}
-                className={`pill whitespace-nowrap flex items-center gap-2 transition-opacity
+                className={`pill whitespace-nowrap flex items-center gap-2 transition-opacity shrink-0 min-h-[40px] sm:min-h-0
                   ${selectedRoute?.id === route.id ? 'pill-active' : ''}
                   ${!activeToday ? 'opacity-40' : ''}`}
                 title={route.schedule?.label ?? ''}
               >
                 <span
-                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                  className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
                   style={{ backgroundColor: route.color }}
                 >
                   {route.num}
                 </span>
-                {route.shortName}
+                <span className="hidden sm:inline">{route.shortName}</span>
+                <span className="sm:hidden">{route.num}</span>
                 {count > 0 && <span className="text-[var(--color-txt-3)]">({count})</span>}
                 {!activeToday && (
-                  <span className="text-[10px] text-[var(--color-txt-3)] font-normal">off</span>
+                  <span className="text-[10px] text-[var(--color-txt-3)] font-normal hidden sm:inline">off</span>
                 )}
               </button>
             )
           })}
         </div>
 
-        {/* Schedule reference — one row per day group */}
-        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+        {/* Schedule reference — hidden on mobile for cleaner UI */}
+        <div className="mt-3 hidden sm:flex flex-wrap gap-x-5 gap-y-1">
           {[...new Map(routes.map(r => [r.schedule?.label, r])).values()].map(r => {
             if (!r.schedule) return null
             const groupRoutes = routes.filter(x => x.schedule?.label === r.schedule.label)
@@ -665,17 +666,17 @@ export default function Transit() {
       )}
 
       {selectedRoute && (
-        <div className="card p-5 animate-fade-in-up stagger-3">
+        <div className="card p-4 sm:p-5 animate-fade-in-up stagger-3">
           <div className="flex items-center gap-3 mb-4">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
               style={{ backgroundColor: selectedRoute.color }}
             >
               <Icon name="bus" size={20} className="text-white" />
             </div>
-            <div>
-              <h3 className="text-[15px] font-semibold text-[var(--color-txt-0)]">{selectedRoute.name}</h3>
-              <p className="text-[12px] text-[var(--color-txt-2)]">
+            <div className="min-w-0">
+              <h3 className="text-[14px] sm:text-[15px] font-semibold text-[var(--color-txt-0)]">{selectedRoute.name}</h3>
+              <p className="text-[11px] sm:text-[12px] text-[var(--color-txt-2)] truncate">
                 {(() => {
                   const n = vehicles.filter((v) => canonicalRouteId(v.RouteID) === selectedRoute.id).length
                   return `${n} bus${n !== 1 ? 'es' : ''} active`
@@ -722,7 +723,7 @@ export default function Transit() {
               return (
                 <div
                   key={s.id}
-                  className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all duration-300 ${
+                  className={`flex items-center gap-2.5 sm:gap-3 rounded-xl border px-3 py-3 sm:py-2.5 transition-all duration-300 ${
                     isHere
                       ? 'border-emerald-400/80 bg-emerald-500/10 shadow-[0_0_20px_rgba(34,197,94,0.25)]'
                       : isMyStop
@@ -760,10 +761,10 @@ export default function Transit() {
                           ? 'Tap to clear my stop'
                           : 'Set as my stop (chime at the stop before)'
                     }
-                    className={`shrink-0 p-2 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    className={`shrink-0 p-2.5 sm:p-2 rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                       isMyStop
                         ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/15 text-[var(--color-accent)]'
-                        : 'border-[var(--color-border)] text-[var(--color-txt-3)] hover:text-[var(--color-txt-1)]'
+                        : 'border-[var(--color-border)] text-[var(--color-txt-3)] hover:text-[var(--color-txt-1)] active:bg-[var(--color-bg-2)]'
                     }`}
                   >
                     <Icon name="bell" size={18} />
