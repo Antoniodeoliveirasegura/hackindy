@@ -12,6 +12,13 @@ const navItems = [
   { path: '/services', label: 'More', icon: 'grid' },
 ]
 
+const mobileNavItems = [
+  { path: '/dashboard', label: 'Home', icon: 'home' },
+  { path: '/schedule', label: 'Schedule', icon: 'schedule' },
+  { path: '/map', label: 'Map', icon: 'mapPin' },
+  { path: '/services', label: 'More', icon: 'grid' },
+]
+
 export default function Navbar() {
   const location = useLocation()
   const { user, getInitials, getDisplayName } = useAuth()
@@ -241,6 +248,34 @@ export default function Navbar() {
       </div>
 
       <div className="h-16" />
+
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--color-surface)]/95 backdrop-blur-md border-t border-[var(--color-border)] safe-bottom">
+        <div className="flex justify-around items-center h-16 px-2">
+          {mobileNavItems.map(({ path, label, icon }) => {
+            const isActive = location.pathname === path
+            return (
+              <Link
+                key={path}
+                to={path}
+                className={`flex flex-col items-center justify-center gap-0.5 py-2 px-3 min-w-[64px] rounded-xl transition-all duration-200 ${
+                  isActive
+                    ? 'text-[var(--color-gold)]'
+                    : 'text-[var(--color-txt-2)]'
+                }`}
+              >
+                <div className={`p-1.5 rounded-lg transition-all duration-200 ${isActive ? 'bg-[var(--color-gold)]/15' : ''}`}>
+                  <Icon name={icon} size={20} strokeWidth={isActive ? 2.5 : 2} />
+                </div>
+                <span className={`text-[10px] font-medium ${isActive ? 'text-[var(--color-gold)]' : ''}`}>{label}</span>
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
+      
+      {/* Bottom nav spacer for mobile */}
+      <div className="md:hidden h-16" />
     </>
   )
 }

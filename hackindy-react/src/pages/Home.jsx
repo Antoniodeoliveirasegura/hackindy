@@ -808,18 +808,18 @@ export default function Home() {
   const displayClass = scheduleState.displayClass
 
   return (
-    <div className="max-w-[1100px] mx-auto px-6 py-8 pb-24">
-      <div className="mb-8 transition-all duration-700 opacity-100 translate-y-0">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6 sm:py-8 pb-24">
+      <div className="mb-6 sm:mb-8 transition-all duration-700 opacity-100 translate-y-0">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--color-txt-0)]">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-[var(--color-txt-0)]">
               {getGreeting(now)}, {firstName}
             </h1>
-            <p className="text-[14px] text-[var(--color-txt-2)] mt-2">
+            <p className="text-[13px] sm:text-[14px] text-[var(--color-txt-2)] mt-1 sm:mt-2">
               Here's what's happening on campus today.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-[13px] text-[var(--color-txt-2)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-2 text-[12px] sm:text-[13px] text-[var(--color-txt-2)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 shadow-sm self-start sm:self-auto">
             <Icon name="calendar" size={14} className="text-[var(--color-txt-3)]" />
             {getCurrentDate(now)}
           </div>
@@ -917,30 +917,31 @@ export default function Home() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 transition-all duration-700 delay-100 opacity-100 translate-y-0">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-5 sm:mb-6 transition-all duration-700 delay-100 opacity-100 translate-y-0">
         {quickActions.map(({ path, label, sub, icon, color }, idx) => (
           <Link
             key={path}
             to={path}
-            className="group card card-interactive p-4 flex items-center gap-4"
+            className="group card card-interactive p-3 sm:p-4 flex items-center gap-3 sm:gap-4 active:scale-[0.98] transition-transform"
             style={{ animationDelay: `${idx * 0.05}s` }}
           >
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${colorMap[color]} transition-transform duration-300 group-hover:scale-110`}>
-              <Icon name={icon} size={22} />
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center shrink-0 ${colorMap[color]} transition-transform duration-300 group-hover:scale-110`}>
+              <Icon name={icon} size={18} className="sm:hidden" />
+              <Icon name={icon} size={22} className="hidden sm:block" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[14px] font-medium text-[var(--color-txt-0)] group-hover:text-[var(--color-accent)] transition-colors">
+              <div className="text-[13px] sm:text-[14px] font-medium text-[var(--color-txt-0)] group-hover:text-[var(--color-accent)] transition-colors">
                 {label}
               </div>
-              <div className="text-[12px] text-[var(--color-txt-2)] mt-0.5 truncate">{sub}</div>
+              <div className="text-[11px] sm:text-[12px] text-[var(--color-txt-2)] mt-0.5 truncate">{sub}</div>
             </div>
-            <Icon name="arrowUpRight" size={16} className="text-[var(--color-txt-3)] group-hover:text-[var(--color-accent)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+            <Icon name="arrowUpRight" size={14} className="text-[var(--color-txt-3)] group-hover:text-[var(--color-accent)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all hidden sm:block" />
           </Link>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4 mb-4">
-        <div className="card p-5 transition-all duration-700 delay-200 opacity-100 translate-y-0">
+      <div className="grid lg:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
+        <div className="card p-4 sm:p-5 transition-all duration-700 delay-200 opacity-100 translate-y-0">
           <div className="flex items-center justify-between mb-4">
             <span className="text-[11px] font-semibold text-[var(--color-txt-3)] uppercase tracking-wider">
               {scheduleState.cardLabel}
