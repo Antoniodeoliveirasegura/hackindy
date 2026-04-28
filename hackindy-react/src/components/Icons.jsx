@@ -42,6 +42,13 @@ const icons = {
       <circle cx="12" cy="9" r="2.5" fill="currentColor" stroke="none"/>
     </>
   ),
+  locateMe: (
+    <>
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+      <circle cx="12" cy="12" r="8" fill="none"/>
+    </>
+  ),
   calendar: (
     <>
       <rect x="3" y="4" width="18" height="18" rx="3"/>

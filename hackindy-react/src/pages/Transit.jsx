@@ -60,7 +60,77 @@ function LiveMap({
   const markersRef = useRef({})
   const routeLinesRef = useRef([])
   const stopMarkersRef = useRef([])
+  const userMarkerRef = useRef(null)
   const [mapReady, setMapReady] = useState(false)
+  const [userLocation, setUserLocation] = useState(null)
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationError, setLocationError] = useState(null)
+
+  const locateUser = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation not supported')
+      return
+    }
+    setLocationLoading(true)
+    setLocationError(null)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setLocationLoading(false)
+      },
+      (err) => {
+        setLocationError(err.code === 1 ? 'Location access denied' : 'Could not get location')
+        setLocationLoading(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    )
+  }, [])
+
+  // Update user location marker on map
+  useEffect(() => {
+    const map = mapInstanceRef.current
+    if (!map || !window.L || !mapReady || !userLocation) return
+
+    const L = window.L
+
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng])
+    } else {
+      const userIcon = L.divIcon({
+        html: `
+          <div style="position:relative;width:40px;height:40px;">
+            <div style="
+              position:absolute;
+              top:50%;left:50%;
+              transform:translate(-50%,-50%);
+              width:40px;height:40px;
+              background:rgba(59,130,246,0.2);
+              border:2px solid rgba(59,130,246,0.4);
+              border-radius:50%;
+              animation:user-pulse 2s ease-out infinite;
+            "></div>
+            <div style="
+              position:absolute;
+              top:50%;left:50%;
+              transform:translate(-50%,-50%);
+              width:18px;height:18px;
+              background:#3b82f6;
+              border:3px solid white;
+              border-radius:50%;
+              box-shadow:0 2px 8px rgba(0,0,0,0.3);
+            "></div>
+          </div>`,
+        className: 'user-location-marker',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20],
+      })
+      userMarkerRef.current = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon, zIndexOffset: 1000 })
+        .addTo(map)
+        .bindPopup('<div style="font-family:system-ui;font-size:13px;font-weight:500;">You are here</div>')
+    }
+
+    map.setView([userLocation.lat, userLocation.lng], 16)
+  }, [userLocation, mapReady])
 
   useEffect(() => {
     if (!mapRef.current) return
@@ -322,6 +392,10 @@ function LiveMap({
           50% { transform: scale(1.35); opacity: 0.92; }
         }
         .transit-stop-marker div { transform-origin: center center; }
+        @keyframes user-pulse {
+          0% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+          100% { transform: translate(-50%,-50%) scale(2); opacity: 0; }
+        }
       `}</style>
       <div ref={mapRef} className="w-full h-full" />
 
@@ -348,6 +422,22 @@ function LiveMap({
           })}
         </div>
       </div>
+
+      {/* Locate Me Button */}
+      <button
+        type="button"
+        onClick={locateUser}
+        disabled={locationLoading}
+        className={`absolute bottom-3 right-3 w-11 h-11 rounded-xl shadow-lg z-[1000] flex items-center justify-center transition-all border-2 ${
+          userLocation
+            ? 'bg-blue-500 text-white border-blue-400'
+            : 'bg-white dark:bg-[var(--color-bg-2)] border-gray-200 dark:border-[var(--color-border)] text-gray-700 dark:text-[var(--color-txt-1)] hover:text-blue-500 hover:border-blue-400'
+        } ${locationLoading ? 'animate-pulse' : ''}`}
+        title={locationError || 'Show my location'}
+        aria-label="Show my location"
+      >
+        <Icon name="locateMe" size={22} />
+      </button>
 
       {vehicles.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center bg-[var(--color-bg-1)]/50 backdrop-blur-sm z-[1000]">

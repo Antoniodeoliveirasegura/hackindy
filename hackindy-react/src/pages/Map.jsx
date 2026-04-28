@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { MapContainer, TileLayer, useMap, GeoJSON, Marker } from 'react-leaflet'
+import { MapContainer, TileLayer, useMap, GeoJSON, Marker, CircleMarker } from 'react-leaflet'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import Icon from '../components/Icons'
@@ -169,6 +169,31 @@ export default function Map() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(false) // For mobile
+  const [userLocation, setUserLocation] = useState(null)
+  const [locationLoading, setLocationLoading] = useState(false)
+  const [locationError, setLocationError] = useState(null)
+
+  const locateUser = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation not supported')
+      return
+    }
+    setLocationLoading(true)
+    setLocationError(null)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setUserLocation(loc)
+        setLocationLoading(false)
+        setFlyRequest(fr => ({ lat: loc.lat, lng: loc.lng, zoom: 17, seq: fr.seq + 1 }))
+      },
+      (err) => {
+        setLocationError(err.code === 1 ? 'Location access denied' : 'Could not get location')
+        setLocationLoading(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    )
+  }, [])
 
   // Fetch official Purdue Indianapolis building data
   useEffect(() => {
@@ -371,6 +396,33 @@ export default function Map() {
             
             <BuildingLabels buildings={buildings} dark selectedId={selectedId} />
             <MapController flyRequest={flyRequest} />
+            
+            {/* User location marker */}
+            {userLocation && (
+              <>
+                <CircleMarker
+                  center={[userLocation.lat, userLocation.lng]}
+                  radius={20}
+                  pathOptions={{
+                    fillColor: '#3b82f6',
+                    fillOpacity: 0.15,
+                    color: '#3b82f6',
+                    weight: 2,
+                    opacity: 0.4,
+                  }}
+                />
+                <CircleMarker
+                  center={[userLocation.lat, userLocation.lng]}
+                  radius={8}
+                  pathOptions={{
+                    fillColor: '#3b82f6',
+                    fillOpacity: 1,
+                    color: '#ffffff',
+                    weight: 3,
+                  }}
+                />
+              </>
+            )}
           </MapContainer>
         </div>
         
@@ -381,6 +433,22 @@ export default function Map() {
           aria-label="Search buildings"
         >
           <Icon name="search" size={20} />
+        </button>
+        
+        {/* Locate Me Button */}
+        <button
+          type="button"
+          onClick={locateUser}
+          disabled={locationLoading}
+          className={`absolute top-4 right-4 w-11 h-11 rounded-xl shadow-lg z-[1000] flex items-center justify-center transition-all border-2 ${
+            userLocation
+              ? 'bg-blue-500 text-white border-blue-400'
+              : 'bg-white dark:bg-[var(--color-surface)] border-[var(--color-border)] text-gray-700 dark:text-[var(--color-txt-1)] hover:text-blue-500 hover:border-blue-400'
+          } ${locationLoading ? 'animate-pulse' : ''}`}
+          title={locationError || 'Show my location'}
+          aria-label="Show my location"
+        >
+          <Icon name="locateMe" size={22} />
         </button>
         
         {/* Selected building info card */}

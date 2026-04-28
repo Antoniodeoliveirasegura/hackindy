@@ -36,7 +36,7 @@ export default function Navbar() {
   return (
     <>
       <nav
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out
+        className={`fixed top-0 left-0 right-0 z-[1100] transition-all duration-500 ease-out
           ${scrolled
             ? 'h-14 glass shadow-md border-b border-[var(--color-border)]'
             : 'h-16 bg-transparent'
@@ -101,13 +101,13 @@ export default function Navbar() {
                 <>
                   <button
                     type="button"
-                    className="fixed inset-0 z-[60] cursor-default"
+                    className="fixed inset-0 z-[1500] cursor-default"
                     aria-label="Close menu"
                     onClick={() => setMenuOpen(false)}
                   />
                   <div
                     role="menu"
-                    className="absolute right-0 top-12 z-[70] min-w-[220px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1 text-left"
+                    className="absolute right-0 top-12 z-[1501] min-w-[220px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-lg py-1 text-left"
                   >
                     <div className="px-3 py-2 border-b border-[var(--color-border)]">
                       <div className="text-[13px] font-medium text-[var(--color-txt-0)] truncate">
@@ -176,12 +176,12 @@ export default function Navbar() {
       </nav>
 
       <div
-        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[2000] md:hidden transition-opacity duration-300 ${mobileOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setMobileOpen(false)}
       />
 
       <div
-        className={`fixed top-0 right-0 h-full w-72 bg-[var(--color-surface)] z-50 md:hidden transition-transform duration-500 ease-out shadow-xl ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`fixed top-0 right-0 h-full w-72 bg-[var(--color-surface)] z-[2001] md:hidden transition-transform duration-500 ease-out shadow-xl ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
       >
         <div className="p-6 pt-20">
           <div className="space-y-2">
