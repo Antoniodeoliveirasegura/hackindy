@@ -63,6 +63,7 @@ const resourceGroups: ResourceGroup[] = [
     icon: 'users',
     color: 'events',
     items: [
+      { name: 'Clubs & Organizations', desc: 'Browse every BoilerLink student org, Indianapolis groups first, inside the app.', icon: 'users', link: '/clubs' },
       { name: 'BoilerLink', desc: 'Student organizations, campus involvement, and Purdue community engagement.', icon: 'users', href: 'https://boilerlink.purdue.edu/' },
       { name: 'Student Employment', desc: 'On-campus jobs, work-study support, and student employment resources.', icon: 'briefcase', href: 'https://www.purdue.edu/studentemployment/site/' },
       { name: 'Student Employment Office', desc: 'Official Purdue Office of Professional Practice student employment support.', icon: 'briefcase', href: 'https://www.opp.purdue.edu/' },
@@ -100,6 +101,7 @@ const shortcuts: Shortcut[] = [
   { to: '/grade-tracker', icon: 'graduation', label: 'Grade Tracker', desc: 'Track courses and your term & cumulative GPA.' },
   { to: '/transit', icon: 'bus', label: 'Transit', desc: 'Open campus movement tools and shuttle info.' },
   { to: '/parking', icon: 'parking', label: 'Parking', desc: 'Live garage counts and ST permit rules.' },
+  { to: '/clubs', icon: 'users', label: 'Clubs', desc: 'Student orgs in Indianapolis and across Purdue.' },
   { to: '/dining', icon: 'dining', label: 'Dining', desc: 'Check menus, hours, and dining context.' },
   { to: '/free-food', emoji: '🍕', label: 'Free Food', desc: 'Upcoming events serving free food on campus.' },
   { to: '/lost-found', icon: 'search', label: 'Lost & Found', desc: 'Report or find lost items around campus.' },
