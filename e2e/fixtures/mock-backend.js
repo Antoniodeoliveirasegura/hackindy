@@ -52,6 +52,149 @@ function defaultPush(overrides = {}) {
   }
 }
 
+// Club directory (#16): six organizations, three of them Indianapolis groups,
+// in the club shape src/boilerlinkClubs.mjs produces. searchSampleClubs applies
+// the same scope / category / q / paging rules as GET /api/clubs.
+function sampleClub(overrides) {
+  return {
+    id: '1',
+    name: 'Chess Club Purdue Indianapolis',
+    shortName: 'Chess Club',
+    slug: 'indychess',
+    url: 'https://boilerlink.purdue.edu/organization/indychess',
+    imageUrl: null,
+    blurb: 'Weekly meetings for players of every level, plus a casual ladder and trips to regional tournaments.',
+    categories: ['Athletic and Recreation', 'Club Sports', 'Hobby'],
+    indianapolis: true,
+    ...overrides,
+  }
+}
+
+const TINY_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+export function sampleClubs() {
+  return [
+    sampleClub(),
+    sampleClub({
+      id: '2',
+      name: 'Computer Science Club (Indianapolis)',
+      shortName: 'CS Club',
+      slug: 'computerscienceclub',
+      url: 'https://boilerlink.purdue.edu/organization/computerscienceclub',
+      imageUrl: TINY_GIF,
+      blurb: 'Talks, hackathons and study jams for anyone who writes code.',
+      categories: ['Computer and Technical-Based Interest', 'Pre-Professional'],
+    }),
+    sampleClub({
+      id: '3',
+      name: 'Run Club of Purdue in Indianapolis',
+      shortName: null,
+      slug: 'runclubindianapolis',
+      url: 'https://boilerlink.purdue.edu/organization/runclubindianapolis',
+      blurb: 'Easy group runs along the canal three mornings a week.',
+      categories: ['Athletic and Recreation', 'Club Sports'],
+    }),
+    sampleClub({
+      id: '4',
+      name: 'Boiler Robotics Club',
+      shortName: 'BRC',
+      slug: 'boilerrobotics',
+      url: 'https://boilerlink.purdue.edu/organization/boilerrobotics',
+      imageUrl: TINY_GIF,
+      blurb: 'Build and compete with autonomous robots.',
+      categories: ['Computer and Technical-Based Interest', 'Hobby'],
+      indianapolis: false,
+    }),
+    sampleClub({
+      id: '5',
+      name: 'Dance Marathon',
+      shortName: 'PUDM',
+      slug: 'dancemarathon',
+      url: 'https://boilerlink.purdue.edu/organization/dancemarathon',
+      blurb: 'A year of fundraising for Riley Hospital for Children, ending in an 18-hour marathon.',
+      categories: ['Community Service & Civic Engagement', 'Dance'],
+      indianapolis: false,
+    }),
+    sampleClub({
+      id: '6',
+      name: 'Purdue Sailing Club',
+      shortName: null,
+      slug: 'sailing',
+      url: 'https://boilerlink.purdue.edu/organization/sailing',
+      blurb: 'Learn to sail at Eagle Creek, no experience needed.',
+      categories: ['Athletic and Recreation', 'Club Sports'],
+      indianapolis: false,
+    }),
+  ]
+}
+
+const CLUBS_SOURCE_URL = 'https://boilerlink.purdue.edu/api/discovery/search/organizations'
+
+function searchSampleClubs(clubs, searchParams) {
+  const q = (searchParams.get('q') || '').trim().toLowerCase()
+  const category = (searchParams.get('category') || '').trim()
+  const scope = searchParams.get('scope') === 'indianapolis' ? 'indianapolis' : 'all'
+  const pageSize = Math.min(100, Math.max(1, Number(searchParams.get('pageSize')) || 24))
+  const sorted = [...clubs].sort((a, b) => a.name.localeCompare(b.name))
+  const matches = sorted.filter((c) => {
+    if (scope === 'indianapolis' && !c.indianapolis) return false
+    if (category && !c.categories.some((name) => name.toLowerCase() === category.toLowerCase())) return false
+    if (q && !`${c.name} ${c.shortName || ''} ${c.blurb} ${c.categories.join(' ')}`.toLowerCase().includes(q)) return false
+    return true
+  })
+  const pages = Math.max(1, Math.ceil(matches.length / pageSize))
+  const page = Math.min(pages, Math.max(1, Number(searchParams.get('page')) || 1))
+  const counts = new Map()
+  for (const c of sorted) {
+    for (const name of c.categories) {
+      const row = counts.get(name) || { name, count: 0, indianapolisCount: 0 }
+      row.count += 1
+      if (c.indianapolis) row.indianapolisCount += 1
+      counts.set(name, row)
+    }
+  }
+  return {
+    ok: true,
+    source: 'boilerlink-organizations',
+    sourceUrl: CLUBS_SOURCE_URL,
+    fetchedAt: '2026-09-08T12:00:00.000Z',
+    stale: false,
+    directoryTotal: sorted.length,
+    indianapolisTotal: sorted.filter((c) => c.indianapolis).length,
+    q,
+    category,
+    scope,
+    page,
+    pageSize,
+    pages,
+    total: matches.length,
+    clubs: matches.slice((page - 1) * pageSize, page * pageSize),
+    categories: [...counts.values()].sort((a, b) => a.name.localeCompare(b.name)),
+  }
+}
+
+function degradedSampleClubs(searchParams) {
+  return {
+    ok: false,
+    error: 'timeout',
+    source: 'boilerlink-organizations',
+    sourceUrl: CLUBS_SOURCE_URL,
+    fetchedAt: '2026-09-08T12:00:00.000Z',
+    stale: false,
+    directoryTotal: 0,
+    indianapolisTotal: 0,
+    q: (searchParams.get('q') || '').trim(),
+    category: (searchParams.get('category') || '').trim(),
+    scope: searchParams.get('scope') === 'indianapolis' ? 'indianapolis' : 'all',
+    page: 1,
+    pageSize: 24,
+    pages: 1,
+    total: 0,
+    clubs: [],
+    categories: [],
+  }
+}
+
 // Parking (#14): two garages with live counts, one without (sensor offline),
 // plus the permit block the page renders. Mirrors buildSnapshot()'s output.
 function sampleParkingGarage(overrides) {
@@ -161,6 +304,8 @@ export const test = base.extend({
       major: null,
       // Parking status (#14). null === use the built-in sample snapshot.
       parking: null,
+      // Club directory (#16): { clubs, degraded }. null === the built-in sample list.
+      clubs: null,
       // Web Push (#9): see defaultPush / seedPush.
       push: defaultPush(),
       pushSeq: 0,
@@ -359,6 +504,15 @@ export const test = base.extend({
         return json(route, 200, { feedUrl: state.feedUrl })
       }
 
+      // Club directory (#16): the payload shape mirrors searchClubDirectory()
+      // in src/boilerlinkClubs.mjs, filters included.
+      if (pathname === '/api/clubs' && method === 'GET') {
+        const { searchParams } = new URL(req.url())
+        const seed = state.clubs || {}
+        if (seed.degraded) return json(route, 200, degradedSampleClubs(searchParams))
+        return json(route, 200, searchSampleClubs(seed.clubs || sampleClubs(), searchParams))
+      }
+
       // Parking status (#14): the payload shape mirrors src/parkingStatus.mjs.
       if (pathname === '/api/parking/garages') {
         return json(route, 200, state.parking ?? sampleParkingSnapshot())
@@ -489,6 +643,9 @@ export const test = base.extend({
       },
       seedParking(snapshot) {
         state.parking = snapshot
+      },
+      seedClubs({ clubs = null, degraded = false } = {}) {
+        state.clubs = { clubs, degraded }
       },
       seedPush(overrides = {}) {
         state.push = defaultPush(overrides)
