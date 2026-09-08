@@ -1,0 +1,340 @@
+{
+  "@odata.context": "https://collegiatelink2.search.windows.net/indexes('organizations')/$metadata#docs(*)",
+  "@odata.count": 13,
+  "@search.coverage": 100,
+  "value": [
+    {
+      "@search.score": 1,
+      "Id": "366060",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "  \"ABC\" - The Art of Bonsai Club",
+      "ShortName": null,
+      "WebsiteKey": "abc",
+      "ProfilePicture": "9070083f-c29a-4a29-8c2b-cfcb7a8181ad54e0e0f7-2979-472c-9603-19dccd86136b.png",
+      "Description": "<p><strong>Summary</strong></p>\r\n<p>- Learn how to develop and grow your own bonsai. Delve into the mechanics of trees and the art behind bonsai.</p>\r\n<p>- Members who pay dues receive bonsai trees and plants on which they apply the techniques they have learned.</p>\r\n<p>&nbsp;</p>\r\n<p><strong>Signing Up &amp; Callouts</strong></p>\r\n<p>- Purdue scholars can sign up or attend a callout via our boilerlink or following our instagram!</p>\r\n<p>&nbsp;</p>\r\n<p><br /><strong>Contact<br /></strong>For inquiries and donations, contact us at <strong>abc@purdue.edu</strong>, and we'll get back to you as soon as possible!</p>\r\n<p><strong>instagram: @purduebonsai</strong></p>",
+      "Summary": "𝐓𝐡𝐞 𝐀𝐫𝐭 𝐨𝐟 𝐀𝐝𝐨𝐫𝐚𝐛𝐥𝐞 𝐓𝐫𝐞𝐞❜𝐬 - Learn how to grow the worlds most interesting plant. Develop 𝐠𝐫𝐢𝐭, 𝐩𝐞𝐫𝐬𝐞𝐯𝐞𝐫𝐚𝐧𝐜𝐞 and an eye for art. Join to partake in a dedicated community of growers",
+      "CategoryIds": [
+        "1456",
+        "1458",
+        "4985"
+      ],
+      "CategoryNames": [
+        "Ethnic / Cultural",
+        "Hobby",
+        "Multicultural"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "408241",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": " PENTECOST STUDENTS AND ASSOCIATES (PENSA) CAMPUS MINISTRY at PURDUE UNIVERSITY",
+      "ShortName": "PENSA Campus Ministry at Purdue University",
+      "WebsiteKey": "home_youthpensausa_org",
+      "ProfilePicture": "c5b50937-7345-440f-8ab2-de379b339cf4c5c87ca2-5879-4c56-b888-e4cf1bb5c98a.png",
+      "Description": "<p>Pentecost Students and Associates (PENSA) Campus Ministry at Purdue University is a chapter of PENSA-USA Campus Ministry, which serves as a unifying body for all students and affiliates of The Church of Pentecost (C.O.P) and non-C.O.P member students who join the Association at any university or college campus, in developing an intimate personal relationship with our Lord Jesus Christ. PENSA Campus Ministry at Purdue University will be committed to teaching sound Christian doctrine, discipleship, and peer-to-peer mentoring to strengthen the spiritual life of members, and totally equip members for service in the Body of Christ and society at large.</p>",
+      "Summary": "PENSA Campus Ministry at Purdue University, a chapter of PENSA-USA, unites students and believers to grow in Christ through discipleship, teaching sound doctrine, strengthening faith, and fellowship.",
+      "CategoryIds": [
+        "1467"
+      ],
+      "CategoryNames": [
+        "Religious and Spiritual"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "401442",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": " Taekwondo Club of Purdue Indianapolis",
+      "ShortName": null,
+      "WebsiteKey": "indianapolistaekwondo",
+      "ProfilePicture": "9f8b2058-b159-4de2-9f3a-554cbddbcd21dff04400-cc6f-48e1-9424-2d5232bd5932.JPG",
+      "Description": "<p>The official Taekwondo Club of Purdue Indianapolis.&nbsp; We train four days a week on Tuesday, Friday, Saturday, and Sunday. Everyone is welcome to join regardless of experience.</p>",
+      "Summary": "\r\nThe official Taekwondo Club of Purdue Indianapolis.  We train four days a week on Tuesday, Friday, Saturday, and Sunday. Everyone is welcome to join regardless of experience.",
+      "CategoryIds": [
+        "1448",
+        "1450",
+        "1461"
+      ],
+      "CategoryNames": [
+        "Athletic and Recreation",
+        "Club Sports",
+        "Martial Arts and Weaponry Organizations"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "404807",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "Chess Club Purdue Indianapolis",
+      "ShortName": "Chess Club",
+      "WebsiteKey": "indychess",
+      "ProfilePicture": "a4e1cf22-de36-489d-aa22-9977f1a00558694957c4-7e2c-4ae0-8ec0-58a14381663b.png",
+      "Description": null,
+      "Summary": "The Purdue Chess Club hosts weekly meetings that provide students the opportunity to play casual games with others. We provide chess sets and clocks at these meetings, and welcome players of all skill levels. We encourage players try to find opponents.",
+      "CategoryIds": [
+        "1448",
+        "1450",
+        "1458"
+      ],
+      "CategoryNames": [
+        "Athletic and Recreation",
+        "Club Sports",
+        "Hobby"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "417287",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "Sim Racing Club at Purdue",
+      "ShortName": "SRC",
+      "WebsiteKey": "simracingclub",
+      "ProfilePicture": "45988967-f61c-4815-b767-e26844ea8dcf86a80d8f-ecd4-46f3-93e5-37e0bb29cfef.PNG",
+      "Description": "<p>The Sim Racing Club at Purdue (SRC) is an Indianapolis-based, student-led organization where racing passion meets engineering ambition. We compete in major virtual racing events such as the iRacing 24 Hours of Daytona and Indianapolis 500, giving students a fast-paced, team-driven environment to learn and compete. <br /><br />Along with racing, our club's focus is to provide hands-on experience in data acquisition, car setup, race strategy, and driver development. Whether you want to race, engineer, or strategize, SRC accelerates your path toward a future in motorsports engineering.</p>",
+      "Summary": "The Sim Racing Club at Purdue (SRC) is a student-led organization in Indianapolis competing in major iRacing events. Members gain practical experience in race strategy, data analysis, car setup, and teamwork to prepare for careers in motorsports.",
+      "CategoryIds": [
+        "1449",
+        "1450",
+        "1458",
+        "7535",
+        "7538"
+      ],
+      "CategoryNames": [
+        "Automotive / Flight",
+        "Club Sports",
+        "Hobby",
+        "Computer and Technical-Based Interest",
+        "Pre-Professional"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "24377",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "Dance Marathon",
+      "ShortName": "PUDM",
+      "WebsiteKey": "dancemarathon",
+      "ProfilePicture": "b1918aac-6a48-4589-a93d-a71e297bc1da50a7d5d9-3915-4f42-b14b-e7596b9fe15c.png",
+      "Description": "<p>Purdue University Dance Marathon (PUDM) is the largest student-run philanthropic organization on campus. PUDM is in its 21st year on campus and has hosted 21 marathons to date. The primary mission of our organization is to provide support, both financially and emotionally, to the children and families of Riley Hospital for Children in Indianapolis, IN, while also engaging and serving the undergraduate student of Purdue University.&nbsp;</p>\r\n<p>To date PUDM has raised over $12 million benefiting Riley Hospital and is currently ranked in the Top 10&nbsp;largest dance marathons in the nation.&nbsp;</p>\r\n<p>Throughout the year, an Executive Board of 26 individuals work with 600+ committee members to plan and execute fundraising and awareness events throughout campus. In November of each year, 1,000+ Boilermakers stand together to celebrate the hard work that has been put into a year of fundraising for the kids.&nbsp;</p>\r\n<p><strong>Visit apply.pudm.org to get involved!&nbsp;</strong></p>\r\n<p>In our final event participants choose to join us for 12 hours to show their unending support to the kids.&nbsp;</p>",
+      "Summary": "We are the largest student-run philanthropic organization on campus with over 2000 students working to enhance the lives of the patients and families at Riley Hospital for Children in Indianapolis, Indiana. Email president@pudm.org for more information!",
+      "CategoryIds": [
+        "1453",
+        "1455",
+        "7536"
+      ],
+      "CategoryNames": [
+        "Community Service & Civic Engagement",
+        "Dance",
+        "Advocacy and Support"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "24522",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "American Society of Heating, Refrigerating & Air Conditioning Engineers",
+      "ShortName": "ASHRAE",
+      "WebsiteKey": "ashrae",
+      "ProfilePicture": "8422a0d6-5b0d-4711-ba87-97405a0aac6c6c8cbe5a-1e43-48b0-aec7-9693e5fb4f2c.JPG",
+      "Description": "<p>We are the Purdue University Student Branch of the American Society of Heating, Refrigeration and Air Conditioning Engineers (ASHRAE), a society that was formed by a merger in 1959 of the American Society of Heating and Air-Conditioning Engineers (ASHAE), founded in 1894, and The American Society of Refrigerating Engineers (ASRE), founded in 1904. Since 1948, we have been active on the West Lafayette campus and, as of 2025, also on the Indianapolis campus, advancing the arts and sciences of heating, ventilating, air conditioning, and refrigerating to serve humanity and promote a sustainable world.</p>\r\n<p>The society and its members focus on building systems, energy efficiency, indoor air quality, and sustainability within the industry. Through our local chapter (Central Indiana Chapter), we are part of an international organization with more than 50,000 members. Embedded in a global network, we provide scholarships, professional support in the form of publications and handbooks, and help students network and launch careers in the field of HVAC&amp;R. The regular attendance of ASHRAE conferences gives students a platform to publish and present research and ensures close contact with industry professionals.</p>",
+      "Summary": "For 77 years, the ASHRAE Student Branch passionate about serving the built environment. More than ever, skilled engineers, researchers and other professionals are needed to create a sustainable, innovative and energy saving world. ",
+      "CategoryIds": [
+        "1451",
+        "1460",
+        "7535",
+        "7537",
+        "7538",
+        "7544"
+      ],
+      "CategoryNames": [
+        "College / School and Department",
+        "International ",
+        "Computer and Technical-Based Interest",
+        "Graduate and Professional Student Organizations",
+        "Pre-Professional",
+        "Entrepreneurial"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "408262",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "Taiwanese Student Association of Purdue Indianapolis ",
+      "ShortName": "TSA Indy",
+      "WebsiteKey": "tsa_indy",
+      "ProfilePicture": "5e6e5fc6-9768-46cd-bf72-cd3b841e7a65a987a8e3-f380-490c-b99e-c968f46793f8.png",
+      "Description": null,
+      "Summary": "The Taiwanese Student Association at Purdue Indianapolis (TSA Indy) is a student-led organization dedicated to fostering a sense of community among Taiwanese students and those interested in Taiwanese culture.",
+      "CategoryIds": [
+        "1456",
+        "1458",
+        "4985"
+      ],
+      "CategoryNames": [
+        "Ethnic / Cultural",
+        "Hobby",
+        "Multicultural"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "420522",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "USB Indy",
+      "ShortName": "USB Indy",
+      "WebsiteKey": "usbindy",
+      "ProfilePicture": "c4805255-baff-4f8e-9858-bdd6c84d5a84a8b09e2f-f0e8-4830-9641-df9b43100f23.png",
+      "Description": null,
+      "Summary": "The Computer Science Undergraduate Board is dedicated to improving the student experience within Computer and Data Sciences at Purdue- whether by managing CS193, hosting forums for student advocacy.",
+      "CategoryIds": [
+        "1451",
+        "1472",
+        "7535",
+        "7536"
+      ],
+      "CategoryNames": [
+        "College / School and Department",
+        "Student Run Publications",
+        "Computer and Technical-Based Interest",
+        "Advocacy and Support"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "365664",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "Agricultural Sciences Education and Communication Graduate Student Organization",
+      "ShortName": "ASEC GSO",
+      "WebsiteKey": "asec_gso",
+      "ProfilePicture": null,
+      "Description": "<p>The purpose of the student organization is based on three principle tasks, which are (a) creating a supportive and inclusive environment in the Agricultural Sciences Education and Communication (ASEC) graduate department, (b) providing students an opportunity to communicate issues related to their graduate studies and to create a bridge among the ASEC graduate students, and (c) to assist graduate students in professional and social development.</p>",
+      "Summary": "We aim to increase communication in the ASEC department and to provide opportunities for graduate students to improve their knowledge and skills.",
+      "CategoryIds": [
+        "1451",
+        "7537"
+      ],
+      "CategoryNames": [
+        "College / School and Department",
+        "Graduate and Professional Student Organizations"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "327720",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "3D Printed Prosthetics Club",
+      "ShortName": "3DPPC",
+      "WebsiteKey": "3dprintedprostheticsclub",
+      "ProfilePicture": "218d71df-66b2-4503-b3a6-a35183977acf7c8d167f-096a-44e2-95c3-1ff41194e3d3.png",
+      "Description": null,
+      "Summary": "The 3D Printed Prosthetics Club is an organization which strives to improve the lives of amputees and limb different members through the design, manufacturing, and implementation of assistive prosthetic devices.",
+      "CategoryIds": [
+        "1458",
+        "7535",
+        "7544"
+      ],
+      "CategoryNames": [
+        "Hobby",
+        "Computer and Technical-Based Interest",
+        "Entrepreneurial"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "406974",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": " VEX U Team Purdue Indianapolis",
+      "ShortName": "PINDY",
+      "WebsiteKey": "pindy",
+      "ProfilePicture": "dea2e233-3bc5-4da4-9972-8b53ca07854ac18c6ae6-dd36-4a0a-9626-393442f2b63b.png",
+      "Description": "<p>Vex U Robotics in Indianapolis is a robotics centered club at Purdue University in Indianapolis. The club is for any students at Purdue interested in the field of VEX related robotics. We strived to provide opportunities to educate Purdue students in VEX-related robotics, as well as general robotics and engineering. The club provides activities that involve robotics and engineering to solve problems, as well as a specialized team that will be competing in the VEX Robotics Competition. Through our club, students will be able to further their experiences and knowledge in robotics and engineering. This will also serve as another bridge to further emphasize the main campus to Indy campus relationship.</p>",
+      "Summary": "The Purdue Indianapolis VEX U Team is for any student interested in the field of robotics. We strive to provide opportunities to educate Purdue students in the concepts and applications of robotics, as well as competing and displaying their skills.",
+      "CategoryIds": [
+        "1450",
+        "1458",
+        "1460",
+        "7535"
+      ],
+      "CategoryNames": [
+        "Club Sports",
+        "Hobby",
+        "International ",
+        "Computer and Technical-Based Interest"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    },
+    {
+      "@search.score": 1,
+      "Id": "296383",
+      "InstitutionId": 34,
+      "ParentOrganizationId": 77161,
+      "BranchId": 77161,
+      "Name": "Pokémon GO Club of Purdue",
+      "ShortName": "PoGo Purdue",
+      "WebsiteKey": "pogopurdue",
+      "ProfilePicture": "c8e53bc1-6b7f-4488-940e-64c324a563362fa48b2c-d639-4bf2-9f01-bc08ff7bdc82.png",
+      "Description": "<p style=\"text-align: left;\">Our organization is dedicated to assisting all&nbsp;Pok&eacute;mon Go players on and off campus. All players are welcome regardless of their skill or dedication level. The goal is to provide a social outlet for those that love exploring the wonderful campus of Purdue while interacting with their favorite&nbsp;Pok&eacute;mon. We will work closely with the Purdue and greater West Lafayette community to create events we can all enjoy together. Members of the club can expect frequent events such as raid meetups, trade meetings, community day activities, and PvP tournaments. Our club is proud to be part of the official Pok&eacute;mon GO Community Ambassador Program, and receives official support from Scopely to make the Campus experience even better!</p>",
+      "Summary": "A club dedicated to fostering the ever growing community of Pokémon GO players on and around campus. Join us for events hosted throughout the year based on every aspect of the game ranging from raids to trade meetups! ",
+      "CategoryIds": [
+        "1448",
+        "1458",
+        "7535"
+      ],
+      "CategoryNames": [
+        "Athletic and Recreation",
+        "Hobby",
+        "Computer and Technical-Based Interest"
+      ],
+      "Status": "Active",
+      "Visibility": "Public"
+    }
+  ]
+}

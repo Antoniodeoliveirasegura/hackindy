@@ -29,6 +29,7 @@ import ical from 'node-ical'
 import { createClient } from '@supabase/supabase-js'
 import { cancelCalendarCapture, getCalendarCaptureJob, isCalendarAutomationEnabled, startCalendarCapture } from './src/purdueCalendarAutomation.mjs'
 import { fetchParkingStatus } from './src/parkingStatus.mjs'
+import { createClubDirectoryCache, parseClubSearchParams, searchClubDirectory } from './src/boilerlinkClubs.mjs'
 import { isValidSubscription, loadVapidKeys, sendWebPush } from './src/webPush.mjs'
 import {
   buildTestPayload,
@@ -359,6 +360,17 @@ const marketplaceReadRateLimit = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: 'Too many marketplace requests. Please slow down.',
+})
+// Club directory searches never reach BoilerLink per request (the directory is
+// cached for hours), so they get their own bucket instead of eating into the
+// live transit / dining budget shared by `public-read`. Search-as-you-type
+// sends a few requests per query, hence the roomier limit.
+const clubsReadRateLimit = createRateLimiter({
+  name: 'clubs-read',
+  windowMs: 15 * 60 * 1000,
+  max: 300,
+  keyBy: 'ip',
+  message: 'Too many requests. Please try again shortly.',
 })
 
 function nowIso() {
@@ -2929,6 +2941,29 @@ app.get('/api/parking/garages', publicReadRateLimit, async (_req, res) => {
   }
 })
 
+// Club directory (issue #16): BoilerLink's public organizations API, about
+// 1,200 orgs and 1.9 MB upstream. The whole list is fetched in pages, held in
+// memory for hours (src/boilerlinkClubs.mjs owns the cache) and searched here,
+// so a phone downloads one page of results and BoilerLink sees a handful of
+// requests per TTL. The cache serves the last good directory while a refresh
+// runs and never throws; an outage answers `ok: false` with an empty list.
+// See docs/clubs.md.
+const clubDirectoryCache = createClubDirectoryCache({
+  ttlMs: Number(process.env.BOILERLINK_CLUBS_CACHE_MS) || undefined,
+})
+
+app.get('/api/clubs', clubsReadRateLimit, async (req, res) => {
+  try {
+    const params = parseClubSearchParams(req.query)
+    const { directory, stale } = await clubDirectoryCache.get()
+    res.set('Cache-Control', 'public, max-age=300')
+    res.json(searchClubDirectory(directory, params, { stale }))
+  } catch (error) {
+    console.error('Club directory error:', error)
+    res.status(500).json({ error: 'Failed to load the club directory' })
+  }
+})
+
 // ── Push notifications (issue #9): Web Push subscriptions, settings, reminders ──
 // See docs/push-notifications.md. Keys come from VAPID_PUBLIC_KEY /
 // VAPID_PRIVATE_KEY (node scripts/generate-vapid-keys.mjs); without them every
@@ -5450,4 +5485,8 @@ app.listen(port, host, async () => {
       '\n[BoilerIndy] Analytics: table analytics_events not found. Run db/supabase-analytics.sql in Supabase SQL Editor, then restart the server.\n',
     )
   }
+  // Club directory (#16): fill the cache now so the first /clubs visit after a
+  // deploy does not wait on BoilerLink's paged fetch. The keep-warm pinger
+  // keeps the process (and so this cache) alive between visits.
+  setTimeout(() => void clubDirectoryCache.refresh(), 5_000).unref()
 })
