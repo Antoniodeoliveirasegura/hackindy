@@ -1,10 +1,13 @@
 # Marketplace photo uploads
 
-The mobile app prepares a JPEG (maximum 1600-pixel edge, 5 MiB). The Express API
-uses the existing student session to authorize a direct Supabase Storage upload.
-Listings support up to six ordered photos. The website shows a cover and the full
-gallery; its form accepts image links, while the mobile form uploads device photos.
-Pricing choices are Set price, Free and Best offer. Zero always displays as Free.
+The mobile app and the website both prepare a JPEG (maximum 1600-pixel edge,
+5 MiB) on the device. The Express API uses the existing student session to
+authorize a direct Supabase Storage upload, and either client attaches the
+verified photo through the create / edit API. Listings carry up to six ordered
+photos; the first is the cover. The website shows the cover on cards and the
+full gallery on the detail panel, and its form takes one uploaded photo (the
+cover) plus image links, while the mobile form uploads several device photos.
+Pricing choices are Set price, Free and Best offer; zero always displays as Free.
 
 ## Server configuration and rollout
 
@@ -50,7 +53,6 @@ field preserves the gallery. A retained bucket URL must already belong to that
 listing; new uploads require receipts. Duplicate URLs and mixed legacy/gallery
 fields are rejected. API reads include `images` and legacy `imageUrl`.
 
-
 `POST /api/marketplace/photos/authorize` requires `requireAuth`, a linked Purdue
 account, and a per-user limit of 20 requests/hour (the existing in-memory limiter;
 limits are per process and reset on restart). The body is
@@ -64,19 +66,45 @@ Upload using `uploadToSignedUrl(path, token, arrayBuffer, { contentType: "image/
 Overwrite is disabled on the signed token. The authorization and receipt last two
 hours. The file becomes publicly readable at upload time, before listing save.
 
-Create/PATCH accepts `imageUploadReceipt` instead of `imageUrl`. The API verifies
-the signature, seller, target listing, expiry, Storage size/content type, actual
-byte length and JPEG start/end markers before writing the canonical public URL.
-These are format checks, not a full image decoder or content moderation service.
-A new attachment cannot be made by supplying a raw bucket URL. An existing URL
-can be preserved by an old website edit. Other HTTP(S) image links still work.
+The legacy single-image fields still work: create/PATCH accepts `imageUploadReceipt`
+instead of `imageUrl`. The API verifies the signature, seller, target listing,
+expiry, Storage size/content type, actual byte length and JPEG start/end markers
+before writing the canonical public URL. These are format checks, not a full image
+decoder or content moderation service. A new attachment cannot be made by
+supplying a raw bucket URL. An existing URL can be preserved by an old website
+edit. Other HTTP(S) image links still work.
 
 The app awaits upload and then save, locks competing actions, and keeps its draft
 and selected photos on failure. Each successful upload is reused on retries until
 near expiry, including when a later photo upload fails. Photos convert and upload
-sequentially to bound memory. Sellers can remove photos and choose the cover. Unmounting during upload prevents
-a subsequent listing save. Cancelled/failed/abandoned objects are swept later.
-Demo mode never sends photo bytes to live Storage.
+sequentially to bound memory. Sellers can remove photos and choose the cover.
+Unmounting during upload prevents a subsequent listing save. Cancelled, failed and
+abandoned objects are swept later. Demo mode never sends photo bytes to live Storage.
+
+## Website
+
+`boilerindy-react/src/lib/marketplacePhotos.ts` runs the same pipeline in the
+browser: `prepareListingPhoto` decodes the picked file (`createImageBitmap`
+with EXIF orientation applied, `<img>` as the fallback), draws it onto a canvas
+inside 1600 px and re-encodes to JPEG, stepping quality and size down until it
+fits 5 MiB. That also turns PNG, WebP and (where the browser can decode it,
+i.e. Safari) HEIC into JPEG, and drops the trailer data some phone cameras
+append after the end-of-image marker, which the server's check would reject.
+`uploadListingPhoto` then calls the authorize route, PUTs the bytes with the
+existing browser Supabase client (`uploadToSignedUrl`), and returns the
+receipt. `reuploadListingPhoto` refreshes a receipt that sat open past its
+two-hour life without asking for the photo again.
+
+`pages/Marketplace.tsx` renders the cover the way the app does (category tile
+underneath, image on top) and the whole gallery on the detail panel, and owns
+the photo field: one uploaded photo becomes the cover, an "Image links" box
+adds up to six photos in order (the same box lists a listing's current photos
+when editing, so removing a line removes that photo and clearing it sends
+`photos: []`), a failed upload keeps the draft and the photo and offers Retry,
+and posting is held until the photo is ready or removed. The form checks
+`/api/marketplace/capabilities` before writing. The pricing menu maps to
+`priceMode`; the price box only shows for a set price. `blob:` is allowed in
+the site's `img-src` for the previews.
 
 ## Cleanup
 
@@ -100,8 +128,9 @@ TTL, which would also delete images referenced by active listings.
 ## Verification
 
 Backend unit tests cover seller/listing binding, expiry and tampering, upload
-restrictions, incomplete/corrupt files, ownership checks, error redaction and
-cleanup reference retention/dry run. Run with Node 22 and the frozen pnpm lockfile.
+restrictions, incomplete/corrupt files, ownership checks, error redaction,
+cleanup reference retention/dry run, gallery ordering and rejection rules, and
+pricing normalization. Run with Node 22 and the frozen pnpm lockfile.
 
 An explicit Storage-only smoke test takes a JPEG under 100 KB, creates one random
 test object, verifies it and its public bytes, then removes that exact object in
@@ -122,14 +151,15 @@ alone does not verify those paths.
 
 ## Gallery rollout acceptance (pending)
 
-Automated checks: 330 backend tests and 112 website tests, website TypeScript,
-ESLint and production build passed. Mobile tests cover mixed saved/uploaded
-photos, partial upload failure, retry reuse, cover selection, the six-photo cap,
-pricing normalization and unsupported-server protection.
+Automated checks: backend and website suites, website TypeScript, ESLint and
+production build pass. Mobile tests cover mixed saved/uploaded photos, partial
+upload failure, retry reuse, cover selection, the six-photo cap, pricing
+normalization and unsupported-server protection.
 
-The SQL has been reviewed but has not been applied to production. After applying
-it and deploying, verify the capabilities endpoint with a signed-in session, then
-create a six-photo listing (including an iPhone HEIC), edit its cover/remove/add
-photos, and reopen it on the website and a second account. Verify Free and Best
-offer, including changing between them and a numeric price. Restore any temporary
-test-account verification after acceptance is finished.
+The SQL has been applied to production (read-only checks on 2026-09-09 confirmed
+the columns and the backfill). After deploying, verify the capabilities endpoint
+with a signed-in session, then create a six-photo listing (including an iPhone
+HEIC), edit its cover / remove / add photos, and reopen it on the website and a
+second account. Verify Free and Best offer, including changing between them and
+a numeric price. Restore any temporary test-account verification after acceptance
+is finished.

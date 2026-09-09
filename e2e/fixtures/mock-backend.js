@@ -195,6 +195,120 @@ function degradedSampleClubs(searchParams) {
   }
 }
 
+// Marketplace (#32) with listing photos (#171): three listings in the
+// mapListingRow shape, one of them the test user's own and one with a photo.
+// The seeded photo is an opaque 1x1 PNG so it visibly covers the category tile.
+const SAMPLE_PHOTO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mPcrLvzPwAFrAK6Ojz5GwAAAABJRU5ErkJggg=='
+
+function sampleListing(overrides) {
+  return {
+    id: 'listing-1',
+    title: 'Calculus textbook, 9th edition',
+    description: 'Barely used, no highlights.',
+    category: 'textbooks',
+    priceCents: 4500,
+    priceMode: 'fixed',
+    imageUrl: SAMPLE_PHOTO,
+    images: [SAMPLE_PHOTO],
+    status: 'active',
+    createdAt: '2026-09-07T12:00:00.000Z',
+    isMine: false,
+    ...overrides,
+  }
+}
+
+export function sampleListings() {
+  return [
+    sampleListing(),
+    sampleListing({ id: 'listing-2', title: 'Desk lamp', description: 'Warm white LED.', category: 'furniture', priceCents: 1250, imageUrl: null, images: [], isMine: true }),
+    sampleListing({ id: 'listing-3', title: 'Bus pass, spring', description: '', category: 'rideshare', priceCents: 0, priceMode: 'free', imageUrl: null, images: [] }),
+  ]
+}
+
+// Where the mock "bucket" serves uploaded photos from; the context-level Storage
+// routes below answer the signed PUT and the public GET for this prefix.
+const STORAGE_PUBLIC_BASE = 'https://e2e.supabase.test/storage/v1/object/public/marketplace-images'
+
+function defaultMarketplace() {
+  return {
+    listings: sampleListings(),
+    listingSeq: 3,
+    photoSeq: 0,
+    // receipt -> { path, byteSize, listingId }, issued by the authorize route.
+    receipts: new Map(),
+    // path -> byte count, recorded by the mocked signed PUT.
+    uploads: new Map(),
+    photosUnavailable: false,
+    failNextUpload: false,
+    // Every create / edit body the page sent, for assertions on the wire shape.
+    bodies: [],
+  }
+}
+
+// Same rules as marketplacePhotos.resolve() on the server. The ordered
+// `photos` list (#177) mixes { url } and { receipt } entries, at most six, the
+// first being the cover; a receipt must match the seller's listing and a
+// finished upload; a bucket URL can only be kept if the listing already had it.
+// The legacy single-image fields still work for older clients.
+function resolveMockReceipt(m, value, listingId) {
+  const receipt = m.receipts.get(value)
+  if (!receipt || receipt.listingId !== (listingId || null)) return { error: 'This photo belongs to another seller or listing.' }
+  if (!m.uploads.has(receipt.path)) return { error: 'The uploaded photo is missing or incomplete. Choose it again and retry.' }
+  return { url: `${STORAGE_PUBLIC_BASE}/${receipt.path}` }
+}
+
+function resolveMockPhoto(m, body, listingId, existingImages = []) {
+  if (body.photos !== undefined) {
+    if (body.imageUrl !== undefined || body.imageUploadReceipt !== undefined) return { error: 'Choose one photo format.' }
+    if (!Array.isArray(body.photos) || body.photos.length > 6) return { error: 'Choose up to 6 photos.' }
+    const urls = []
+    for (const photo of body.photos) {
+      if (!photo || typeof photo !== 'object') return { error: 'Each photo needs one image link or upload receipt.' }
+      if (typeof photo.receipt === 'string') {
+        const resolved = resolveMockReceipt(m, photo.receipt, listingId)
+        if (resolved.error) return resolved
+        urls.push(resolved.url)
+      } else if (typeof photo.url === 'string') {
+        const value = photo.url.trim()
+        if (value.startsWith(STORAGE_PUBLIC_BASE) && !existingImages.includes(value)) return { error: 'Select the photo to upload it to this listing.' }
+        urls.push(value)
+      } else {
+        return { error: 'Each photo needs one image link or upload receipt.' }
+      }
+    }
+    if (new Set(urls).size !== urls.length) return { error: 'Choose each photo only once.' }
+    return { imageUrl: urls[0] || null, images: urls }
+  }
+  if (body.imageUploadReceipt !== undefined) {
+    if (body.imageUrl) return { error: 'Choose either an uploaded photo or an image link.' }
+    const resolved = resolveMockReceipt(m, body.imageUploadReceipt, listingId)
+    if (resolved.error) return resolved
+    return { imageUrl: resolved.url, images: [resolved.url] }
+  }
+  if (body.imageUrl !== undefined) {
+    const value = String(body.imageUrl || '').trim()
+    return { imageUrl: value || null, images: value ? [value] : [] }
+  }
+  return {}
+}
+
+// Price modes (#177): Free is zero, Best offer is null, a set price is cents or
+// unspecified; older clients that send only priceCents get a mode inferred.
+function applyMockPricing(listing, body) {
+  if (body.priceMode !== undefined) {
+    if (!['fixed', 'free', 'best_offer'].includes(body.priceMode)) return 'Choose a valid price option'
+    listing.priceMode = body.priceMode
+    if (body.priceMode === 'free') listing.priceCents = 0
+    else if (body.priceMode === 'best_offer') listing.priceCents = null
+    else listing.priceCents = body.priceCents == null ? null : Number(body.priceCents)
+  } else if (body.priceCents !== undefined) {
+    listing.priceCents = body.priceCents == null ? null : Number(body.priceCents)
+    listing.priceMode = listing.priceCents === 0 ? 'free' : 'fixed'
+  }
+  if (listing.priceCents === 0) listing.priceMode = 'free'
+  return null
+}
+
 // Parking (#14): two garages with live counts, one without (sensor offline),
 // plus the permit block the page renders. Mirrors buildSnapshot()'s output.
 function sampleParkingGarage(overrides) {
@@ -306,6 +420,8 @@ export const test = base.extend({
       parking: null,
       // Club directory (#16): { clubs, degraded }. null === the built-in sample list.
       clubs: null,
+      // Marketplace (#32) + listing photos (#171): see defaultMarketplace / seedMarketplace.
+      marketplace: defaultMarketplace(),
       // Web Push (#9): see defaultPush / seedPush.
       push: defaultPush(),
       pushSeq: 0,
@@ -333,7 +449,7 @@ export const test = base.extend({
 
     await context.route('**/api/**', async (route) => {
       const req = route.request()
-      const { pathname } = new URL(req.url())
+      const { pathname, searchParams } = new URL(req.url())
       const method = req.method()
       const bodyOf = () => {
         try {
@@ -504,10 +620,109 @@ export const test = base.extend({
         return json(route, 200, { feedUrl: state.feedUrl })
       }
 
+      // Marketplace (#32) and listing photos (#171): shapes mirror mapListingRow
+      // and the /api/marketplace/* routes in server.mjs, including the receipt
+      // flow (authorize here, PUT to the mocked Storage below, receipt instead
+      // of imageUrl on create / edit).
+      if (pathname === '/api/marketplace/photos/authorize' && method === 'POST') {
+        const m = state.marketplace
+        if (m.photosUnavailable) {
+          return json(route, 503, { error: { message: 'Photo storage settings need attention. Please try again later.', status: 503 } })
+        }
+        const b = bodyOf()
+        if (b.contentType !== 'image/jpeg' || !Number.isInteger(b.byteSize) || b.byteSize < 4 || b.byteSize > 5 * 1024 * 1024) {
+          return json(route, 400, { error: { message: 'Choose a JPEG photo no larger than 5 MB.', status: 400 } })
+        }
+        if (b.listingId && !m.listings.some((l) => l.id === b.listingId && l.isMine)) {
+          return json(route, 404, { error: { message: 'Listing not found or not yours.', status: 404 } })
+        }
+        const n = ++m.photoSeq
+        const path = `managed/${DEFAULT_USER.id}/${Date.now()}-photo-${n}.jpg`
+        const receipt = `receipt-${n}`
+        m.receipts.set(receipt, { path, byteSize: b.byteSize, listingId: b.listingId || null })
+        return json(route, 201, {
+          upload: { bucket: 'marketplace-images', path, token: `token-${n}`, receipt, expiresAt: Date.now() + 2 * 60 * 60 * 1000 },
+        })
+      }
+      if (pathname === '/api/marketplace' && method === 'GET') {
+        const m = state.marketplace
+        const category = (searchParams.get('category') || '').trim().toLowerCase()
+        const q = (searchParams.get('q') || '').trim().toLowerCase()
+        const page = Math.max(0, Number(searchParams.get('page')) || 0)
+        const visible = m.listings.filter(
+          (l) => l.status === 'active' && (!category || l.category === category) && (!q || l.title.toLowerCase().includes(q)),
+        )
+        const slice = visible.slice(page * 24, page * 24 + 24)
+        return json(route, 200, { listings: slice, page, hasMore: slice.length === 24, canPost: Boolean(state.onboarding.hasPurdueLinked) })
+      }
+      if (pathname === '/api/marketplace/mine' && method === 'GET') {
+        return json(route, 200, { listings: state.marketplace.listings.filter((l) => l.isMine) })
+      }
+      if (pathname === '/api/marketplace/capabilities' && method === 'GET') {
+        return json(route, 200, { gallery: true, pricing: true, maxPhotos: 6 })
+      }
+      if (pathname === '/api/marketplace' && method === 'POST') {
+        const m = state.marketplace
+        const b = bodyOf()
+        m.bodies.push({ method, body: b })
+        const title = String(b.title || '').trim()
+        if (!title) return json(route, 400, { error: { message: 'Title is required (max 120 characters)', status: 400 } })
+        const photo = resolveMockPhoto(m, b, null, [])
+        if (photo.error) return json(route, 400, { error: { message: photo.error, status: 400 } })
+        const listing = {
+          id: `listing-${++m.listingSeq}`,
+          title,
+          description: String(b.description || '').trim(),
+          category: String(b.category || 'misc'),
+          priceCents: null,
+          priceMode: 'fixed',
+          imageUrl: photo.imageUrl ?? null,
+          images: photo.images ?? [],
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          isMine: true,
+        }
+        const priceError = applyMockPricing(listing, b)
+        if (priceError) return json(route, 400, { error: { message: priceError, status: 400 } })
+        m.listings.unshift(listing)
+        return json(route, 201, { listing })
+      }
+      const listingMatch = pathname.match(/^\/api\/marketplace\/([^/]+)(\/report)?$/)
+      if (listingMatch && !['mine', 'photos', 'capabilities'].includes(listingMatch[1])) {
+        const m = state.marketplace
+        const listing = m.listings.find((l) => l.id === listingMatch[1])
+        if (listingMatch[2] && method === 'POST') return json(route, 200, { ok: true })
+        if (!listing) return json(route, 404, { error: { message: 'Listing not found.', status: 404 } })
+        if (method === 'GET') {
+          const seller = listing.isMine
+            ? { sellerName: DEFAULT_USER.name, sellerEmail: DEFAULT_USER.email }
+            : { sellerName: 'Riley Boilermaker', sellerEmail: 'riley@purdue.edu' }
+          return json(route, 200, { listing: { ...listing, ...seller } })
+        }
+        if (method === 'PATCH') {
+          const b = bodyOf()
+          m.bodies.push({ method, id: listing.id, body: b })
+          if (!listing.isMine) return json(route, 404, { error: { message: 'Listing not found or not yours.', status: 404 } })
+          const photo = resolveMockPhoto(m, b, listing.id, listing.images || [])
+          if (photo.error) return json(route, 400, { error: { message: photo.error, status: 400 } })
+          const priceError = applyMockPricing(listing, b)
+          if (priceError) return json(route, 400, { error: { message: priceError, status: 400 } })
+          for (const key of ['title', 'description', 'category', 'status']) {
+            if (b[key] !== undefined) listing[key] = String(b[key])
+          }
+          if (photo.imageUrl !== undefined) listing.imageUrl = photo.imageUrl
+          if (photo.images !== undefined) listing.images = photo.images
+          return json(route, 200, { listing: { ...listing } })
+        }
+        if (method === 'DELETE') {
+          m.listings = m.listings.filter((l) => l.id !== listing.id)
+          return route.fulfill({ status: 204, body: '' })
+        }
+      }
+
       // Club directory (#16): the payload shape mirrors searchClubDirectory()
       // in src/boilerlinkClubs.mjs, filters included.
       if (pathname === '/api/clubs' && method === 'GET') {
-        const { searchParams } = new URL(req.url())
         const seed = state.clubs || {}
         if (seed.degraded) return json(route, 200, degradedSampleClubs(searchParams))
         return json(route, 200, searchSampleClubs(seed.clubs || sampleClubs(), searchParams))
@@ -607,6 +822,37 @@ export const test = base.extend({
       return json(route, 200, { items: [], ok: true })
     })
 
+    // Supabase Storage (#171): the browser PUTs a listing photo straight to the
+    // signed upload URL and later reads it back from the public bucket URL.
+    // The PUT body is kept (the JPEG is cut out of it whether the client sent
+    // raw bytes or a multipart form) so the public GET serves the real photo
+    // and the card's <img> renders exactly what was uploaded.
+    await context.route('**/storage/v1/object/upload/sign/**', (route) => {
+      const m = state.marketplace
+      const request = route.request()
+      if (request.method() !== 'PUT') return route.fulfill({ status: 405, body: '' })
+      if (m.failNextUpload) {
+        m.failNextUpload = false
+        return route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ statusCode: '500', error: 'InternalError', message: 'mock storage failure' }),
+        })
+      }
+      const path = decodeURIComponent(new URL(request.url()).pathname.split('/marketplace-images/')[1] || '')
+      const raw = request.postDataBuffer() || Buffer.alloc(0)
+      const start = raw.indexOf(Buffer.from([0xff, 0xd8, 0xff]))
+      const end = raw.lastIndexOf(Buffer.from([0xff, 0xd9]))
+      m.uploads.set(path, start >= 0 && end > start ? raw.subarray(start, end + 2) : raw)
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ Key: `marketplace-images/${path}` }) })
+    })
+    await context.route('**/storage/v1/object/public/marketplace-images/**', (route) => {
+      const path = decodeURIComponent(new URL(route.request().url()).pathname.split('/marketplace-images/')[1] || '')
+      const bytes = state.marketplace.uploads.get(path)
+      if (!bytes) return route.fulfill({ status: 404, body: 'not found' })
+      return route.fulfill({ status: 200, contentType: 'image/jpeg', body: bytes })
+    })
+
     const controller = {
       state,
       login() {
@@ -646,6 +892,13 @@ export const test = base.extend({
       },
       seedClubs({ clubs = null, degraded = false } = {}) {
         state.clubs = { clubs, degraded }
+      },
+      seedMarketplace({ listings, photosUnavailable } = {}) {
+        if (listings) state.marketplace.listings = listings
+        if (photosUnavailable !== undefined) state.marketplace.photosUnavailable = photosUnavailable
+      },
+      failNextPhotoUpload() {
+        state.marketplace.failNextUpload = true
       },
       seedPush(overrides = {}) {
         state.push = defaultPush(overrides)
