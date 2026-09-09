@@ -9,12 +9,15 @@ import { useConfirm } from '../hooks/useConfirm'
 const CATEGORIES = [
   'textbooks', 'furniture', 'electronics', 'housing', 'rideshare', 'tutoring', 'tickets', 'misc',
 ]
-const EMPTY_FORM = { title: '', description: '', category: 'textbooks', price: '', imageUrl: '' }
+const EMPTY_FORM = { title: '', description: '', category: 'textbooks', price: '', priceMode: 'fixed', imageUrl: '' }
 
 type Listing = {
   id: string
   category?: string
   priceCents?: number | null
+  priceMode?: string
+  imageUrl?: string
+  images?: string[]
   title?: string
   description?: string
   status?: string
@@ -28,8 +31,10 @@ function errorText(e: unknown, fallback: string): string {
   return e instanceof Error && e.message ? e.message : fallback
 }
 
-function priceLabel(cents: number | null | undefined) {
-  if (cents == null) return 'Free / contact'
+function priceLabel(cents: number | null | undefined, mode?: string) {
+  if (mode === 'best_offer') return 'Best offer'
+  if (cents === 0 || mode === 'free') return 'Free'
+  if (cents == null) return 'Contact for price'
   return `$${(cents / 100).toFixed(2)}`
 }
 
@@ -138,16 +143,22 @@ export default function Marketplace() {
       setFormError('A title is required.')
       return
     }
+    const urls = form.imageUrl.split('\n').map((url) => url.trim()).filter(Boolean)
+    if (urls.length > 6) { setFormError('Choose up to 6 image links.'); return }
+    if (form.priceMode === 'fixed' && form.price.trim() && !/^(?:\d+(?:\.\d{0,2})?|\.\d{1,2})$/.test(form.price.trim())) { setFormError('Enter a price with up to two decimal places.'); return }
     setSubmitting(true)
     try {
+      const capabilities = await authRequest('/api/marketplace/capabilities') as { gallery?: boolean; pricing?: boolean }
+      if (!capabilities.gallery || !capabilities.pricing) throw new Error('Marketplace update is not ready. Please retry later.')
       await authRequest('/api/marketplace', {
         method: 'POST',
         body: JSON.stringify({
           title: form.title.trim(),
           description: form.description.trim(),
           category: form.category,
-          priceCents: form.price === '' ? null : Math.round(Number(form.price) * 100),
-          imageUrl: form.imageUrl.trim(),
+          priceMode: form.priceMode,
+          priceCents: form.priceMode === 'free' ? 0 : form.priceMode === 'best_offer' ? null : form.price.trim() ? Math.round(Number(form.price) * 100) : null,
+          photos: urls.map((url) => ({ url })),
         }),
       })
       setForm(EMPTY_FORM)
@@ -186,9 +197,10 @@ export default function Marketplace() {
     return (
       <div key={listing.id} className="card p-4 flex flex-col">
         <button type="button" onClick={() => openListing(listing)} className="text-left">
+          {(listing.images?.[0] || listing.imageUrl) && <img src={listing.images?.[0] || listing.imageUrl} alt={listing.title || 'Listing'} loading="lazy" className="w-full h-40 object-cover rounded-lg mb-3" />}
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[var(--color-stat)] text-[var(--color-txt-2)]">{listing.category}</span>
-            <span className="text-[13px] font-semibold text-[var(--color-txt-0)]">{priceLabel(listing.priceCents)}</span>
+            <span className="text-[13px] font-semibold text-[var(--color-txt-0)]">{priceLabel(listing.priceCents, listing.priceMode)}</span>
           </div>
           <h3 className="text-[14px] font-semibold text-[var(--color-txt-0)] mt-2 break-words">
             {listing.title}
@@ -236,8 +248,11 @@ export default function Marketplace() {
           </div>
           <textarea value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} maxLength={2000} rows={3} placeholder="Description" className="input w-full text-[13px] px-3 py-2 resize-y" />
           <div className="grid sm:grid-cols-2 gap-3">
-            <input value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} inputMode="decimal" placeholder="Price in $ (optional)" className="input w-full text-[13px] px-3 py-2" />
-            <input value={form.imageUrl} onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))} placeholder="Image URL (optional)" className="input w-full text-[13px] px-3 py-2" />
+            <select aria-label="Pricing" value={form.priceMode} onChange={(e) => setForm((f) => ({ ...f, priceMode: e.target.value }))} className="input w-full text-[13px] px-3 py-2">
+              <option value="fixed">Set price</option><option value="free">Free</option><option value="best_offer">Best offer</option>
+            </select>
+            {form.priceMode === 'fixed' && <input aria-label="Price in dollars" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} inputMode="decimal" placeholder="Price in $ (0 for free)" className="input w-full text-[13px] px-3 py-2" />}
+            <textarea aria-label="Image links" rows={3} value={form.imageUrl} onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))} placeholder="Image links (one per line, up to 6)" className="input w-full text-[13px] px-3 py-2" />
           </div>
           {formError && <p className="text-[12px] text-[var(--color-error)]">{formError}</p>}
           <button type="submit" disabled={submitting} className="btn btn-primary px-4 py-2.5 text-[13px] disabled:opacity-60">{submitting ? 'Posting…' : 'Post listing'}</button>
@@ -250,9 +265,12 @@ export default function Marketplace() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-[var(--color-stat)] text-[var(--color-txt-2)]">{selected.category}</span>
-              <h2 className="text-[18px] font-semibold text-[var(--color-txt-0)] mt-1.5">{selected.title} · {priceLabel(selected.priceCents)}</h2>
+              <h2 className="text-[18px] font-semibold text-[var(--color-txt-0)] mt-1.5">{selected.title} · {priceLabel(selected.priceCents, selected.priceMode)}</h2>
             </div>
             <button type="button" onClick={() => setSelected(null)} className="text-[var(--color-txt-3)] hover:text-[var(--color-txt-0)]"><Icon name="close" size={18} /></button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto mt-3">
+            {(selected.images ?? (selected.imageUrl ? [selected.imageUrl] : [])).map((url, i) => <img key={url} src={url} alt={`${selected.title || 'Listing'} photo ${i + 1}`} className="h-64 max-w-full rounded-lg object-contain" />)}
           </div>
           {selected.description && <p className="text-[13px] text-[var(--color-txt-1)] mt-2 whitespace-pre-wrap">{selected.description}</p>}
           <div className="mt-3 pt-3 border-t border-[var(--color-border)] text-[13px]">
